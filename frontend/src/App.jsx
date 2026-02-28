@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle2, Languages, Activity, Loader2, Stethoscope, Search, Volume2, VolumeX } from 'lucide-react';
 import { extractText } from '../../text-from-image/services/hybridService.js';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 const Logo = () => (
     <div style={{
