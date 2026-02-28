@@ -1,5 +1,7 @@
 # 🏥 Medex AI (Powered by MedInsight)
 
+[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/satyam2006-cmd/Medex-Ai)
+
 **Medex AI** is a cutting-edge medical report analyzer that transforms complex, jargon-heavy medical documents into clear, patient-friendly insights. Using **Google Gemini 1.5 Flash** and **gTTS**, it provides visual analysis, multilingual translations, and synchronized audio playback with word-by-word highlighting.
 
 ---
