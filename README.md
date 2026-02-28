@@ -1,8 +1,5 @@
 # 🏥 MedInsight AI
 
-[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/satyam2006-cmd/MedInsight-Ai)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/satyam2006-cmd/MedInsight-Ai&env=VITE_API_URL)
-
 **MedInsight AI** is a cutting-edge medical report analyzer that transforms complex, jargon-heavy medical documents into clear, patient-friendly insights. Using **Google Gemini 1.5 Flash** and **gTTS**, it provides visual analysis, multilingual translations, and synchronized audio playback with word-by-word highlighting.
 
 ---
@@ -68,34 +65,8 @@ The app will be available at `http://localhost:5173`.
 
 ---
 
-## 🌐 Deployment
-
-### Backend (Render / Heroku)
-1.  Connect your GitHub repo to **Render**.
-2.  Choose **Web Service**.
-3.  **Build Command**: `pip install -r requirements.txt`
-4.  **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'`
-5.  Add `GEMINI_API_KEY` to Environment Variables.
-
-### Frontend (Vercel)
-1.  Import the repo into **Vercel**.
-2.  Set the **Root Directory** to `.` (the `vercel.json` handles the subfolder build).
-3.  Add **Environment Variable**: `VITE_API_URL` = *Your Backend URL*.
-4.  Deploy!
-
 ---
 
-## ⚡ Keeping the App Awake (Render Free Tier)
-
-Render's free tier puts as service to sleep after 15 minutes of inactivity. To keep your API **always on** and avoid "cold starts":
-
-1.  Create a free account at **[cron-job.org](https://cron-job.org)**.
-2.  Create a new Cronjob.
-3.  **URL**: `https://your-medinsight-backend.onrender.com/health`
-4.  **Schedule**: Every 10 minutes.
-5.  This will "poke" the server frequently so it never falls asleep! 🚀
-
----
 
 ## ⚙️ Environment Variables
 
