@@ -85,6 +85,18 @@ The app will be available at `http://localhost:5173`.
 
 ---
 
+## ⚡ Keeping the App Awake (Render Free Tier)
+
+Render's free tier puts as service to sleep after 15 minutes of inactivity. To keep your API **always on** and avoid "cold starts":
+
+1.  Create a free account at **[cron-job.org](https://cron-job.org)**.
+2.  Create a new Cronjob.
+3.  **URL**: `https://your-medinsight-backend.onrender.com/health`
+4.  **Schedule**: Every 10 minutes.
+5.  This will "poke" the server frequently so it never falls asleep! 🚀
+
+---
+
 ## ⚙️ Environment Variables
 
 | Variable | Description | Required |
