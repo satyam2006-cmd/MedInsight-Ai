@@ -1,89 +1,102 @@
-# MedInsight AI: Medical Document Analyzer
+# 🏥 Medex AI (Powered by MedInsight)
 
-MedInsight AI is a production-ready backend service that leverages OCR and Large Language Models (LLMs) to transform complex medical documents into patient-friendly insights.
+**Medex AI** is a cutting-edge medical report analyzer that transforms complex, jargon-heavy medical documents into clear, patient-friendly insights. Using **Google Gemini 1.5 Flash** and **gTTS**, it provides visual analysis, multilingual translations, and synchronized audio playback with word-by-word highlighting.
 
-## 🚀 Overview
+---
 
-The service accepts medical document uploads (Images or PDFs) and utilizes Google's Gemini 1.5 Flash model's native **Multimodal Vision** capabilities to analyze documents directly, eliminating the need for local OCR binaries.
+## ✨ Key Features
 
-### Key Features
-- **AI-Powered Vision**: Directly processes Images and PDFs without external OCR tools.
-- **Language Agnostic**: Natively understands medical documents in various languages.
-- **AI Simplification**: Converts medical jargon into plain English.
-- **Multilingual Support**: Provides instant Hindi translations for summaries.
-- **Safety First**: Implements strict non-diagnostic logic to ensure patient safety.
+-   **🔍 AI-Powered Vision (OCR Free)**: Directly analyzes medical PDFs and images (JPG/PNG) using Gemini's native multimodal capabilities. No local OCR installation required!
+-   **🌍 Multilingual Translation**: Instantly translates complex medical summaries into your preferred language (Hindi, Marathi, Spanish, etc.).
+-   **🔊 Audio Insights (gTTS)**: Hear your report summary spoken aloud in a natural voice.
+-   **🖍️ Word-by-Word Highlighting**: Follow along with the audio! The translated text highlights in real-time as it's being read.
+-   **⚡ Neo-Brutalist UI**: A high-contrast, modern, and accessible interface for a premium user experience.
+-   **🛡️ Safety First**: Built-in non-diagnostic logic ensures a clear disclaimer is always present for patient safety.
 
-## 🏗 Architecture
+---
 
-```text
-+-------------------+       +-------------------------------+
-|   Document Input  | ----> |       Gemini AI Engine        |
-| (PDF/JPG/PNG)     |       | (OCR + Analysis + Translation)|
-+---------+---------+       +---------------+---------------+
-          |                                 |
-          v                                 v
-  +-------+-------+                 +-------+-------+
-  | API (FastAPI) | <-------------- | Structured JSON|
-  +---------------+                 +---------------+
-```
+## 🛠️ Tech Stack
 
-## 🛠 Tech Stack
-- **API**: FastAPI
-- **LLM**: Google Generative AI (Gemini 1.5 Flash)
-- **Validation**: Pydantic v2
-- **Environment**: Python-dotenv
-- **Frontend**: React (Neobrutalism Style)
+-   **Frontend**: React, Vite, Lucide-React (Icons)
+-   **Style**: Custom Vanilla CSS (Neo-Brutalism Design)
+-   **Backend**: FastAPI (Python 3.9+)
+-   **LLM Engine**: Google Generative AI (Gemini 1.5 Flash)
+-   **TTS Engine**: gTTS (Google Text-to-Speech)
+-   **Deployment**: Vercel (Frontend) & Render (Backend)
 
-## ⚙️ Setup Instructions
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.9+
-- [Google Gemini API Key](https://aistudio.google.com/app/apikey)
+-   Python 3.9+
+-   Node.js (for frontend)
+-   [Google Gemini API Key](https://aistudio.google.com/app/apikey)
 
-### 1. Clone & Install Dependencies
+### 1. Local Setup
+
+**Clone the repository:**
 ```bash
-git clone <repository-url>
-cd medinsight-ai
+git clone https://github.com/satyam2006-cmd/Medex-Ai.git
+cd Medex-Ai
+```
+
+**Set up the Backend:**
+```bash
+# Install dependencies
 pip install -r requirements.txt
-cd frontend && npm install
-```
 
-### 2. Configuration
-Create a `.env` file in the root:
-```env
-GEMINI_API_KEY=your_actual_api_key_here
-```
+# Create .env file
+echo "GEMINI_API_KEY=your_key_here" > .env
+echo "DEBUG=True" >> .env
 
-### 3. Run the Application
-```bash
+# Start FastAPI
 python -m app.main
 ```
-The server will start at `http://localhost:8000`.
 
-## 📖 API Usage
-
-### Analyze Document
-**Endpoint**: `POST /analyze-report`
-**Content-Type**: `multipart/form-data`
-
-**Example (curl)**:
+**Set up the Frontend:**
 ```bash
-curl -X POST "http://localhost:8000/analyze-report" \
-     -H "accept: application/json" \
-     -H "Content-Type: multipart/form-data" \
-     -F "file=@path/to/your/report.jpg" \
-     -F "target_language=Hindi"
+cd frontend
+npm install
+npm run dev
 ```
 
-**Output**:
-```json
-{
-  "summary": "Your blood test shows normal glucose levels...",
-  "hindi_translation": "आपकी रक्त जांच में ग्लूकोज का स्तर सामान्य है...",
-  "key_findings": ["Glucose: 95 mg/dL", "Hemoglobin: 14.2 g/dL"],
-  "potential_concerns": ["None identified based on this report"]
-}
-```
+The app will be available at `http://localhost:5173`.
 
-## ⚖️ Safety & Disclaimer
-This service is for **educational and informational purposes only**. It does not provide medical diagnoses or treatment recommendations. Always consult with a qualified healthcare professional regarding any medical results.
+---
+
+## 🌐 Deployment
+
+### Backend (Render / Heroku)
+1.  Connect your GitHub repo to **Render**.
+2.  Choose **Web Service**.
+3.  **Build Command**: `pip install -r requirements.txt`
+4.  **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+5.  Add `GEMINI_API_KEY` to Environment Variables.
+
+### Frontend (Vercel)
+1.  Import the repo into **Vercel**.
+2.  Set the **Root Directory** to `.` (the `vercel.json` handles the subfolder build).
+3.  Add **Environment Variable**: `VITE_API_URL` = *Your Backend URL*.
+4.  Deploy!
+
+---
+
+## ⚙️ Environment Variables
+
+| Variable | Description | Required |
+| :--- | :--- | :--- |
+| `GEMINI_API_KEY` | Your Google AI Studio API Key | **Yes** |
+| `DEBUG` | Enable auto-reload for development | No |
+| `VITE_API_URL` | Production Backend URL (Frontend Only) | **Yes (Prod)** |
+
+---
+
+## ⚖️ Disclaimer
+Medex AI is for **informational and educational purposes only**. It does not provide medical diagnoses, treatment advice, or professional healthcare recommendations. Always verify results with a qualified physician.
+
+---
+
+## 👨‍💻 Author
+**Satyam Bhagat**  
+[GitHub](https://github.com/satyam2006-cmd) | [Email](mailto:satyambhagat200623@gmail.com)
