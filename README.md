@@ -1,8 +1,8 @@
-# 🏥 Medex AI (Powered by MedInsight)
+# 🏥 MedInsight AI
 
-[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/satyam2006-cmd/Medex-Ai)
+[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/satyam2006-cmd/MedInsight-Ai)
 
-**Medex AI** is a cutting-edge medical report analyzer that transforms complex, jargon-heavy medical documents into clear, patient-friendly insights. Using **Google Gemini 1.5 Flash** and **gTTS**, it provides visual analysis, multilingual translations, and synchronized audio playback with word-by-word highlighting.
+**MedInsight AI** is a cutting-edge medical report analyzer that transforms complex, jargon-heavy medical documents into clear, patient-friendly insights. Using **Google Gemini 1.5 Flash** and **gTTS**, it provides visual analysis, multilingual translations, and synchronized audio playback with word-by-word highlighting.
 
 ---
 
@@ -39,8 +39,8 @@
 
 **Clone the repository:**
 ```bash
-git clone https://github.com/satyam2006-cmd/Medex-Ai.git
-cd Medex-Ai
+git clone https://github.com/satyam2006-cmd/MedInsight-Ai.git
+cd MedInsight-Ai
 ```
 
 **Set up the Backend:**
@@ -73,7 +73,7 @@ The app will be available at `http://localhost:5173`.
 1.  Connect your GitHub repo to **Render**.
 2.  Choose **Web Service**.
 3.  **Build Command**: `pip install -r requirements.txt`
-4.  **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4.  **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'`
 5.  Add `GEMINI_API_KEY` to Environment Variables.
 
 ### Frontend (Vercel)
@@ -95,7 +95,7 @@ The app will be available at `http://localhost:5173`.
 ---
 
 ## ⚖️ Disclaimer
-Medex AI is for **informational and educational purposes only**. It does not provide medical diagnoses, treatment advice, or professional healthcare recommendations. Always verify results with a qualified physician.
+MedInsight AI is for **informational and educational purposes only**. It does not provide medical diagnoses, treatment advice, or professional healthcare recommendations. Always verify results with a qualified physician.
 
 ---
 
