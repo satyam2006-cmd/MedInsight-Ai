@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Production-grade medical report analyzer using Google Vision and Gemini."
+    description="Production-grade medical report analyzer using Google Vision and Gemini.",
+    docs_url="/docs",
+    openapi_url="/openapi.json"
 )
 
 # CORS
