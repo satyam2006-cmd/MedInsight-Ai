@@ -28,6 +28,9 @@ function App() {
     const [rawText, setRawText] = useState('');
     const [extracting, setExtracting] = useState(false);
     const [speaking, setSpeaking] = useState(false);
+    const [audio, setAudio] = useState(null);
+    const [audioLoading, setAudioLoading] = useState(false);
+    const [highlightIndex, setHighlightIndex] = useState(-1);
 
     // Comprehensive language code mapping
     const ISO_LANGS = {
@@ -51,50 +54,94 @@ function App() {
         return voice;
     };
 
-    const speak = (text, lang) => {
-        window.speechSynthesis.cancel();
-
-        if (speaking) {
+    const speak = async (text, lang) => {
+        if (speaking && audio) {
+            audio.pause();
             setSpeaking(false);
+            setHighlightIndex(-1);
             return;
         }
+
+        if (audioLoading) return;
+
         if (!text) return;
 
         try {
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voice = getBestVoice(lang);
+            setAudioLoading(true);
+            const url = `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
+            const newAudio = new Audio(url);
 
-            if (voice) {
-                console.log(`TTS: Using voice ${voice.name} for ${lang}`);
-                utterance.voice = voice;
-                utterance.lang = voice.lang;
-            } else {
-                console.log(`TTS: No specific voice found for ${lang}, using fallback lang code.`);
-                utterance.lang = ISO_LANGS[lang.toLowerCase()] || 'en-US';
-            }
-
-            utterance.onstart = () => setSpeaking(true);
-            utterance.onend = () => setSpeaking(false);
-            utterance.onerror = (e) => {
-                console.error('TTS Error Event:', e);
-                setSpeaking(false);
+            newAudio.oncanplaythrough = async () => {
+                setAudioLoading(false);
+                try {
+                    console.log('Audio duration:', newAudio.duration);
+                    await newAudio.play();
+                    setSpeaking(true);
+                } catch (playErr) {
+                    console.error('Play error:', playErr);
+                    setSpeaking(false);
+                }
             };
 
-            window.speechSynthesis.speak(utterance);
+            const handleTimeUpdate = () => {
+                const duration = newAudio.duration;
+                if (duration && duration !== Infinity && !isNaN(duration)) {
+                    const currentTime = newAudio.currentTime;
+                    const progress = currentTime / duration;
+                    const words = text.trim().split(/\s+/);
+                    const totalChars = text.trim().length;
+                    const targetChar = progress * totalChars;
+
+                    let currentChars = 0;
+                    let foundIndex = -1;
+
+                    for (let i = 0; i < words.length; i++) {
+                        const wordLength = words[i].length;
+                        // Heuristic: currentChars is start, currentChars + wordLength is end
+                        if (targetChar >= currentChars && targetChar <= (currentChars + wordLength + 1)) {
+                            foundIndex = i;
+                            break;
+                        }
+                        currentChars += wordLength + 1;
+                    }
+
+                    if (foundIndex !== -1) {
+                        setHighlightIndex(foundIndex);
+                    }
+                }
+            };
+
+            newAudio.addEventListener('timeupdate', handleTimeUpdate);
+
+            newAudio.onended = () => {
+                setSpeaking(false);
+                setAudio(null);
+                setHighlightIndex(-1);
+                newAudio.removeEventListener('timeupdate', handleTimeUpdate);
+            };
+
+            newAudio.onerror = (e) => {
+                console.error('Audio Playback Error:', e);
+                setSpeaking(false);
+                setAudioLoading(false);
+                setAudio(null);
+                setHighlightIndex(-1);
+                newAudio.removeEventListener('timeupdate', handleTimeUpdate);
+            };
+
+            setAudio(newAudio);
         } catch (err) {
             console.error('TTS Error:', err);
             setSpeaking(false);
+            setAudioLoading(false);
         }
     };
 
     React.useEffect(() => {
-        const load = () => window.speechSynthesis.getVoices();
-        load();
-        if (window.speechSynthesis.onvoiceschanged !== undefined) {
-            window.speechSynthesis.onvoiceschanged = load;
-        }
-        return () => window.speechSynthesis.cancel();
-    }, []);
+        return () => {
+            if (audio) audio.pause();
+        };
+    }, [audio]);
 
     const handleFileChange = async (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -320,13 +367,29 @@ function App() {
                                 <button
                                     onClick={() => speak(result.hindi_translation, targetLanguage)}
                                     className="neo-btn"
+                                    disabled={audioLoading}
                                     style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.9rem' }}
                                 >
-                                    {speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                                    {speaking ? 'Stop' : 'Listen'}
+                                    {audioLoading ? <Loader2 size={18} className="animate-spin" /> : speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                    {audioLoading ? 'Loading...' : speaking ? 'Stop' : 'Listen'}
                                 </button>
                             </div>
-                            <p style={{ fontSize: '1.2rem', fontWeight: 500 }}>{result.hindi_translation}</p>
+                            <div style={{ fontSize: '1.2rem', fontWeight: 500, lineHeight: '1.8' }}>
+                                {result.hindi_translation.trim().split(/\s+/).map((word, i) => (
+                                    <span
+                                        key={i}
+                                        className={highlightIndex === i ? 'word-highlight' : ''}
+                                        style={{
+                                            display: 'inline-block',
+                                            marginRight: '0.4rem',
+                                            padding: '0 2px',
+                                            transition: 'background-color 0.1s ease'
+                                        }}
+                                    >
+                                        {word}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
 
                         {result.key_findings && result.key_findings.length > 0 && (
