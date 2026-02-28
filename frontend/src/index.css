@@ -2,9 +2,12 @@
 
 :root {
   --bg-color: #f0f0f0;
-  --primary: #FFD100; /* Vibrant Yellow */
-  --secondary: #FF6B6B; /* Coral */
-  --accent: #4D96FF; /* Sky Blue */
+  --primary: #FFD100;
+  /* Vibrant Yellow */
+  --secondary: #FF6B6B;
+  /* Coral */
+  --accent: #4D96FF;
+  /* Sky Blue */
   --black: #000000;
   --white: #ffffff;
   --border-width: 3px;
@@ -26,7 +29,9 @@ body {
   line-height: 1.5;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-weight: 900;
   text-transform: uppercase;
   margin-bottom: 1rem;
@@ -96,4 +101,13 @@ h1, h2, h3 {
   font-size: 0.8rem;
   text-transform: uppercase;
   margin-bottom: 0.5rem;
+}
+
+.word-highlight {
+  background-color: var(--primary) !important;
+  color: var(--black) !important;
+  border-radius: 4px;
+  font-weight: 700;
+  border: none !important;
+  box-shadow: none !important;
 }
