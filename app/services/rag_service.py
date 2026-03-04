@@ -1,17 +1,17 @@
 import logging
-import numpy as np
+import re
 
 logger = logging.getLogger(__name__)
 
 class RAGService:
-    """Handles Retrieval-Augmented Generation using FAISS and SentenceTransformers."""
+    """
+    Lightweight keyword-based retrieval for medical grounding.
+    Optimized for Render's 512MB RAM limit by avoiding heavy models like SentenceTransformers/Torch.
+    """
 
     def __init__(self):
-        self._model = None
-        self.index = None
-        self.kb_content = []
-        # Initial seed items
-        self.seed_texts = [
+        # Initial seed items (knowledge base)
+        self.kb_content = [
             "Normal Hemoglobin (Hb) levels: Men: 13.5-17.5 g/dL, Women: 12.0-15.5 g/dL. Low levels may indicate anemia.",
             "Normal fasting blood sugar: 70-99 mg/dL. Prediabetes: 100-125 mg/dL. Diabetes: 126 mg/dL or higher.",
             "Total Cholesterol: Desirable: <200 mg/dL. Borderline high: 200-239 mg/dL. High: >=240 mg/dL.",
@@ -20,60 +20,44 @@ class RAGService:
             "Platelet Count: Normal range is 150,000 to 450,000 platelets per microliter of blood.",
             "Bilirubin: Normal total bilirubin is typically 0.1 to 1.2 mg/dL."
         ]
-        logger.info("RAGService initialized (Lazy Loading Enabled).")
-
-    def _get_model(self):
-        """Lazy-loads the SentenceTransformer model."""
-        if self._model is None:
-            try:
-                from sentence_transformers import SentenceTransformer
-                logger.info("Initial loading of SentenceTransformer model (this may take a moment)...")
-                self._model = SentenceTransformer('all-MiniLM-L6-v2')
-                # Initialize index with seed data once model is ready
-                self._initialize_index()
-            except Exception as e:
-                logger.error(f"Failed to load SentenceTransformer: {str(e)}")
-        return self._model
-
-    def _initialize_index(self):
-        """Hidden initialization after model is loaded."""
-        if not self.kb_content and self.seed_texts:
-            self.seed_knowledge_base(self.seed_texts)
+        logger.info("RAGService (Lightweight Mode) initialized.")
 
     def seed_knowledge_base(self, docs):
-        """Indexes a list of documents into the FAISS vector store."""
-        model = self._get_model()
-        if not docs or not model:
-            return
-        
-        import faiss
-        self.kb_content.extend(docs)
-        embeddings = model.encode(docs)
-        
-        dimension = embeddings.shape[1]
-        if self.index is None:
-            self.index = faiss.IndexFlatL2(dimension)
-        
-        self.index.add(np.array(embeddings).astype('float32'))
+        """Adds more documents to the knowledge base."""
+        if docs:
+            self.kb_content.extend(docs)
 
-    def retrieve_context(self, query: str, top_k: int = 3) -> str:
-        """Retrieves relevant medical context for a given query."""
-        model = self._get_model()
-        if not model or self.index is None or not query:
+    def retrieve_context(self, query: str, top_k: int = 2) -> str:
+        """
+        Retrieves relevant medical context using keyword overlap.
+        Extremely memory efficient.
+        """
+        if not query or not self.kb_content:
             return ""
 
         try:
-            query_vector = model.encode([query])
-            distances, indices = self.index.search(np.array(query_vector).astype('float32'), top_k)
+            # Simple keyword extraction (ignore short stop words)
+            keywords = set(re.findall(r'\b\w{4,}\b', query.lower()))
             
-            context_chunks = []
-            for i in indices[0]:
-                if i != -1 and i < len(self.kb_content):
-                    context_chunks.append(self.kb_content[i])
+            scored_docs = []
+            for doc in self.kb_content:
+                doc_lower = doc.lower()
+                # Count how many query keywords appear in the document
+                score = sum(1 for kw in keywords if kw in doc_lower)
+                if score > 0:
+                    scored_docs.append((score, doc))
             
-            return "\n".join(context_chunks)
+            # Sort by score and take top_k
+            scored_docs.sort(key=lambda x: x[0], reverse=True)
+            results = [doc for score, doc in scored_docs[:top_k]]
+            
+            if results:
+                logger.info(f"Retrieved {len(results)} relevant medical context items via keywords.")
+                return "\n".join(results)
+            return ""
+            
         except Exception as e:
-            logger.error(f"RAG retrieval failed: {str(e)}")
+            logger.error(f"Lightweight RAG retrieval failed: {str(e)}")
             return ""
 
 rag_service = RAGService()
