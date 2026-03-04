@@ -1,3 +1,13 @@
+---
+title: MedInsight AI
+emoji: 🏥
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # 🏥 MedInsight AI
 
 **MedInsight AI** is a cutting-edge medical report analyzer that transforms complex, jargon-heavy medical documents into clear, patient-friendly insights. Using **Google Gemini 1.5 Flash** and **gTTS**, it provides visual analysis, multilingual translations, and synchronized audio playback with word-by-word highlighting.
