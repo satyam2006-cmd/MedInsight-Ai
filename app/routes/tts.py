@@ -18,7 +18,7 @@ async def get_tts(
         raise HTTPException(status_code=400, detail="Text parameter is required")
 
     try:
-        audio_stream = tts_service.generate_audio(text, lang)
+        audio_stream = await tts_service.generate_audio(text, lang)
         # Get the size of the BytesIO stream
         content_length = audio_stream.getbuffer().nbytes
         
