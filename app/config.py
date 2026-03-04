@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     # API Keys
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY") or os.getenv("Gemini_API_KEY") or ""
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     
     # App Settings
@@ -28,3 +28,13 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 settings = Settings()
+
+# Diagnostic logging for deployment
+import logging
+diagnostic_logger = logging.getLogger("app.config")
+if settings.GEMINI_API_KEY:
+    masked = f"{settings.GEMINI_API_KEY[:4]}...{settings.GEMINI_API_KEY[-4:]}"
+    diagnostic_logger.info(f"✅ GEMINI_API_KEY loaded successfully. Masked: {masked}")
+else:
+    diagnostic_logger.error("❌ GEMINI_API_KEY NOT FOUND in environment variables!")
+diagnostic_logger.info(f"Using Model: {settings.GEMINI_MODEL}")
