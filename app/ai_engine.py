@@ -78,7 +78,6 @@ class AIEngine:
 
             if extracted_text and extracted_text.strip():
                 logger.info(f"Performing AI analysis. Language: {target_language}. Using Model: {self.model_id}")
-                print(f"DEBUG: Using model '{self.model_id}' for analysis")
                 full_prompt = f"{prompt_instr}\n\nMEDICAL CONTENT TO ANALYZE:\n{extracted_text}"
                 
                 response = await self._generate_content_with_retry(
