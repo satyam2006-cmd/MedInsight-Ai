@@ -1,37 +1,48 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import json
 import re
 import time
+import asyncio
 from .config import settings
 from .schemas import AnalysisResponse
 from .services.translation_service import translation_service
+from .services.rag_service import rag_service
 import logging
 
 logger = logging.getLogger(__name__)
 
 class AIEngine:
-    """Interfaces with Google Gemini LLM using Multimodal Vision to analyze medical documents"""
+    """Interfaces with Google Gemini LLM using the new google-genai package with RAG support"""
     
     def __init__(self):
         if not settings.GEMINI_API_KEY:
             logger.warning("GEMINI_API_KEY not found in environment variables.")
-            self.model = None
+            self.client = None
         else:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            # Switching to 'gemini-flash-latest' (1.5 Flash) to troubleshoot quota issues
-            self.model = genai.GenerativeModel('gemini-flash-latest')
-            logger.info("AIEngine initialized with gemini-flash-latest")
+            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            self.model_id = settings.GEMINI_MODEL
+            logger.info(f"AIEngine initialized with {self.model_id} using google-genai client")
 
     async def analyze_medical_document(self, file_content: bytes, mime_type: str, target_language: str = "Hindi", extracted_text: str = None) -> AnalysisResponse:
-        """Performs analysis using extracted text if available, otherwise falls back to multimodal"""
-        if not self.model:
-            raise Exception("Gemini model not initialized. Check API Key.")
+        """Performs analysis using extracted text and RAG context"""
+        if not self.client:
+            raise Exception("Gemini client not initialized. Check API Key.")
         
         try:
+            # Retrieve grounding context via RAG
+            rag_context = ""
+            if extracted_text:
+                rag_context = rag_service.retrieve_context(extracted_text)
+                logger.info("Retrieved RAG context for grounding.")
+
             # Base prompt for the AI
             prompt_instr = f"""
             You are an expert medical communicator. 
             Analyze the following medical content and provide patient-friendly insights.
+            
+            {"USE THE FOLLOWING MEDICAL CONTEXT AS A REFERENCE FOR NORMAL RANGES AND DEFINITIONS:" if rag_context else ""}
+            {rag_context}
             
             STRICT RULES:
             1. NO DIAGNOSIS. Use phrases like "The report indicates..." or "This finding is often associated with...".
@@ -56,28 +67,35 @@ class AIEngine:
               "hindi_translation": "",
               "risk_level": "Low/Medium/High",
               "key_findings": ["Finding 1", "Finding 2"],
-              "potential_concerns": ["Concern 1", "Concern 2"]
+              "potential_concerns": ["Concern 1", "Concern 2"],
+              "medical_entities": {{
+                "symptoms": ["symptom 1"],
+                "medications": ["medication 1"],
+                "vital_signs": ["vital sign 1"]
+              }}
             }}
             """
 
             if extracted_text and extracted_text.strip():
-                logger.info(f"Performing TEXT-ONLY AI analysis. Language: {target_language}")
+                logger.info(f"Performing AI analysis. Language: {target_language}. Using Model: {self.model_id}")
+                print(f"DEBUG: Using model '{self.model_id}' for analysis")
                 full_prompt = f"{prompt_instr}\n\nMEDICAL CONTENT TO ANALYZE:\n{extracted_text}"
-                response = self.model.generate_content(
-                    full_prompt,
-                    generation_config=genai.types.GenerationConfig(
+                
+                response = await self._generate_content_with_retry(
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
                         response_mime_type="application/json"
                     )
                 )
             else:
-                logger.info(f"Performing MULTIMODAL AI analysis (fallback). Language: {target_language}")
-                # Fallback to vision if no text provided
-                response = self.model.generate_content(
-                    [
-                        {"mime_type": mime_type, "data": file_content},
+                # Fallback to multimodal if no text extracted (though we prefer OCR now)
+                logger.info("Performing MULTIMODAL AI analysis (fallback).")
+                response = await self._generate_content_with_retry(
+                    contents=[
+                        types.Part.from_bytes(data=file_content, mime_type=mime_type),
                         prompt_instr
                     ],
-                    generation_config=genai.types.GenerationConfig(
+                    config=types.GenerateContentConfig(
                         response_mime_type="application/json"
                     )
                 )
@@ -90,13 +108,12 @@ class AIEngine:
             else:
                 json_data = json.loads(raw_text)
 
-            # Use Google Translate for the Hindi/Preferred Translation field
+            # Translation handle
             summary_en = json_data.get("summary", "")
             if summary_en and target_language.lower() != 'english':
                 translated = translation_service.translate_text(summary_en, target_language)
                 json_data["hindi_translation"] = translated
                 
-                # Also translate lists
                 if "key_findings" in json_data:
                     json_data["key_findings"] = [
                         translation_service.translate_text(f, target_language) 
@@ -110,12 +127,31 @@ class AIEngine:
             else:
                 json_data["hindi_translation"] = summary_en
 
-            # Validate with Pydantic
-            validated_response = AnalysisResponse(**json_data)
-            return validated_response
+            return AnalysisResponse(**json_data)
 
         except Exception as e:
             logger.error(f"AI analysis failed: {str(e)}")
             raise Exception(f"Failed to analyze medical document: {str(e)}")
+
+    async def _generate_content_with_retry(self, contents, config, max_retries=3):
+        """Helper to call Gemini with exponential backoff on 429 errors"""
+        for i in range(max_retries):
+            try:
+                # The google-genai client models.generate_content is synchronous
+                # We use it directly but wrap the entire method in async
+                return self.client.models.generate_content(
+                    model=self.model_id,
+                    contents=contents,
+                    config=config
+                )
+            except Exception as e:
+                err_msg = str(e).lower()
+                # Check for 429 status code or 'rate limit' in error message
+                if ("429" in err_msg or "rate limit" in err_msg) and i < max_retries - 1:
+                    wait_time = (2 ** i) + 2  # 2, 4, 6 seconds
+                    logger.warning(f"Gemini Rate Limit hit. Retrying in {wait_time}s... (Attempt {i+1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                    continue
+                raise e
 
 ai_engine = AIEngine()
