@@ -6,7 +6,7 @@
 
 ## ✨ Key Features
 
--   **🔍 AI-Powered Vision (OCR Free)**: Directly analyzes medical PDFs and images (JPG/PNG) using Gemini's native multimodal capabilities. No local OCR installation required!
+-   **🔍 Frontend OCR**: Extracts text from medical PDFs and images locally on your device using Tesseract.js and PDF.js before sending it to the AI for analysis.
 -   **🌍 Multilingual Translation**: Instantly translates complex medical summaries into your preferred language (Hindi, Marathi, Spanish, etc.).
 -   **🔊 Audio Insights (gTTS)**: Hear your report summary spoken aloud in a natural voice.
 -   **🖍️ Word-by-Word Highlighting**: Follow along with the audio! The translated text highlights in real-time as it's being read.
@@ -33,7 +33,8 @@ MedInsight AI is built with a modular, scalable architecture:
 -   **Frontend Client (Vite + React)**: Handles UI rendering, document uploads, and dynamic interactions (like synchronized text highlighting).
 -   **FastAPI Backend**: Acts as the high-performance orchestration layer. It manages API requests and strictly controls the flow of data to external AI models.
 -   **AI Capabilities Layer**:
-    -   **Google Gemini 1.5 Flash Vision**: Unlike traditional pipelines that require a separate Optical Character Recognition (OCR) step, MedInsight AI passes documents seamlessly to Gemini's highly-capable native multimodal engine. It processes both text and visual components of medical PDFs or images in one step to extract and simplify complex reports.
+    -   **Tesseract.js OCR**: Extracts text directly from images and PDFs in the frontend. This pre-processed text is then passed to the backend, enabling fast and reliable data extraction.
+    -   **Google Gemini 1.5 Flash**: Processes the extracted text, simplifying the complex medical jargon and generating accurate, patient-friendly insights.
     -   **Google Text-To-Speech (gTTS)**: Processes the localized, simplified insights to generate a seamless audio experience, allowing users to listen to their health summaries.
 
 ---
