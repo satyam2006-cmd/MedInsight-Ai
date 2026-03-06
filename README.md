@@ -1,13 +1,3 @@
----
-title: MedInsight AI
-emoji: 🏥
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
-app_port: 7860
----
-
 # 🏥 MedInsight AI
 
 **MedInsight AI** is a cutting-edge medical report analyzer that transforms complex, jargon-heavy medical documents into clear, patient-friendly insights. Using **Google Gemini 1.5 Flash** and **gTTS**, it provides visual analysis, multilingual translations, and synchronized audio playback with word-by-word highlighting.
@@ -32,7 +22,19 @@ app_port: 7860
 -   **Backend**: FastAPI (Python 3.9+)
 -   **LLM Engine**: Google Generative AI (Gemini 1.5 Flash)
 -   **TTS Engine**: gTTS (Google Text-to-Speech)
--   **Deployment**: Vercel (Frontend) & Render (Backend)
+-   **Deployment**: Vercel (Frontend) & Hugging Face Spaces (Backend)
+
+---
+
+## 🏗️ Architecture
+
+MedInsight AI is built with a modular, scalable architecture:
+
+-   **Frontend Client (Vite + React)**: Handles UI rendering, document uploads, and dynamic interactions (like synchronized text highlighting).
+-   **FastAPI Backend**: Acts as the high-performance orchestration layer. It manages API requests and strictly controls the flow of data to external AI models.
+-   **AI Capabilities Layer**:
+    -   **Google Gemini 1.5 Flash Vision**: Unlike traditional pipelines that require a separate Optical Character Recognition (OCR) step, MedInsight AI passes documents seamlessly to Gemini's highly-capable native multimodal engine. It processes both text and visual components of medical PDFs or images in one step to extract and simplify complex reports.
+    -   **Google Text-To-Speech (gTTS)**: Processes the localized, simplified insights to generate a seamless audio experience, allowing users to listen to their health summaries.
 
 ---
 

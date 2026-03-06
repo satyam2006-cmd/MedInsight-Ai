@@ -14,6 +14,7 @@ deep-translator>=1.11.4
 gtts>=2.5.1
 edge-tts>=6.1.9
 # Heavy dependencies removed to fit in Render 512MB RAM
+supabase>=2.0.0
 # sentence-transformers removed
 # faiss-cpu removed
 # numpy removed (can be added back if needed, but keeping it light)
