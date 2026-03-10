@@ -163,54 +163,60 @@ export default function ReportsPage() {
                     {expandedPatientId === patient.id && (
                         <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '2px solid #eee' }}>
                             {patient.reports && patient.reports.length > 0 ? (
-                                patient.reports.map((report) => (
-                                    <div key={report.id} style={{ marginBottom: '2rem' }}>
-                                        <h4 style={{ margin: '0 0 1rem 0' }}>Report from {new Date(report.created_at).toLocaleDateString()}</h4>
+                                patient.reports.map((report) => {
+                                    const analysis = typeof report.analysis === 'string'
+                                        ? JSON.parse(report.analysis)
+                                        : report.analysis;
 
-                                        {/* Status / Risk Pill and Buttons */}
-                                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
-                                            <span style={{
-                                                display: 'inline-block', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold',
-                                                background: report.risk_level === 'High' ? '#ffebee' : report.risk_level === 'Medium' ? '#fff3e0' : '#e8f5e9',
-                                                color: report.risk_level === 'High' ? '#c62828' : report.risk_level === 'Medium' ? '#ef6c00' : '#2e7d32',
-                                                border: '1px solid currentColor'
-                                            }}>
-                                                AI Status: {report.status} | Risk Level: {report.risk_level || 'Unknown'}
-                                            </span>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button
-                                                    onClick={() => speak(report.analysis?.summary, 'en-US')}
-                                                    className="neo-btn accent-bg"
-                                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                                                >
-                                                    <Volume2 size={16} /> Summary Audio (EN)
-                                                </button>
-                                                <button
-                                                    onClick={() => handleShareWhatsApp(patient, report)}
-                                                    className="neo-btn"
-                                                    style={{
-                                                        padding: '0.4rem 0.8rem',
-                                                        fontSize: '0.8rem',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.4rem',
-                                                        background: '#25D366',
-                                                        color: 'white'
-                                                    }}
-                                                >
-                                                    <MessageSquare size={16} /> Share to Patient
-                                                </button>
+                                    return (
+                                        <div key={report.id} style={{ marginBottom: '2rem' }}>
+                                            <h4 style={{ margin: '0 0 1rem 0' }}>Report from {new Date(report.created_at).toLocaleDateString()}</h4>
+
+                                            {/* Status / Risk Pill and Buttons */}
+                                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
+                                                <span style={{
+                                                    display: 'inline-block', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold',
+                                                    background: report.risk_level === 'High' ? '#ffebee' : report.risk_level === 'Medium' ? '#fff3e0' : '#e8f5e9',
+                                                    color: report.risk_level === 'High' ? '#c62828' : report.risk_level === 'Medium' ? '#ef6c00' : '#2e7d32',
+                                                    border: '1px solid currentColor'
+                                                }}>
+                                                    AI Status: {report.status} | Risk Level: {report.risk_level || 'Unknown'}
+                                                </span>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button
+                                                        onClick={() => speak(analysis?.summary || '', 'en-US')}
+                                                        className="neo-btn accent-bg"
+                                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: 'white' }}
+                                                    >
+                                                        <Volume2 size={16} /> Summary Audio (EN)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleShareWhatsApp(patient, report)}
+                                                        className="neo-btn"
+                                                        style={{
+                                                            padding: '0.4rem 0.8rem',
+                                                            fontSize: '0.8rem',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.4rem',
+                                                            background: '#25D366',
+                                                            color: 'white'
+                                                        }}
+                                                    >
+                                                        <MessageSquare size={16} /> Share to Patient
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Hospital Dashboard View: English Only */}
+                                            <div style={{ background: '#f5f5f5', padding: '1.5rem', border: '2px solid black', borderRadius: '4px' }}>
+                                                <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, whiteSpace: 'pre-wrap', color: 'black' }}>
+                                                    {analysis?.summary || "No summary available."}
+                                                </p>
                                             </div>
                                         </div>
-
-                                        {/* Hospital Dashboard View: English Only */}
-                                        <div style={{ background: '#f5f5f5', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-                                            <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 500, whiteSpace: 'pre-wrap' }}>
-                                                {report.analysis?.summary || "No summary available."}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
                                 <p style={{ fontStyle: 'italic', color: '#666' }}>No reports processed for this patient yet.</p>
                             )}
