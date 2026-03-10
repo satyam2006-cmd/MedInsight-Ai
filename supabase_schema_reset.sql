@@ -12,7 +12,8 @@ CREATE TABLE public.patients (
     age INT,
     gender TEXT,
     last_visit DATE DEFAULT CURRENT_DATE,
-    status TEXT DEFAULT 'Healthy'
+    status TEXT DEFAULT 'Healthy',
+    UNIQUE (hospital_id, patient_number)
 );
 
 -- 2. Create the Reports table with detailed analysis storage
