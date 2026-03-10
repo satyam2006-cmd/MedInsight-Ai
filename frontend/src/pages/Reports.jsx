@@ -179,11 +179,11 @@ export default function ReportsPage() {
                                             </span>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                 <button
-                                                    onClick={() => speak(report.analysis?.translation || report.analysis?.summary, report.analysis?.target_language || 'en-US')}
+                                                    onClick={() => speak(report.analysis?.summary, 'en-US')}
                                                     className="neo-btn accent-bg"
                                                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                                                 >
-                                                    <Volume2 size={16} /> Audio
+                                                    <Volume2 size={16} /> Summary Audio (EN)
                                                 </button>
                                                 <button
                                                     onClick={() => handleShareWhatsApp(patient, report)}
@@ -198,12 +198,17 @@ export default function ReportsPage() {
                                                         color: 'white'
                                                     }}
                                                 >
-                                                    <MessageSquare size={16} /> Share
+                                                    <MessageSquare size={16} /> Share to Patient
                                                 </button>
                                             </div>
                                         </div>
 
-                                        {renderAiAnalysis(report.analysis)}
+                                        {/* Hospital Dashboard View: English Only */}
+                                        <div style={{ background: '#f5f5f5', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px' }}>
+                                            <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 500, whiteSpace: 'pre-wrap' }}>
+                                                {report.analysis?.summary || "No summary available."}
+                                            </p>
+                                        </div>
                                     </div>
                                 ))
                             ) : (

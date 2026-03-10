@@ -227,26 +227,6 @@ export default function PatientsPage() {
                                                 <span className="badge accent-bg" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                     <CheckCircle2 size={12} /> {patient.reports?.length || 0} Reports
                                                 </span>
-                                                {patient.reports?.length > 0 && (
-                                                    <button
-                                                        onClick={() => handleShareWhatsApp(patient.id)}
-                                                        style={{
-                                                            background: '#25D366',
-                                                            color: 'white',
-                                                            border: '2px solid black',
-                                                            padding: '2px 8px',
-                                                            cursor: 'pointer',
-                                                            fontSize: '0.7rem',
-                                                            fontWeight: 700,
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '3px',
-                                                            width: 'fit-content'
-                                                        }}
-                                                    >
-                                                        <MessageSquare size={12} /> Share
-                                                    </button>
-                                                )}
                                             </td>
                                             <td style={{ padding: '1rem', color: 'var(--primary)', fontWeight: 600 }}>
                                                 {patient.reportName}
