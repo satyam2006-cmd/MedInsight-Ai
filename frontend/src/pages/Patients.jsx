@@ -56,13 +56,13 @@ export default function PatientsPage() {
 
             // Add new patient to the local list (or re-fetch from backend)
             const newPatient = {
-                id: result.patient.patient_number || patientId,
+                id: patientId, // Use the user's input ID
                 name: result.patient.patient_name || patientName,
                 number: result.patient.patient_number || patientNumber,
                 reportName: report.name,
                 dateAdded: new Date().toLocaleDateString(),
                 status: 'Analyzed',
-                reports: [{ id: result.report_id }] // Assuming result.report_id is available
+                reports: [{ id: result.report_summary?.id }]
             };
 
             setPatientsList([...patientsList, newPatient]);

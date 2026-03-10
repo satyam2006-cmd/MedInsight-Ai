@@ -7,6 +7,7 @@ CREATE TABLE public.patients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ DEFAULT now(),
     hospital_id UUID REFERENCES auth.users(id) DEFAULT auth.uid(),
+    patient_custom_id TEXT,
     patient_name TEXT NOT NULL,
     patient_number TEXT,
     age INT,

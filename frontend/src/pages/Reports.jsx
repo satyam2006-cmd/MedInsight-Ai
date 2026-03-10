@@ -187,7 +187,7 @@ export default function ReportsPage() {
                     >
                         <div>
                             <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>{patient.patient_name}</h3>
-                            <p style={{ margin: 0, color: '#666' }}>ID: {patient.patient_number} | Visited: {new Date(patient.created_at).toLocaleDateString()}</p>
+                            <p style={{ margin: 0, color: '#666' }}>ID: {patient.patient_custom_id || patient.patient_number} | Visited: {new Date(patient.created_at).toLocaleDateString()}</p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <button
