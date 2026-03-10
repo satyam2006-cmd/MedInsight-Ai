@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { FileText, Loader2, AlertCircle, RefreshCw, Volume2, MessageSquare } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
+import { openWhatsApp, generateShareMessage } from '../lib/whatsapp';
 
 export default function ReportsPage() {
     const [patients, setPatients] = useState([]);
@@ -88,6 +90,31 @@ export default function ReportsPage() {
         }
     };
 
+    const speak = (text, lang = 'en-US') => {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert('Text-to-speech not supported in this browser.');
+        }
+    };
+
+    const handleShareWhatsApp = (patient, report) => {
+        const patientName = patient.patient_name || 'Patient';
+        const patientNumber = patient.patient_number;
+        const targetLanguage = report.analysis?.target_language || 'English';
+
+        if (!patientNumber) {
+            alert("No phone number found for this patient.");
+            return;
+        }
+
+        const shareUrl = `${window.location.origin}/share/${report.id}`;
+        const message = generateShareMessage(patientName, targetLanguage, shareUrl);
+        openWhatsApp(patientNumber, message);
+    };
+
     return (
         <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem' }}>
             <button
@@ -140,15 +167,41 @@ export default function ReportsPage() {
                                     <div key={report.id} style={{ marginBottom: '2rem' }}>
                                         <h4 style={{ margin: '0 0 1rem 0' }}>Report from {new Date(report.created_at).toLocaleDateString()}</h4>
 
-                                        {/* Status / Risk Pill */}
-                                        <span style={{
-                                            display: 'inline-block', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '1rem',
-                                            background: report.risk_level === 'High' ? '#ffebee' : report.risk_level === 'Medium' ? '#fff3e0' : '#e8f5e9',
-                                            color: report.risk_level === 'High' ? '#c62828' : report.risk_level === 'Medium' ? '#ef6c00' : '#2e7d32',
-                                            border: '1px solid currentColor'
-                                        }}>
-                                            AI Status: {report.status} | Risk Level: {report.risk_level || 'Unknown'}
-                                        </span>
+                                        {/* Status / Risk Pill and Buttons */}
+                                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
+                                            <span style={{
+                                                display: 'inline-block', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold',
+                                                background: report.risk_level === 'High' ? '#ffebee' : report.risk_level === 'Medium' ? '#fff3e0' : '#e8f5e9',
+                                                color: report.risk_level === 'High' ? '#c62828' : report.risk_level === 'Medium' ? '#ef6c00' : '#2e7d32',
+                                                border: '1px solid currentColor'
+                                            }}>
+                                                AI Status: {report.status} | Risk Level: {report.risk_level || 'Unknown'}
+                                            </span>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button
+                                                    onClick={() => speak(report.analysis?.translation || report.analysis?.summary, report.analysis?.target_language || 'en-US')}
+                                                    className="neo-btn accent-bg"
+                                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                                                >
+                                                    <Volume2 size={16} /> Audio
+                                                </button>
+                                                <button
+                                                    onClick={() => handleShareWhatsApp(patient, report)}
+                                                    className="neo-btn"
+                                                    style={{
+                                                        padding: '0.4rem 0.8rem',
+                                                        fontSize: '0.8rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.4rem',
+                                                        background: '#25D366',
+                                                        color: 'white'
+                                                    }}
+                                                >
+                                                    <MessageSquare size={16} /> Share
+                                                </button>
+                                            </div>
+                                        </div>
 
                                         {renderAiAnalysis(report.analysis)}
                                     </div>

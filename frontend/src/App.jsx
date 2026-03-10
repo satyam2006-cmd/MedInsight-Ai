@@ -4,7 +4,7 @@ import { Upload, FileText, AlertCircle, CheckCircle2, Languages, Activity, Loade
 import { extractText } from './ocr-engine/services/hybridService.js';
 import Dashboard from './dashboard/Dashboard';
 import PatientsPage from './pages/Patients';
-import ReportsPage from './pages/Reports';
+import SharedReport from './pages/SharedReport';
 import CloudWatchForm from './components/CloudWatchForm';
 
 import { API_BASE_URL } from './lib/config';
@@ -32,6 +32,7 @@ function App() {
             <Route path="/dash" element={<Dashboard />} />
             <Route path="/patients" element={<PatientsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/share/:reportId" element={<SharedReport />} />
         </Routes>
     );
 }

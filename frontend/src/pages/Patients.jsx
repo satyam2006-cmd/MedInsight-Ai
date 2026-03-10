@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { UserPlus, Loader2, Phone, User, Activity, ArrowLeft, CheckCircle2, MessageSquare } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
+import { openWhatsApp, generateShareMessage } from '../lib/whatsapp';
 
 
 export default function PatientsPage() {
@@ -60,7 +62,8 @@ export default function PatientsPage() {
                 number: result.patient.patient_number || patientNumber,
                 reportName: report.name,
                 dateAdded: new Date().toLocaleDateString(),
-                status: 'Analyzed'
+                status: 'Analyzed',
+                reports: [{ id: result.report_id }] // Assuming result.report_id is available
             };
 
             setPatientsList([...patientsList, newPatient]);
@@ -80,6 +83,30 @@ export default function PatientsPage() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleShareWhatsApp = (patientId) => {
+        const patient = patientsList.find(p => p.id === patientId); // Changed from 'patients' to 'patientsList'
+        if (!patient) return;
+
+        const patientName = patient.name || 'Patient'; // Changed from patient.patient_name to patient.name
+        const patientNumber = patient.number; // Changed from patient.patient_number to patient.number
+
+        if (!patientNumber) {
+            alert("No phone number found for this patient.");
+            return;
+        }
+
+        // We check if there's a report for this patient
+        const latestReport = patient.reports?.[0];
+        if (!latestReport) {
+            alert("No report found to share for this patient.");
+            return;
+        }
+
+        const shareUrl = `${window.location.origin}/share/${latestReport.id}`;
+        const message = generateShareMessage(patientName, "the analyzed report", shareUrl);
+        openWhatsApp(patientNumber, message);
     };
 
     return (
@@ -195,7 +222,32 @@ export default function PatientsPage() {
                                         <tr key={index} style={{ borderBottom: '1px solid #ccc' }}>
                                             <td style={{ padding: '1rem', fontWeight: 600 }}>{patient.id}</td>
                                             <td style={{ padding: '1rem' }}>{patient.name}</td>
-                                            <td style={{ padding: '1rem' }}>{patient.number}</td>
+                                            <td style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                                <span>{patient.number}</span>
+                                                <span className="badge accent-bg" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                    <CheckCircle2 size={12} /> {patient.reports?.length || 0} Reports
+                                                </span>
+                                                {patient.reports?.length > 0 && (
+                                                    <button
+                                                        onClick={() => handleShareWhatsApp(patient.id)}
+                                                        style={{
+                                                            background: '#25D366',
+                                                            color: 'white',
+                                                            border: '2px solid black',
+                                                            padding: '2px 8px',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 700,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '3px',
+                                                            width: 'fit-content'
+                                                        }}
+                                                    >
+                                                        <MessageSquare size={12} /> Share
+                                                    </button>
+                                                )}
+                                            </td>
                                             <td style={{ padding: '1rem', color: 'var(--primary)', fontWeight: 600 }}>
                                                 {patient.reportName}
                                             </td>

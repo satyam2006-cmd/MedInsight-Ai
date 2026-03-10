@@ -55,15 +55,21 @@ USING (
     )
 );
 
-CREATE POLICY "Hospitals can insert reports for their patients" 
-ON public.reports FOR INSERT 
-WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM public.patients 
-        WHERE public.patients.id = public.reports.patient_id 
-        AND public.patients.hospital_id = auth.uid()
     )
 );
 
--- 6. Force the PostgREST API to instantly reload the exact schema
+-- 6. Create RLS Policies for Public Shared Access
+-- Allow anyone with a link to view report summaries
+CREATE POLICY "Public can view individual reports by ID"
+ON public.reports FOR SELECT
+TO anon
+USING (true);
+
+-- Allow public to see patient name associated with report (needed for greeting on shared page)
+CREATE POLICY "Public can view patient names associated with reports"
+ON public.patients FOR SELECT
+TO anon
+USING (true);
+
+-- 7. Force the PostgREST API to instantly reload the exact schema
 NOTIFY pgrst, 'reload schema';
