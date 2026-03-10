@@ -32,7 +32,12 @@ app.include_router(patients.router, tags=["Patients"])
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "version": settings.APP_VERSION}
+    return {
+        "status": "healthy", 
+        "version": settings.APP_VERSION,
+        "timestamp": "2026-03-10T20:45:00", # Manually updated to verify sync
+        "features": ["analysis", "tts", "patients"]
+    }
 
 @app.get("/")
 async def root():
