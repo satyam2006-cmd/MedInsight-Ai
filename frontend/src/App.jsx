@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Upload, FileText, AlertCircle, CheckCircle2, Languages, Activity, Loader2, Stethoscope, Search, Volume2, VolumeX } from 'lucide-react';
 import { extractText } from './ocr-engine/services/hybridService.js';
+import Dashboard from './dashboard/Dashboard';
+import PatientsPage from './pages/Patients';
+import ReportsPage from './pages/Reports';
+import CloudWatchForm from './components/CloudWatchForm';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const API_BASE_URL = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
@@ -21,6 +26,19 @@ const Logo = () => (
 );
 
 function App() {
+    return (
+        <Routes>
+            <Route path="/" element={<HomeView />} />
+            <Route path="/signins" element={<CloudWatchForm />} />
+            <Route path="/dash" element={<Dashboard />} />
+            <Route path="/patients" element={<PatientsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+        </Routes>
+    );
+}
+
+function HomeView() {
+    const navigate = useNavigate();
     const [file, setFile] = useState(null);
     const [targetLanguage, setTargetLanguage] = useState('Hindi');
     const [loading, setLoading] = useState(false);
@@ -199,9 +217,16 @@ function App() {
         }
     };
 
+
+
     return (
         <div className="container" style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
+            <header style={{ position: 'relative', marginBottom: '3rem', textAlign: 'center' }}>
+                <div style={{ position: 'absolute', top: 0, right: 0 }}>
+                    <button className="neo-btn" style={{ fontSize: '0.9rem', padding: '0.5rem 1rem', background: 'black', color: 'white' }} onClick={() => navigate('/signins')}>
+                        Register as a Hospital
+                    </button>
+                </div>
                 <Logo />
                 <h1 style={{ fontSize: '3.5rem', letterSpacing: '-2px', marginTop: '0.5rem' }}>MEDINSIGHT <span style={{ color: 'var(--secondary)' }}>AI</span></h1>
                 <p className="badge accent-bg">Patient-Friendly Medical Analysis</p>
