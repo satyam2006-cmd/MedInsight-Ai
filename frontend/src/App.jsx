@@ -7,8 +7,7 @@ import PatientsPage from './pages/Patients';
 import ReportsPage from './pages/Reports';
 import CloudWatchForm from './components/CloudWatchForm';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-const API_BASE_URL = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
+import { API_BASE_URL } from './lib/config';
 
 const Logo = () => (
     <div style={{
