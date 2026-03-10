@@ -165,42 +165,35 @@ export default function SharedReport() {
                     </div>
 
                     <div style={{ background: 'white', border: '3px solid black', padding: '1.5rem', marginBottom: '2rem' }}>
-                        <h3 style={{ marginTop: 0 }}>Clinical Summary</h3>
-                        <p style={{ fontSize: '1.2rem', lineHeight: '1.6' }}>{analysis.summary}</p>
-                    </div>
-
-                    {analysis.translation && (
-                        <div style={{ background: 'var(--primary)', color: 'white', border: '3px solid black', padding: '1.5rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h3 style={{ margin: 0 }}>Translation: {targetLang}</h3>
-                                <button
-                                    onClick={() => speak(analysis.translation, targetLang)}
-                                    className="neo-btn"
-                                    disabled={audioLoading}
-                                    style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black' }}
-                                >
-                                    {audioLoading ? <Loader2 size={18} className="animate-spin" /> : speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                                    {speaking ? 'Stop Audio' : 'Play Audio'}
-                                </button>
-                            </div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 500, lineHeight: '1.8' }}>
-                                {analysis.translation.trim().split(/\s+/).map((word, i) => (
-                                    <span
-                                        key={i}
-                                        style={{
-                                            display: 'inline-block',
-                                            marginRight: '0.4rem',
-                                            padding: '0 2px',
-                                            background: highlightIndex === i ? 'rgba(255,255,255,0.3)' : 'transparent',
-                                            color: 'white'
-                                        }}
-                                    >
-                                        {word}
-                                    </span>
-                                ))}
-                            </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ marginTop: 0 }}>Clinical Summary ({targetLang})</h3>
+                            <button
+                                onClick={() => speak(analysis.hindi_translation, targetLang)}
+                                className="neo-btn"
+                                disabled={audioLoading}
+                                style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}
+                            >
+                                {audioLoading ? <Loader2 size={18} className="animate-spin" /> : speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                {speaking ? 'Stop Audio' : 'Play Audio'}
+                            </button>
                         </div>
-                    )}
+                        <div style={{ fontSize: '1.3rem', fontWeight: 600, lineHeight: '1.8' }}>
+                            {analysis.hindi_translation.trim().split(/\s+/).map((word, i) => (
+                                <span
+                                    key={i}
+                                    style={{
+                                        display: 'inline-block',
+                                        marginRight: '0.4rem',
+                                        padding: '0 2px',
+                                        background: highlightIndex === i ? 'var(--accent)' : 'transparent',
+                                        color: 'black'
+                                    }}
+                                >
+                                    {word}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
                 </section>
 
                 <div className="neo-card" style={{ textAlign: 'center', background: '#e0e0e0' }}>
