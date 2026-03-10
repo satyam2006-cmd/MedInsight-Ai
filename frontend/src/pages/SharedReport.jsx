@@ -138,7 +138,10 @@ export default function SharedReport() {
     }
 
     const analysis = report.analysis;
-    const targetLang = analysis.target_language || 'English';
+    // For older reports, if the translation is different from the summary, it's likely the target language
+    // In this app, the default target has been Hindi for most demo cases.
+    const targetLang = analysis.target_language ||
+        (analysis.hindi_translation && analysis.hindi_translation !== analysis.summary ? 'Analyzed' : 'English');
 
     return (
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
@@ -166,7 +169,9 @@ export default function SharedReport() {
 
                     <div style={{ background: 'white', border: '3px solid black', padding: '1.5rem', marginBottom: '2rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h3 style={{ marginTop: 0 }}>Clinical Summary ({targetLang})</h3>
+                            <h3 style={{ marginTop: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                Clinical Summary ({targetLang})
+                            </h3>
                             <button
                                 onClick={() => speak(analysis.hindi_translation, targetLang)}
                                 className="neo-btn"
