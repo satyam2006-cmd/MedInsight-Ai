@@ -30,7 +30,8 @@ async def create_patient_and_report(
         patient_record = db_service.create_patient(
             supabase=supabase,
             name=patient_name,
-            number=patient_number
+            number=patient_number,
+            custom_id=patient_id
         )
         
         new_patient_db_id = patient_record.get("id")

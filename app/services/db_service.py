@@ -27,11 +27,12 @@ def get_supabase_client(jwt_token: str = None) -> Client:
 
 class DBService:
     @staticmethod
-    def create_patient(supabase: Client, name: str, number: str, hospital_id: str = None):
+    def create_patient(supabase: Client, name: str, number: str, custom_id: str = None, hospital_id: str = None):
         """Creates a patient record in the database."""
         data = {
             "patient_name": name,
             "patient_number": number,
+            "patient_custom_id": custom_id
         }
         # If running without JWT context but passing hospital_id explicitly (Service role or testing)
         if hospital_id:
