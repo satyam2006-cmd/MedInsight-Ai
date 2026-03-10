@@ -4,6 +4,7 @@ import { Upload, FileText, AlertCircle, CheckCircle2, Languages, Activity, Loade
 import { extractText } from './ocr-engine/services/hybridService.js';
 import Dashboard from './dashboard/Dashboard';
 import PatientsPage from './pages/Patients';
+import ReportsPage from './pages/Reports';
 import SharedReport from './pages/SharedReport';
 import CloudWatchForm from './components/CloudWatchForm';
 
