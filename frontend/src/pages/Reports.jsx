@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { API_BASE_URL } from '../lib/config';
 
 export default function ReportsPage() {
     const [patients, setPatients] = useState([]);
@@ -18,7 +19,8 @@ export default function ReportsPage() {
                     return;
                 }
 
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                // Using centralized API URL
+                const apiUrl = API_BASE_URL;
 
                 // Fetch from our backend GET /patients
                 const response = await fetch(`${apiUrl}/patients`, {

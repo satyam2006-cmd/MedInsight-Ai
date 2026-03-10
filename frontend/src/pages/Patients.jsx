@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { API_BASE_URL } from '../lib/config';
 
 
 export default function PatientsPage() {
@@ -34,7 +35,8 @@ export default function PatientsPage() {
             formData.append('report_file', report);
 
             // API URL assumes backend runs on port 8000
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            // Using centralized API URL
+            const apiUrl = API_BASE_URL;
 
             const response = await fetch(`${apiUrl}/patients`, {
                 method: 'POST',
