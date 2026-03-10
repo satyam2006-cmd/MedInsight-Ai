@@ -45,6 +45,10 @@ CREATE POLICY "Hospitals can update their own patients"
 ON public.patients FOR UPDATE 
 USING (auth.uid() = hospital_id);
 
+CREATE POLICY "Hospitals can delete their own patients"
+ON public.patients FOR DELETE
+USING (auth.uid() = hospital_id);
+
 -- 5. Create RLS Policies for Reports
 CREATE POLICY "Hospitals can see reports for their patients" 
 ON public.reports FOR SELECT 
@@ -56,9 +60,15 @@ USING (
     )
 );
 
+CREATE POLICY "Hospitals can delete reports of their patients"
+ON public.reports FOR DELETE
+USING (
+    EXISTS (
+        SELECT 1 FROM public.patients 
+        WHERE public.patients.id = public.reports.patient_id 
+        AND public.patients.hospital_id = auth.uid()
     )
 );
-
 -- 6. Create RLS Policies for Public Shared Access
 -- Allow anyone with a link to view report summaries
 CREATE POLICY "Public can view individual reports by ID"

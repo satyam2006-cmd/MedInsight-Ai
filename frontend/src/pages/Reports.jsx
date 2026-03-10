@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { FileText, Loader2, AlertCircle, RefreshCw, Volume2, MessageSquare } from 'lucide-react';
+import { FileText, Loader2, AlertCircle, RefreshCw, Volume2, MessageSquare, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
 import { openWhatsApp, generateShareMessage } from '../lib/whatsapp';
 
@@ -115,6 +115,41 @@ export default function ReportsPage() {
         openWhatsApp(patientNumber, message);
     };
 
+    const handleDeleteReport = async (reportId) => {
+        if (!window.confirm('Are you sure you want to delete this specific report? This cannot be undone.')) return;
+
+        try {
+            const { error } = await supabase.from('reports').delete().eq('id', reportId);
+            if (error) throw error;
+
+            // Update local state
+            setPatients(prev => prev.map(p => ({
+                ...p,
+                reports: (p.reports || []).filter(r => r.id !== reportId)
+            })));
+
+            alert('Report deleted successfully.');
+        } catch (err) {
+            console.error('Error deleting report:', err);
+            alert('Failed to delete report.');
+        }
+    };
+
+    const handleDeletePatient = async (patientId) => {
+        if (!window.confirm('Are you sure you want to delete this patient and ALL their reports?')) return;
+
+        try {
+            const { error } = await supabase.from('patients').delete().eq('id', patientId);
+            if (error) throw error;
+
+            setPatients(prev => prev.filter(p => p.id !== patientId));
+            alert('Patient record deleted.');
+        } catch (err) {
+            console.error('Error deleting patient:', err);
+            alert('Failed to delete patient.');
+        }
+    };
+
     return (
         <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem' }}>
             <button
@@ -154,9 +189,22 @@ export default function ReportsPage() {
                             <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>{patient.patient_name}</h3>
                             <p style={{ margin: 0, color: '#666' }}>ID: {patient.patient_number} | Visited: {new Date(patient.created_at).toLocaleDateString()}</p>
                         </div>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-                            {expandedPatientId === patient.id ? '−' : '+'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePatient(patient.id);
+                                }}
+                                className="neo-btn"
+                                style={{ padding: '0.4rem', background: '#ffebee', color: '#c62828', border: '1px solid #c62828' }}
+                                title="Delete Patient"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                            <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                                {expandedPatientId === patient.id ? '−' : '+'}
+                            </span>
+                        </div>
                     </div>
 
                     {/* Expaned Details (Reports) */}
@@ -197,6 +245,22 @@ export default function ReportsPage() {
                                                         }}
                                                     >
                                                         <MessageSquare size={16} /> Share to Patient
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteReport(report.id)}
+                                                        className="neo-btn"
+                                                        style={{
+                                                            padding: '0.4rem 0.8rem',
+                                                            fontSize: '0.8rem',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.4rem',
+                                                            background: '#f8d7da',
+                                                            color: '#721c24',
+                                                            border: '1px solid #f5c6cb'
+                                                        }}
+                                                    >
+                                                        <Trash2 size={16} /> Delete
                                                     </button>
                                                 </div>
                                             </div>
