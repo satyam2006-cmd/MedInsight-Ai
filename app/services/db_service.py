@@ -39,13 +39,12 @@ class DBService:
             data["hospital_id"] = hospital_id
             
         try:
-            # We use upsert on (hospital_id, patient_number) to avoid duplicates
-            # hospital_id is handled by RLS on INSERT but for UPSERT we might need to be explicit 
-            # or rely on the constraint we're about to add.
-            response = supabase.table("patients").upsert(data, on_conflict="patient_number").execute()
+            # Reverted to standard insert to avoid 42P10 constraint errors.
+            # Use the Delete button in the UI to manage duplicates as requested.
+            response = supabase.table("patients").insert(data).execute()
             if response.data and len(response.data) > 0:
                 return response.data[0]
-            raise ValueError("Failed to upsert patient")
+            raise ValueError("Failed to insert patient")
         except Exception as e:
             logger.error(f"Error creating patient: {e}")
             raise
