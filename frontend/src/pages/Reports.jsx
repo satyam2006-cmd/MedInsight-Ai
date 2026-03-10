@@ -184,13 +184,6 @@ export default function ReportsPage() {
                                                 </span>
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                     <button
-                                                        onClick={() => speak(analysis?.summary || '', 'en-US')}
-                                                        className="neo-btn accent-bg"
-                                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: 'white' }}
-                                                    >
-                                                        <Volume2 size={16} /> Summary Audio (EN)
-                                                    </button>
-                                                    <button
                                                         onClick={() => handleShareWhatsApp(patient, report)}
                                                         className="neo-btn"
                                                         style={{
