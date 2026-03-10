@@ -126,6 +126,7 @@ class AIEngine:
             else:
                 json_data["hindi_translation"] = summary_en
 
+            json_data["target_language"] = target_language
             return AnalysisResponse(**json_data)
 
         except Exception as e:
