@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import analyze, tts
+from .routes import analyze, tts, patients
 from .config import settings
 import logging
 
@@ -28,6 +28,7 @@ app.add_middleware(
 # Include Routers
 app.include_router(analyze.router, tags=["Analysis"])
 app.include_router(tts.router, tags=["TTS"])
+app.include_router(patients.router, tags=["Patients"])
 
 @app.get("/health")
 async def health():
