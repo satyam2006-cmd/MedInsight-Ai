@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { UserPlus, Loader2, Phone, User, Activity, ArrowLeft, CheckCircle2, MessageSquare } from 'lucide-react';
+import { UserPlus, Loader2, Phone, User, Activity, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
-import { openWhatsApp, generateShareMessage } from '../lib/whatsapp';
 
 
 export default function PatientsPage() {
@@ -85,29 +84,6 @@ export default function PatientsPage() {
         }
     };
 
-    const handleShareWhatsApp = (patientId) => {
-        const patient = patientsList.find(p => p.id === patientId); // Changed from 'patients' to 'patientsList'
-        if (!patient) return;
-
-        const patientName = patient.name || 'Patient'; // Changed from patient.patient_name to patient.name
-        const patientNumber = patient.number; // Changed from patient.patient_number to patient.number
-
-        if (!patientNumber) {
-            alert("No phone number found for this patient.");
-            return;
-        }
-
-        // We check if there's a report for this patient
-        const latestReport = patient.reports?.[0];
-        if (!latestReport) {
-            alert("No report found to share for this patient.");
-            return;
-        }
-
-        const shareUrl = `${window.location.origin}/share/${latestReport.id}`;
-        const message = generateShareMessage(patientName, "the analyzed report", shareUrl);
-        openWhatsApp(patientNumber, message);
-    };
 
     return (
         <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
