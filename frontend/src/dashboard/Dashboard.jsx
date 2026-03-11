@@ -7,7 +7,7 @@ const Dashboard = ({ onBack }) => {
         { label: 'Overview', link: '/dash', ariaLabel: 'Go to Overview', hoverColor: 'yellow' },
         { label: 'Patients', link: '/patients', ariaLabel: 'Go to Patients', hoverColor: 'red' },
         { label: 'Reports', link: '/reports', ariaLabel: 'Go to Reports', hoverColor: '#4d96ff' },
-        { label: 'Settings', link: '#settings', ariaLabel: 'Go to Settings', hoverColor: 'green' }
+        { label: 'Profile', link: '/profile', ariaLabel: 'Go to Profile', hoverColor: 'green' }
     ];
 
     const socialItems = [

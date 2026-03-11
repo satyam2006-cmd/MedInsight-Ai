@@ -51,7 +51,22 @@ async def create_patient_and_report(
             target_language=language,
             extracted_text=extracted_text
         )
-        
+
+        # 3.1. Fetch User Metadata for branding injection
+        try:
+            auth_response = supabase.auth.get_user()
+            if auth_response and auth_response.user:
+                user = auth_response.user
+                hospital_info = {
+                    "hospital_name": user.user_metadata.get("hospital_name", "Hospital"),
+                    "admin_name": user.user_metadata.get("admin_username", "Administrator"),
+                    "email": user.email,
+                    "phone": f"{user.user_metadata.get('country_code', '')} {user.user_metadata.get('phone', '')}".strip()
+                }
+                analysis_result.hospital_details = hospital_info
+        except Exception as auth_err:
+            logger.warning(f"Failed to fetch user metadata for branding: {auth_err}")
+
         # 4. Save Report Linked to Patient
         logger.info(f"Saving report analysis for patient ID: {new_patient_db_id}...")
         report_record = db_service.create_report(
@@ -86,3 +101,4 @@ async def get_patients(authorization: str = Header(...)):
     except Exception as e:
         logger.error(f"Error fetching patients: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+

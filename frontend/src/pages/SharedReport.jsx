@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Stethoscope, Volume2, VolumeX, Loader2, AlertCircle, FileText, Activity } from 'lucide-react';
+import { FileText, Loader2, Volume2, VolumeX, Stethoscope, AlertCircle } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
 
 const Logo = () => (
@@ -23,6 +23,7 @@ export default function SharedReport() {
     const { reportId } = useParams();
     const [report, setReport] = useState(null);
     const [patient, setPatient] = useState(null);
+    const [hospital, setHospital] = useState(null); // Hospital branding metadata
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [speaking, setSpeaking] = useState(false);
@@ -45,14 +46,14 @@ export default function SharedReport() {
 
                 setReport(reportData);
 
-                // Fetch patient data linked to report
+                // Fetch patient data linked to report, including hospital_id
                 const { data: patientData, error: patientError } = await supabase
                     .from('patients')
-                    .select('patient_name')
+                    .select('patient_name, hospital_id')
                     .eq('id', reportData.patient_id)
                     .single();
 
-                if (!patientError) {
+                if (!patientError && patientData) {
                     setPatient(patientData);
                 }
 
@@ -75,7 +76,8 @@ export default function SharedReport() {
             return;
         }
 
-        if (audioLoading || !text) return;
+        if (audioLoading) return;
+        if (!text) return;
 
         try {
             setAudioLoading(true);
@@ -88,21 +90,21 @@ export default function SharedReport() {
                     await newAudio.play();
                     setSpeaking(true);
                 } catch (playErr) {
+                    console.error('Play error:', playErr);
                     setSpeaking(false);
                 }
             };
 
-            const handleTimeUpdate = () => {
+            newAudio.addEventListener('timeupdate', () => {
                 const duration = newAudio.duration;
-                if (duration && !isNaN(duration)) {
-                    const progress = newAudio.currentTime / duration;
+                if (duration && duration !== Infinity && !isNaN(duration)) {
+                    const currentTime = newAudio.currentTime;
+                    const progress = currentTime / duration;
                     const words = text.trim().split(/\s+/);
                     const foundIndex = Math.floor(progress * words.length);
                     setHighlightIndex(foundIndex);
                 }
-            };
-
-            newAudio.addEventListener('timeupdate', handleTimeUpdate);
+            });
 
             newAudio.onended = () => {
                 setSpeaking(false);
@@ -110,36 +112,50 @@ export default function SharedReport() {
                 setHighlightIndex(-1);
             };
 
+            newAudio.onerror = () => {
+                setSpeaking(false);
+                setAudioLoading(false);
+                setAudio(null);
+                setHighlightIndex(-1);
+            };
+
             setAudio(newAudio);
         } catch (err) {
+            console.error('TTS Error:', err);
+            setSpeaking(false);
             setAudioLoading(false);
         }
     };
 
     if (loading) {
         return (
-            <div className="container" style={{ textAlign: 'center', padding: '100px 20px' }}>
-                <Loader2 size={48} className="animate-spin" style={{ margin: '0 auto' }} />
-                <p style={{ marginTop: '1rem', fontWeight: 700 }}>Loading your medical summary...</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: '1rem' }}>
+                <Loader2 size={48} className="animate-spin" color="var(--primary)" />
+                <p style={{ fontWeight: 700, fontSize: '1.2rem' }}>Loading Medical Report...</p>
             </div>
         );
     }
 
-    if (error || !report) {
+    if (error) {
         return (
-            <div className="container" style={{ maxWidth: '600px', margin: '100px auto', textAlign: 'center' }}>
-                <div className="neo-card secondary-bg" style={{ color: 'white' }}>
-                    <AlertCircle size={48} style={{ margin: '0 auto 1rem' }} />
-                    <h2>Report Access Error</h2>
-                    <p>We couldn't load this report. The link may have expired or is incorrect.</p>
-                </div>
+            <div style={{ padding: '4rem', textAlign: 'center' }}>
+                <AlertCircle size={64} color="var(--secondary)" style={{ marginBottom: '1.5rem' }} />
+                <h2 style={{ fontSize: '2rem' }}>Access Error</h2>
+                <p style={{ fontSize: '1.2rem', color: '#666' }}>{error}</p>
+                <button className="neo-btn" onClick={() => window.location.reload()} style={{ marginTop: '2rem' }}>
+                    Retry Access
+                </button>
             </div>
         );
     }
 
-    const analysis = report.analysis;
+    const analysis = typeof report.analysis === 'string'
+        ? JSON.parse(report.analysis)
+        : (report.analysis || {});
+
+    const hInfo = analysis.hospital_details || hospital; // Fallback to fetched profile
+
     // For older reports, if the translation is different from the summary, it's likely the target language
-    // In this app, the default target has been Hindi for most demo cases.
     const targetLang = analysis.target_language ||
         (analysis.hindi_translation && analysis.hindi_translation !== analysis.summary ? 'Analyzed' : 'English');
 
@@ -148,6 +164,16 @@ export default function SharedReport() {
             <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
                 <Logo />
                 <h1 style={{ fontSize: '2.5rem', marginTop: '1rem' }}>MEDINSIGHT <span style={{ color: 'var(--secondary)' }}>AI</span></h1>
+
+                {hInfo?.hospital_name && (
+                    <div style={{ paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+                        <p style={{ margin: 0, fontWeight: 800, fontSize: '0.9rem', color: 'var(--primary, #5227FF)', textTransform: 'uppercase' }}>
+                            FROM {hInfo.hospital_name}
+                        </p>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, opacity: 0.6 }}>WITH MEDINSIGHT AI</span>
+                    </div>
+                )}
+
                 <p className="badge accent-bg">Patient Health Portal</p>
             </header>
 
@@ -208,7 +234,23 @@ export default function SharedReport() {
                 </div>
             </main>
 
-            <footer style={{ marginTop: '4rem', textAlign: 'center', color: '#999', fontSize: '0.9rem' }}>
+            <footer style={{ marginTop: '4rem', textAlign: 'center', color: '#666', fontSize: '0.9rem', borderTop: '2px solid #eee', paddingTop: '2rem' }}>
+                {hInfo && (
+                    <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', color: 'black' }}>
+                        <div>
+                            <p style={{ margin: 0, fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: '#999' }}>Verified By</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{hInfo.admin_name || hInfo.admin_username}</p>
+                        </div>
+                        <div>
+                            <p style={{ margin: 0, fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: '#999' }}>Contact Email</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{hInfo.email}</p>
+                        </div>
+                        <div>
+                            <p style={{ margin: 0, fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: '#999' }}>Contact Number</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{hInfo.phone || 'N/A'}</p>
+                        </div>
+                    </div>
+                )}
                 <p>&copy; {new Date().getFullYear()} MedInsight AI. Clinical-grade document intelligence.</p>
             </footer>
 
