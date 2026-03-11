@@ -28,6 +28,7 @@ CREATE TABLE public.reports (
     status TEXT DEFAULT 'Uploaded'
 );
 
+
 -- 3. Enable Row Level Security (RLS)
 ALTER TABLE public.patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
@@ -42,6 +43,7 @@ CREATE POLICY "Public can view patient names for shared reports"
 ON public.patients FOR SELECT
 TO anon
 USING (true);
+
 
 -- 5. Create RLS Policies for Reports
 CREATE POLICY "Hospitals can manage reports for their patients" 

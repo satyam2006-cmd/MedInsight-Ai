@@ -9,6 +9,7 @@ export default function ReportsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [expandedPatientId, setExpandedPatientId] = useState(null);
+    const [hospitalInfo, setHospitalInfo] = useState(null);
 
     useEffect(() => {
         const fetchPatientsAndReports = async () => {
@@ -36,8 +37,18 @@ export default function ReportsPage() {
                 }
 
                 const data = await response.json();
-                // Data comes back as list of patients with their nested 'reports' array
                 setPatients(data);
+
+                // Fetch current user metadata for display safety
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    setHospitalInfo({
+                        hospital_name: user.user_metadata?.hospital_name || "Hospital",
+                        admin_name: user.user_metadata?.admin_username || "Admin",
+                        email: user.email,
+                        phone: `${user.user_metadata?.country_code || ""} ${user.user_metadata?.phone || ""}`.trim()
+                    });
+                }
 
             } catch (err) {
                 console.error("Error fetching patient reports:", err);
@@ -267,9 +278,24 @@ export default function ReportsPage() {
 
                                             {/* Hospital Dashboard View: English Only */}
                                             <div style={{ background: '#f5f5f5', padding: '1.5rem', border: '2px solid black', borderRadius: '4px' }}>
+                                                {/* Hospital Header for trusting branding */}
+                                                <div style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <p style={{ margin: 0, fontWeight: 800, fontSize: '0.8rem', color: 'var(--primary, #5227FF)', textTransform: 'uppercase' }}>
+                                                        FROM {analysis?.hospital_details?.hospital_name || hospitalInfo?.hospital_name || "HOSPITAL"}
+                                                    </p>
+                                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.6 }}>WITH MEDINSIGHT AI</span>
+                                                </div>
+
                                                 <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, whiteSpace: 'pre-wrap', color: 'black' }}>
                                                     {analysis?.summary || "No summary available."}
                                                 </p>
+
+                                                {/* Hospital Footer for Liability */}
+                                                <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #ddd', display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>
+                                                    <div>ADMIN: {analysis?.hospital_details?.admin_name || hospitalInfo?.admin_name}</div>
+                                                    <div>EMAIL: {analysis?.hospital_details?.email || hospitalInfo?.email}</div>
+                                                    <div>PHONE: {analysis?.hospital_details?.phone || hospitalInfo?.phone}</div>
+                                                </div>
                                             </div>
                                         </div>
                                     );

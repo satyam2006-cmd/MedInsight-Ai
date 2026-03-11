@@ -25,6 +25,7 @@ def get_supabase_client(jwt_token: str = None) -> Client:
         
     return supabase
 
+
 class DBService:
     @staticmethod
     def create_patient(supabase: Client, name: str, number: str, custom_id: str = None, hospital_id: str = None):
@@ -68,5 +69,6 @@ class DBService:
         except Exception as e:
             logger.error(f"Error creating report: {e}")
             raise
+
 
 db_service = DBService()

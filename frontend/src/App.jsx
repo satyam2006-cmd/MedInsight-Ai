@@ -6,6 +6,7 @@ import Dashboard from './dashboard/Dashboard';
 import PatientsPage from './pages/Patients';
 import ReportsPage from './pages/Reports';
 import SharedReport from './pages/SharedReport';
+import ProfilePage from './pages/Profile';
 import CloudWatchForm from './components/CloudWatchForm';
 
 import { API_BASE_URL } from './lib/config';
@@ -33,6 +34,7 @@ function App() {
             <Route path="/dash" element={<Dashboard />} />
             <Route path="/patients" element={<PatientsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/share/:reportId" element={<SharedReport />} />
         </Routes>
     );
