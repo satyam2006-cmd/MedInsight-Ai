@@ -8,6 +8,7 @@ import ReportsPage from './pages/Reports';
 import SharedReport from './pages/SharedReport';
 import ProfilePage from './pages/Profile';
 import CloudWatchForm from './components/CloudWatchForm';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import { API_BASE_URL } from './lib/config';
 
@@ -31,10 +32,10 @@ function App() {
         <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/signins" element={<CloudWatchForm />} />
-            <Route path="/dash" element={<Dashboard />} />
-            <Route path="/patients" element={<PatientsPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/dash" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/patients" element={<ProtectedRoute><PatientsPage /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/share/:reportId" element={<SharedReport />} />
         </Routes>
     );

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Building, Phone, Calendar, ArrowLeft, Shield, LogOut, Edit2, Save, X, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { User, Mail, Building, Phone, Calendar, ArrowLeft, Shield, LogOut, Edit2, Save, X, Loader2, AlertTriangle } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
 const ProfilePage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const isIncomplete = searchParams.get('incomplete') === 'true';
+
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -61,6 +64,11 @@ const ProfilePage = () => {
                     countryCode: profile.countryCode,
                     phone: profile.phone
                 });
+
+                // Automatically enter edit mode if details are missing
+                if (!profile.name || !profile.username || !profile.phone) {
+                    setIsEditing(true);
+                }
             }
         } catch (error) {
             console.error('Error fetching user:', error.message);
@@ -113,6 +121,11 @@ const ProfilePage = () => {
                 phone: editForm.phone
             }));
             setIsEditing(false);
+
+            // Redirect to dashboard if we were forced here and it's now complete
+            if (isIncomplete && editForm.name && editForm.username && editForm.phone) {
+                navigate('/dash');
+            }
         } catch (error) {
             console.error('Error updating user:', error.message);
             alert('Failed to update profile: ' + error.message);
@@ -132,15 +145,49 @@ const ProfilePage = () => {
         );
     }
 
+    const isDataMissing = !userData.name || userData.name === "Hospital Name" || !userData.username || !userData.phone;
+
     return (
         <div style={{ position: 'fixed', inset: 0, background: '#f8f9fa', padding: '2rem', overflowY: 'auto', zIndex: 30 }}>
             <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '3rem' }}>
+
+                {isIncomplete && isDataMissing && (
+                    <div style={{
+                        background: '#fff3cd',
+                        border: '3px solid black',
+                        padding: '1.5rem',
+                        marginBottom: '2rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        boxShadow: '6px 6px 0px #856404'
+                    }}>
+                        <AlertTriangle size={36} color="#856404" />
+                        <div>
+                            <h3 style={{ margin: 0, color: '#856404', fontWeight: 800 }}>Action Required: Complete Your Profile</h3>
+                            <p style={{ margin: '0.2rem 0 0', fontWeight: 600 }}>Please provide your hospital name and contact details to enable report branding and access the dashboard.</p>
+                        </div>
+                    </div>
+                )}
+
                 <button
                     onClick={() => navigate('/dash')}
                     className="neo-btn"
-                    style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black', padding: '0.6rem 1.2rem' }}
+                    disabled={isDataMissing}
+                    style={{
+                        marginBottom: '2rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: isDataMissing ? '#ccc' : 'white',
+                        color: isDataMissing ? '#666' : 'black',
+                        padding: '0.6rem 1.2rem',
+                        opacity: isDataMissing ? 0.7 : 1,
+                        cursor: isDataMissing ? 'not-allowed' : 'pointer',
+                        boxShadow: isDataMissing ? 'none' : '4px 4px 0px black'
+                    }}
                 >
-                    <ArrowLeft size={18} /> Back to Dashboard
+                    <ArrowLeft size={18} /> {isDataMissing ? "Complete profile to continue" : "Back to Dashboard"}
                 </button>
 
                 <div className="neo-card" style={{ background: 'white', padding: '3rem', position: 'relative', overflow: 'hidden' }}>
