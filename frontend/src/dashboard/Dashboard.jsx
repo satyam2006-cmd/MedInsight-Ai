@@ -1,11 +1,14 @@
 import React from 'react';
 import StaggeredMenu from '../components/StaggeredMenu';
-import { Activity, Users, Settings, Bell, FileText, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Activity, Users, Settings, Bell, FileText, ArrowLeft, Heart } from 'lucide-react';
 
 const Dashboard = ({ onBack }) => {
+    const navigate = useNavigate();
     const menuItems = [
         { label: 'Overview', link: '/dash', ariaLabel: 'Go to Overview', hoverColor: 'yellow' },
         { label: 'Patients', link: '/patients', ariaLabel: 'Go to Patients', hoverColor: 'red' },
+        { label: 'Vitals', link: '/vitals', ariaLabel: 'Go to Vitals', hoverColor: 'var(--primary)' },
         { label: 'Reports', link: '/reports', ariaLabel: 'Go to Reports', hoverColor: '#4d96ff' },
         { label: 'Profile', link: '/profile', ariaLabel: 'Go to Profile', hoverColor: 'green' }
     ];
@@ -80,25 +83,50 @@ const Dashboard = ({ onBack }) => {
                     </div>
                 </div>
 
-                {/* Recent Activity Section */}
-                <div className="neo-card" style={{ background: 'white', padding: '2rem' }}>
-                    <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Bell size={24} /> Recent Activities
-                    </h3>
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        <li style={{ padding: '1rem 0', borderBottom: '2px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 600 }}>Patient John Doe's blood report analyzed</span>
-                            <span style={{ color: '#666' }}>2 mins ago</span>
-                        </li>
-                        <li style={{ padding: '1rem 0', borderBottom: '2px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 600 }}>New appointment booked for Dr. Smith</span>
-                            <span style={{ color: '#666' }}>1 hour ago</span>
-                        </li>
-                        <li style={{ padding: '1rem 0', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 600 }}>System backup completed successfully</span>
-                            <span style={{ color: '#666' }}>4 hours ago</span>
-                        </li>
-                    </ul>
+                {/* Vitals & Recent Activity Section */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                    <div 
+                        onClick={() => navigate('/vitals')}
+                        className="neo-card" 
+                        style={{ 
+                            background: 'var(--primary)', 
+                            padding: '2rem', 
+                            cursor: 'pointer',
+                            color: 'white',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            transition: 'transform 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-4px, -4px)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(0, 0)'}
+                    >
+                        <Heart size={64} style={{ marginBottom: '1rem' }} fill="white" />
+                        <h2 style={{ fontSize: '2rem', margin: '0 0 0.5rem' }}>Vitals Monitor</h2>
+                        <p style={{ opacity: 0.9, fontWeight: 500 }}>Launch contactless health monitoring</p>
+                    </div>
+                    
+                    <div className="neo-card" style={{ background: 'white', padding: '2rem' }}>
+                        <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Bell size={24} /> Recent Activities
+                        </h3>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                            <li style={{ padding: '1rem 0', borderBottom: '2px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontWeight: 600 }}>Patient John Doe's blood report analyzed</span>
+                                <span style={{ color: '#666' }}>2 mins ago</span>
+                            </li>
+                            <li style={{ padding: '1rem 0', borderBottom: '2px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontWeight: 600 }}>New appointment booked for Dr. Smith</span>
+                                <span style={{ color: '#666' }}>1 hour ago</span>
+                            </li>
+                            <li style={{ padding: '1rem 0', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontWeight: 600 }}>System backup completed successfully</span>
+                                <span style={{ color: '#666' }}>4 hours ago</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
