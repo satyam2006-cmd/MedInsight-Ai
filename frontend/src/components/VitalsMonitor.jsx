@@ -14,6 +14,10 @@ const VitalsMonitor = () => {
     const lastSendTimeRef = useRef(0);
     const patchHistoryRef = useRef({ forehead: null, leftCheek: null, rightCheek: null });
     const detectionLoopActiveRef = useRef(false);
+    const lastWsMessageAtRef = useRef(Date.now());
+    const reconnectTimerRef = useRef(null);
+    const cameraRestartingRef = useRef(false);
+    const intentionalCameraStopRef = useRef(false);
 
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
@@ -148,7 +152,7 @@ const VitalsMonitor = () => {
     };
 
     const processFaceMesh = (landmarks) => {
-        if (!videoRef.current || !canvasRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return;
+        if (!videoRef.current || !canvasRef.current) return;
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const oc = overlayCanvasRef.current;
@@ -375,6 +379,22 @@ const VitalsMonitor = () => {
                     setSelectedCameraId(activeSettings.deviceId);
                     setIsPhoneCamera(isPhoneDevice(activeTrack?.label || ''));
                 }
+
+                // Auto-recover camera if OS/driver drops the track mid-session.
+                stream.getVideoTracks().forEach((track) => {
+                    track.onended = () => {
+                        if (intentionalCameraStopRef.current) return;
+                        if (cameraRestartingRef.current) return;
+                        cameraRestartingRef.current = true;
+                        setTimeout(async () => {
+                            try {
+                                await startCamera(selectedCameraId || null);
+                            } finally {
+                                cameraRestartingRef.current = false;
+                            }
+                        }, 500);
+                    };
+                });
                 runDetectionLoop();
             }
         } catch (err) {
@@ -384,12 +404,21 @@ const VitalsMonitor = () => {
     };
 
     const stopCamera = () => {
+        intentionalCameraStopRef.current = true;
         detectionLoopActiveRef.current = false;
         setIsStreaming(false);
         if (videoRef.current?.srcObject) {
-            videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+            videoRef.current.srcObject.getTracks().forEach(t => {
+                t.onended = null;
+                t.onmute = null;
+                t.onunmute = null;
+                t.stop();
+            });
             videoRef.current.srcObject = null;
         }
+        setTimeout(() => {
+            intentionalCameraStopRef.current = false;
+        }, 300);
     };
 
     const switchCamera = async (deviceId) => {
@@ -416,11 +445,13 @@ const VitalsMonitor = () => {
         
         ws.onopen = () => { 
             console.log("[Vitals] WebSocket Connected");
+            lastWsMessageAtRef.current = Date.now();
             setError(null); 
         };
         ws.onmessage = (event) => {
             try {
                 const d = JSON.parse(event.data);
+                lastWsMessageAtRef.current = Date.now();
                 setVitals(prev => ({ ...prev, ...d }));
                 if (d.waveform) setWaveform(d.waveform);
                 if (d.peaks) setPeaks(d.peaks);
@@ -439,6 +470,36 @@ const VitalsMonitor = () => {
         };
         wsRef.current = ws;
     };
+
+    useEffect(() => {
+        const watchdog = setInterval(() => {
+            const ws = wsRef.current;
+            const stale = Date.now() - lastWsMessageAtRef.current > 25000;
+
+            if (!ws || ws.readyState === WebSocket.CLOSED) {
+                connectWebSocket();
+                return;
+            }
+
+            if (ws.readyState === WebSocket.OPEN && stale) {
+                try { ws.close(); } catch (e) {}
+                if (!reconnectTimerRef.current) {
+                    reconnectTimerRef.current = setTimeout(() => {
+                        reconnectTimerRef.current = null;
+                        connectWebSocket();
+                    }, 500);
+                }
+            }
+        }, 4000);
+
+        return () => {
+            clearInterval(watchdog);
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
+        };
+    }, []);
 
     const fetchAISummary = async () => {
         try {
@@ -716,8 +777,40 @@ const VitalsMonitor = () => {
 
 
     const getQualityColor = (q) => q > 60 ? '#059669' : q > 30 ? '#d97706' : '#dc2626';
+    const getStressColors = (level) => {
+        if (level === 'HIGH') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
+        if (level === 'MODERATE') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
+        return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
+    };
+    const getRiskColors = (level) => {
+        if (level === 'CRITICAL') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
+        if (level === 'WARNING') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
+        return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
+    };
+    const getTrendColors = (direction) => {
+        if (direction === 'increasing') return { tone: '#2563eb', bg: '#eff6ff', accent: '#bfdbfe' };
+        if (direction === 'decreasing') return { tone: '#7c3aed', bg: '#f5f3ff', accent: '#ddd6fe' };
+        return { tone: '#475569', bg: '#f8fafc', accent: '#cbd5e1' };
+    };
+    const trendDotColor = (direction) => {
+        if (direction === 'increasing') return '#2563eb';
+        if (direction === 'decreasing') return '#7c3aed';
+        return '#64748b';
+    };
 
     const isCalibrating = vitals.calibration_pct < 100 && vitals.bpm === 0;
+    const stressColors = getStressColors(vitals.stress_level);
+    const riskColors = getRiskColors(vitals.ai_risk);
+    const trendColors = getTrendColors(vitals.vital_trend?.direction);
+    const trendData = vitals.vital_trend || {
+        direction: 'stable',
+        arrow: '->',
+        label: 'Stable',
+        summary: 'Gathering baseline',
+        heart_rate: 'stable',
+        respiration: 'stable',
+        spo2: 'stable',
+    };
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '2rem' }}>
