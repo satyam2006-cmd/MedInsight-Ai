@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2, RefreshCw, Smartphone, Monitor } from 'lucide-react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, TrendingDown, Minus, BarChart3, Loader2, Brain, ShieldAlert, Waves, RefreshCw, Smartphone, Monitor } from 'lucide-react';
 
 const VitalsMonitor = () => {
     const videoRef = useRef(null);
@@ -12,6 +12,8 @@ const VitalsMonitor = () => {
     const overlayCanvasRef = useRef(null);
     const lastPositionRef = useRef(null);
     const lastSendTimeRef = useRef(0);
+    const roiStateRef = useRef(null);
+    const rgbEmaRef = useRef(null);
 
     const [videoDevices, setVideoDevices] = useState([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState('');
@@ -21,6 +23,10 @@ const VitalsMonitor = () => {
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
         signal_quality: 0, motion_status: 'GOOD', hrv: 0, spo2: 0,
         calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0, ai_summary: '',
+        hrv_status: 'Collecting data', stress_score: 0, stress_level: 'LOW',
+        ai_risk: 'NORMAL', ai_risk_confidence: 0, respiratory_variability: 0,
+        respiratory_variability_status: 'Collecting data',
+        vital_trend: { direction: 'stable', arrow: '→', label: 'Stable', summary: 'Gathering baseline', metric: 'overall' },
     });
     const [error, setError] = useState(null);
     const [isStreaming, setIsStreaming] = useState(false);
@@ -113,31 +119,74 @@ const VitalsMonitor = () => {
         }
     };
 
+    const clampRectToFrame = (rect, frameW, frameH) => {
+        const x = Math.max(0, Math.min(frameW - 2, rect.x));
+        const y = Math.max(0, Math.min(frameH - 2, rect.y));
+        const w = Math.max(2, Math.min(frameW - x, rect.w));
+        const h = Math.max(2, Math.min(frameH - y, rect.h));
+        return { x, y, w, h };
+    };
+
+    const smoothRect = (prevRect, nextRect, alpha = 0.25, maxJump = 22) => {
+        if (!prevRect) return { ...nextRect };
+        const dx = nextRect.x - prevRect.x;
+        const dy = nextRect.y - prevRect.y;
+        const dist = Math.hypot(dx, dy);
+        const limitedAlpha = dist > maxJump ? 0.12 : alpha;
+        return {
+            x: prevRect.x + limitedAlpha * dx,
+            y: prevRect.y + limitedAlpha * dy,
+            w: prevRect.w + limitedAlpha * (nextRect.w - prevRect.w),
+            h: prevRect.h + limitedAlpha * (nextRect.h - prevRect.h),
+        };
+    };
+
+    const extractSkinAverageFromRect = (ctx, rect, frameW, frameH) => {
+        const r = clampRectToFrame(rect, frameW, frameH);
+        const image = ctx.getImageData(Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h));
+        const data = image.data;
+
+        let sr = 0, sg = 0, sb = 0, count = 0;
+        let fallbackR = 0, fallbackG = 0, fallbackB = 0;
+        const pxCount = data.length / 4;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const R = data[i];
+            const G = data[i + 1];
+            const B = data[i + 2];
+
+            fallbackR += R;
+            fallbackG += G;
+            fallbackB += B;
+
+            const Y = 0.299 * R + 0.587 * G + 0.114 * B;
+            const Cr = (R - Y) * 0.713 + 128;
+            const Cb = (B - Y) * 0.564 + 128;
+
+            const isSkin = Y > 40 && Cr >= 133 && Cr <= 173 && Cb >= 77 && Cb <= 127;
+            if (isSkin) {
+                sr += R;
+                sg += G;
+                sb += B;
+                count += 1;
+            }
+        }
+
+        if (pxCount < 20) return null;
+        if (count < 20) {
+            return [fallbackR / pxCount, fallbackG / pxCount, fallbackB / pxCount];
+        }
+        return [sr / count, sg / count, sb / count];
+    };
+
     const processFaceMesh = (landmarks) => {
         if (!videoRef.current || !canvasRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return;
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const oc = overlayCanvasRef.current;
 
-        // ROI Point: Landmark 151 (Forehead Center)
-        const p151 = landmarks[151];
-        const p10 = landmarks[10];
-        const p67 = landmarks[67];
-        const p297 = landmarks[297];
-
         const videoW = video.videoWidth;
         const videoH = video.videoHeight;
-
-        // ROI Math: Pinpoint accuracy using landmarks
-        const fx_center = p151.x * videoW;
-        const fy_center = p151.y * videoH;
-        
-        // Width based on forehead width landmarks (67 to 297)
-        const fw = Math.abs(p297.x - p67.x) * videoW * 0.7;
-        const fh = Math.abs(p151.y - p10.y) * videoH * 1.2;
-        
-        const fx = fx_center - (fw / 2);
-        const fy = fy_center - (fh / 0.85); // Shift up slightly from 151
 
         // Face square math using landmarks
         const top = landmarks[10].y * videoH;
@@ -146,6 +195,42 @@ const VitalsMonitor = () => {
         const right = landmarks[454].x * videoW;
         const faceW = right - left;
         const faceH = bottom - top;
+
+        if (faceW < 20 || faceH < 20) return;
+
+        const rawForehead = {
+            x: left + 0.29 * faceW,
+            y: top + 0.08 * faceH,
+            w: 0.42 * faceW,
+            h: 0.18 * faceH,
+        };
+        const rawLeftCheek = {
+            x: left + 0.12 * faceW,
+            y: top + 0.43 * faceH,
+            w: 0.22 * faceW,
+            h: 0.2 * faceH,
+        };
+        const rawRightCheek = {
+            x: left + 0.66 * faceW,
+            y: top + 0.43 * faceH,
+            w: 0.22 * faceW,
+            h: 0.2 * faceH,
+        };
+
+        const previous = roiStateRef.current || {};
+        const smoothedForehead = clampRectToFrame(smoothRect(previous.forehead, rawForehead, 0.22, 20), videoW, videoH);
+        const smoothedLeftCheek = clampRectToFrame(smoothRect(previous.leftCheek, rawLeftCheek, 0.2, 20), videoW, videoH);
+        const smoothedRightCheek = clampRectToFrame(smoothRect(previous.rightCheek, rawRightCheek, 0.2, 20), videoW, videoH);
+
+        roiStateRef.current = {
+            forehead: smoothedForehead,
+            leftCheek: smoothedLeftCheek,
+            rightCheek: smoothedRightCheek,
+        };
+
+        const fx_center = smoothedForehead.x + smoothedForehead.w / 2;
+        const fy_center = smoothedForehead.y + smoothedForehead.h / 2;
+        lastPositionRef.current = { x: fx_center, y: fy_center };
 
         // Draw HUD on overlay canvas (Wireframe removed as requested)
         if (oc) {
@@ -158,46 +243,49 @@ const VitalsMonitor = () => {
             o.strokeRect(left, top, faceW, faceH);
             o.setLineDash([]); // Reset
             
-            // Highlight Forehead ROI (Keep for visual feedback)
+            // Highlight stabilized signal ROIs.
             o.strokeStyle = '#22d3ee'; o.lineWidth = 2;
             o.shadowColor = 'rgba(34,211,238,0.5)'; o.shadowBlur = 10;
-            o.strokeRect(fx, fy, fw, fh); o.shadowBlur = 0;
+            o.strokeRect(smoothedForehead.x, smoothedForehead.y, smoothedForehead.w, smoothedForehead.h); o.shadowBlur = 0;
+            o.strokeStyle = 'rgba(74, 222, 128, 0.9)';
+            o.strokeRect(smoothedLeftCheek.x, smoothedLeftCheek.y, smoothedLeftCheek.w, smoothedLeftCheek.h);
+            o.strokeRect(smoothedRightCheek.x, smoothedRightCheek.y, smoothedRightCheek.w, smoothedRightCheek.h);
             
-            o.save(); o.translate(fx + fw/2, fy - 10); o.scale(-1, 1);
+            o.save(); o.translate(smoothedForehead.x + smoothedForehead.w / 2, smoothedForehead.y - 10); o.scale(-1, 1);
             o.fillStyle = '#22d3ee'; o.font = 'bold 10px Inter, monospace'; o.textAlign = 'center';
-            o.fillText('PRECISION ROI FIXED', 0, 0); o.restore();
+            o.fillText('FOREHEAD + CHEEKS (SKIN)', 0, 0); o.restore();
         }
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = Math.max(1, fw);
-        canvas.height = Math.max(1, fh);
+        canvas.width = videoW;
+        canvas.height = videoH;
 
         try {
-            ctx.drawImage(video, fx, fy, fw, fh, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            
-            let rS = 0, gS = 0, bS = 0;
-            for (let i = 0; i < data.length; i += 4) {
-                rS += data[i]; gS += data[i + 1]; bS += data[i + 2];
-            }
-            const count = data.length / 4;
-            if (count < 10) return;
-            
-            const aR = rS / count;
-            const aG = gS / count;
-            const aB = bS / count;
+            ctx.drawImage(video, 0, 0, videoW, videoH);
 
-            // Stability check
-            const lp = lastPositionRef.current;
-            if (lp) {
-                const dist = Math.sqrt((fx_center - lp.x)**2 + (fy_center - lp.y)**2);
-                if (dist > 15) { // Landmark tracking is more stable, can allow slightly more wiggle
-                    lastPositionRef.current = { x: fx_center, y: fy_center };
-                    return;
-                }
+            const foreheadRGB = extractSkinAverageFromRect(ctx, smoothedForehead, videoW, videoH);
+            const leftCheekRGB = extractSkinAverageFromRect(ctx, smoothedLeftCheek, videoW, videoH);
+            const rightCheekRGB = extractSkinAverageFromRect(ctx, smoothedRightCheek, videoW, videoH);
+            if (!foreheadRGB || !leftCheekRGB || !rightCheekRGB) return;
+
+            const combined = [
+                0.6 * foreheadRGB[0] + 0.2 * leftCheekRGB[0] + 0.2 * rightCheekRGB[0],
+                0.6 * foreheadRGB[1] + 0.2 * leftCheekRGB[1] + 0.2 * rightCheekRGB[1],
+                0.6 * foreheadRGB[2] + 0.2 * leftCheekRGB[2] + 0.2 * rightCheekRGB[2],
+            ];
+
+            let aR = combined[0], aG = combined[1], aB = combined[2];
+            if (!rgbEmaRef.current) {
+                rgbEmaRef.current = [aR, aG, aB];
+            } else {
+                const alpha = 0.25;
+                rgbEmaRef.current = [
+                    (1 - alpha) * rgbEmaRef.current[0] + alpha * aR,
+                    (1 - alpha) * rgbEmaRef.current[1] + alpha * aG,
+                    (1 - alpha) * rgbEmaRef.current[2] + alpha * aB,
+                ];
+                [aR, aG, aB] = rgbEmaRef.current;
             }
-            lastPositionRef.current = { x: fx_center, y: fy_center };
 
             const now = performance.now();
             if (now - lastSendTimeRef.current < 32) return;
@@ -461,11 +549,49 @@ const VitalsMonitor = () => {
 
 
     const getQualityColor = (q) => q > 60 ? '#059669' : q > 30 ? '#d97706' : '#dc2626';
+    const getStressColors = (level) => {
+        if (level === 'HIGH') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
+        if (level === 'MODERATE') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
+        return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
+    };
+    const getRiskColors = (level) => {
+        if (level === 'CRITICAL') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
+        if (level === 'WARNING') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
+        return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
+    };
+    const getTrendColors = (direction) => {
+        if (direction === 'increasing') return { tone: '#2563eb', bg: '#eff6ff', accent: '#bfdbfe' };
+        if (direction === 'decreasing') return { tone: '#7c3aed', bg: '#f5f3ff', accent: '#ddd6fe' };
+        return { tone: '#475569', bg: '#f8fafc', accent: '#cbd5e1' };
+    };
+    const getTrendIcon = (direction) => {
+        if (direction === 'increasing') return TrendingUp;
+        if (direction === 'decreasing') return TrendingDown;
+        return Minus;
+    };
+    const toTitleCase = (value) => {
+        if (!value) return 'Unknown';
+        return value
+            .toLowerCase()
+            .split(' ')
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+    };
+    const trendDotColor = (direction) => {
+        if (direction === 'increasing') return '#2563eb';
+        if (direction === 'decreasing') return '#7c3aed';
+        return '#64748b';
+    };
 
     const isCalibrating = vitals.calibration_pct < 100 && vitals.bpm === 0;
+    const stressColors = getStressColors(vitals.stress_level);
+    const riskColors = getRiskColors(vitals.ai_risk);
+    const trendColors = getTrendColors(vitals.vital_trend?.direction);
+    const TrendIcon = getTrendIcon(vitals.vital_trend?.direction);
+    const trendData = vitals.vital_trend || { direction: 'stable', label: 'Stable', summary: 'Gathering baseline' };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '2rem' }}>
+        <div className="vitals-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '2rem' }}>
             {/* Left: Video Feed */}
             <div className="neo-card" style={{ background: 'white', padding: '1.5rem', position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -565,7 +691,13 @@ const VitalsMonitor = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                             <div style={{ width: '8px', height: '8px', background: vitals.status === 'tracking' ? '#22c55e' : '#eab308', borderRadius: '50%', boxShadow: vitals.status === 'tracking' ? '0 0 8px #22c55e' : 'none' }} />
                             <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                                {vitals.status === 'tracking' ? 'TRACKING' : isCalibrating ? `CALIBRATING (${Math.round(vitals.calibration_pct)}%)` : 'BUFFERING'}
+                                {vitals.status === 'tracking'
+                                    ? 'TRACKING'
+                                    : vitals.status === 'low_signal'
+                                        ? 'LOW SIGNAL'
+                                        : isCalibrating
+                                            ? `CALIBRATING (${Math.round(vitals.calibration_pct)}%)`
+                                            : 'BUFFERING'}
                             </span>
                         </div>
                     </div>
@@ -631,7 +763,7 @@ const VitalsMonitor = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 
                 {/* Health Alert Section */}
-                {vitals.bpm > 0 ? (
+                {vitals.bpm > 0 || vitals.alert !== 'Normal' ? (
                     <div className="neo-card" style={{
                         background: vitals.alert === "Normal" ? '#ecfdf5' : '#fff1f2',
                         padding: '1.5rem', border: '2px solid black', boxShadow: '4px 4px 0px black',
@@ -666,24 +798,24 @@ const VitalsMonitor = () => {
 
                     {vitals.bpm > 0 ? (
                         <>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div className="biometric-grid-3" style={{ marginBottom: '1rem' }}>
                                 {/* Heart Rate */}
-                                <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                                <div className="biometric-card" style={{ background: '#f8f9ff' }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
                                         <Heart size={16} color="#ff4d4d" fill={faceDetected ? "#ff4d4d" : "none"} className={faceDetected ? "animate-pulse" : ""} /> HEART RATE
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
                                         <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.bpm || '--'}</span>
                                         <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>BPM</span>
                                     </div>
-                                    <div style={{ fontSize: '0.6rem', color: '#999', marginTop: '0.2rem' }}>
+                                    <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.3rem', fontWeight: 600 }}>
                                         Min {vitals.hr_min || '--'} / Max {vitals.hr_max || '--'}
                                     </div>
                                 </div>
 
                                 {/* Respiration */}
-                                <div style={{ background: '#fff9f5', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                                <div className="biometric-card" style={{ background: '#fff9f5' }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
                                         <Wind size={16} color="#3b82f6" /> RESPIRATION
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
@@ -693,13 +825,81 @@ const VitalsMonitor = () => {
                                 </div>
 
                                 {/* SpO2 */}
-                                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                <div className="biometric-card" style={{ background: '#f0fdf4' }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem', whiteSpace: 'nowrap' }}>
                                         <Droplets size={16} color="#0ea5e9" /> SpO₂ (EST.)
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
                                         <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.spo2 || '--'}</span>
                                         <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="biometric-grid-3" style={{ marginBottom: '1rem' }}>
+                                <div className="biometric-card" style={{ background: '#f6f8ff' }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
+                                        <BarChart3 size={16} color="#4f46e5" /> HRV
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
+                                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.hrv || '--'}</span>
+                                        <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>ms</span>
+                                    </div>
+                                    <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: '#6366f1', fontWeight: 700 }}>
+                                        {vitals.hrv_status}
+                                    </div>
+                                </div>
+
+                                <div className="biometric-card" style={{ background: stressColors.bg }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
+                                        <Brain size={16} color={stressColors.tone} /> STRESS LEVEL
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '1.08rem', fontWeight: 800, color: stressColors.tone }}>{toTitleCase(vitals.stress_level)}</span>
+                                        <span style={{ fontSize: '1.7rem', fontWeight: 800, color: '#1a1a1a' }}>{Math.round(vitals.stress_score || 0)}%</span>
+                                    </div>
+                                    <div style={{ height: '8px', borderRadius: '999px', background: stressColors.accent, marginTop: '0.6rem', overflow: 'hidden' }}>
+                                        <div style={{ width: `${Math.min(100, Math.max(0, vitals.stress_score || 0))}%`, height: '100%', background: stressColors.tone, transition: 'width 0.3s ease' }} />
+                                    </div>
+                                </div>
+
+                                <div className="biometric-card" style={{ background: riskColors.bg }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
+                                        <ShieldAlert size={16} color={riskColors.tone} /> AI RISK
+                                    </div>
+                                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: riskColors.tone }}>{toTitleCase(vitals.ai_risk)}</div>
+                                    <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#666', fontWeight: 700 }}>
+                                        Classifier confidence {(vitals.ai_risk_confidence * 100).toFixed(0)}%
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="biometric-grid-2">
+                                <div className="biometric-card" style={{ background: '#fffaf0' }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
+                                        <Waves size={16} color="#0f766e" /> RESPIRATORY VARIABILITY
+                                    </div>
+                                    <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f766e' }}>{vitals.respiratory_variability_status}</div>
+                                    <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#666', fontWeight: 700 }}>
+                                        Interval spread {Math.round(vitals.respiratory_variability || 0)} ms
+                                    </div>
+                                </div>
+
+                                <div className="biometric-card" style={{ background: trendColors.bg }}>
+                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
+                                        <TrendIcon size={16} color={trendColors.tone} /> VITAL TREND
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '1.8rem', fontWeight: 800, color: trendColors.tone }}>{trendData.arrow || '→'}</span>
+                                        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1a1a1a' }}>{trendData.label || 'Stable'}</span>
+                                    </div>
+                                    <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#666', fontWeight: 700 }}>
+                                        {trendData.summary || 'Gathering baseline'}
+                                    </div>
+                                    <div style={{ marginTop: '0.7rem', display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                        <span className="trend-chip"><span style={{ color: trendDotColor(trendData.heart_rate) }}>●</span> HR</span>
+                                        <span className="trend-chip"><span style={{ color: trendDotColor(trendData.respiration) }}>●</span> RR</span>
+                                        <span className="trend-chip"><span style={{ color: trendDotColor(trendData.spo2) }}>●</span> SpO₂</span>
                                     </div>
                                 </div>
                             </div>
@@ -826,6 +1026,64 @@ const VitalsMonitor = () => {
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
                 .animate-pulse { animation: pulse 1s infinite cubic-bezier(0.4, 0, 0.6, 1); }
+                @media (max-width: 1180px) {
+                    .vitals-layout { grid-template-columns: 1fr !important; }
+                }
+                .biometric-grid-3 {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 1rem;
+                }
+                .biometric-grid-2 {
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 1rem;
+                }
+                .biometric-card {
+                    padding: 1rem;
+                    border-radius: 16px;
+                    border: 2px solid black;
+                    box-shadow: 3px 3px 0px black;
+                    min-height: 136px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    transition: transform 0.12s ease, box-shadow 0.12s ease;
+                }
+                .biometric-card:hover {
+                    transform: translate(-1px, -1px);
+                    box-shadow: 4px 4px 0px black;
+                }
+                .metric-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    color: #64748b;
+                    font-weight: 700;
+                    font-size: 0.76rem;
+                    letter-spacing: 0.3px;
+                }
+                .trend-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    background: rgba(255,255,255,0.6);
+                    border: 1px solid #cbd5e1;
+                    border-radius: 999px;
+                    padding: 0.2rem 0.45rem;
+                    font-size: 0.65rem;
+                    font-weight: 700;
+                    color: #475569;
+                }
+                @media (max-width: 820px) {
+                    .biometric-grid-3,
+                    .biometric-grid-2 {
+                        grid-template-columns: 1fr;
+                    }
+                    .biometric-card {
+                        min-height: 122px;
+                    }
+                }
             `}} />
         </div>
     );
