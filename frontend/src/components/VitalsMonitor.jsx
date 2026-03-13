@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Heart, Wind, Camera, AlertCircle, CheckCircle2, Shield, Download, Zap, TrendingUp, BarChart3 } from 'lucide-react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, Zap, TrendingUp, BarChart3 } from 'lucide-react';
 
 const VitalsMonitor = () => {
     const videoRef = useRef(null);
@@ -15,7 +15,7 @@ const VitalsMonitor = () => {
 
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
-        signal_quality: 0, health_score: 0, ews: 0, hrv: 0,
+        signal_quality: 0, health_score: 0, ews: 0, hrv: 0, spo2: 0,
         calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0,
     });
     const [error, setError] = useState(null);
@@ -398,66 +398,81 @@ const VitalsMonitor = () => {
 
                 {/* Pulse & Spectrum Graphs */}
                 <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ background: '#f8f9ff', borderRadius: '12px', padding: '1rem', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>PULSE WAVEFORM</span>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#ff4d4d' }}>● LIVE</span>
+                    {/* Pulse Graph - Only render if waveform exists */}
+                    {waveform.length > 0 && (
+                        <div style={{ background: '#f8f9ff', borderRadius: '12px', padding: '1rem', border: '1px solid #e2e8f0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>PULSE WAVEFORM</span>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#ff4d4d' }}>● LIVE</span>
+                            </div>
+                            <canvas ref={graphCanvasRef} width="600" height="60" style={{ width: '100%', height: '60px' }} />
                         </div>
-                        <canvas ref={graphCanvasRef} width="600" height="60" style={{ width: '100%', height: '60px' }} />
-                    </div>
+                    )}
 
-                    <div style={{ background: '#f0f9ff', borderRadius: '12px', padding: '1rem', border: '1px solid #e0f2fe' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>POWER SPECTRUM (ICA + POS)</span>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6' }}>STABLE</span>
+                    {/* Spectrum Graph - Only render if spectrum exists */}
+                    {spectrum.length > 0 && (
+                        <div style={{ background: '#f0f9ff', borderRadius: '12px', padding: '1rem', border: '1px solid #e0f2fe' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>POWER SPECTRUM (ICA + POS)</span>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6' }}>STABLE</span>
+                            </div>
+                            <canvas ref={spectrumCanvasRef} width="600" height="40" style={{ width: '100%', height: '40px' }} />
                         </div>
-                        <canvas ref={spectrumCanvasRef} width="600" height="40" style={{ width: '100%', height: '40px' }} />
-                    </div>
+                    )}
 
-                    {/* HR Trend Chart — neo card */}
-                    <div className="neo-card" style={{ background: 'white', borderRadius: '16px', padding: '1.25rem', border: '2px solid black', boxShadow: '4px 4px 0px black' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                            <div>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a1a1a', marginBottom: '0.5rem' }}>Heart Rate</div>
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                                    <span style={{ background: '#f8f9ff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '2px 10px', fontSize: '1.8rem', fontWeight: 800, color: '#ff6b8a' }}>{vitals.bpm || '--'}</span>
-                                    <span style={{ fontSize: '0.85rem', color: '#666' }}>bpm</span>
+                    {/* HR Trend Chart - Only render if trend has enough points */}
+                    {hrTrend.length > 2 && (
+                        <div className="neo-card" style={{ background: 'white', borderRadius: '16px', padding: '1.25rem', border: '2px solid black', boxShadow: '4px 4px 0px black' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                                <div>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a1a1a', marginBottom: '0.5rem' }}>Heart Rate</div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                                        <span style={{ background: '#f8f9ff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '2px 10px', fontSize: '1.8rem', fontWeight: 800, color: '#ff6b8a' }}>{vitals.bpm || '--'}</span>
+                                        <span style={{ fontSize: '0.85rem', color: '#666' }}>bpm</span>
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666' }}>
+                                    <div>Max: <strong>{vitals.hr_max || '--'}</strong> bpm</div>
+                                    <div>Min: <strong>{vitals.hr_min || '--'}</strong> bpm</div>
                                 </div>
                             </div>
-                            <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666' }}>
-                                <div>Max: <strong>{vitals.hr_max || '--'}</strong> bpm</div>
-                                <div>Min: <strong>{vitals.hr_min || '--'}</strong> bpm</div>
-                            </div>
+                            <div style={{ fontSize: '0.65rem', color: '#888', marginBottom: '6px' }}>Heart rate change (30s)</div>
+                            <canvas ref={trendCanvasRef} width="700" height="90" style={{ width: '100%', height: '90px', borderRadius: '8px', background: '#fafafa', border: '1px solid #e2e8f0' }} />
                         </div>
-                        <div style={{ fontSize: '0.65rem', color: '#888', marginBottom: '6px' }}>Heart rate change (30s)</div>
-                        <canvas ref={trendCanvasRef} width="700" height="90" style={{ width: '100%', height: '90px', borderRadius: '8px', background: '#fafafa', border: '1px solid #e2e8f0' }} />
-                    </div>
+                    )}
                 </div>
             </div>
 
             {/* Right: Metrics & Alerts */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 
-                {/* Health Alert Section (Moved to top) */}
-                <div className="neo-card" style={{
-                    background: vitals.alert === "Normal" ? '#ecfdf5' : '#fff1f2',
-                    padding: '1.5rem', border: '2px solid black', boxShadow: '4px 4px 0px black',
-                    borderColor: vitals.alert === "Normal" ? '#059669' : '#e11d48'
-                }}>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        {vitals.alert === "Normal" ? (
-                            <CheckCircle2 color="#059669" size={32} />
-                        ) : (
-                            <AlertCircle color="#e11d48" size={32} className="animate-pulse" />
-                        )}
-                        <div style={{ flex: 1 }}>
-                            <h4 style={{ margin: 0, color: vitals.alert === "Normal" ? '#065f46' : '#9f1239' }}>HEALTH STATUS</h4>
-                            <p style={{ margin: '0.2rem 0 0', fontWeight: 700, fontSize: '1.1rem', color: vitals.alert === "Normal" ? '#047857' : '#be123c' }}>
-                                {vitals.alert}
-                            </p>
+                {/* Health Alert Section */}
+                {vitals.bpm > 0 ? (
+                    <div className="neo-card" style={{
+                        background: vitals.alert === "Normal" ? '#ecfdf5' : '#fff1f2',
+                        padding: '1.5rem', border: '2px solid black', boxShadow: '4px 4px 0px black',
+                        borderColor: vitals.alert === "Normal" ? '#059669' : '#e11d48'
+                    }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            {vitals.alert === "Normal" ? (
+                                <CheckCircle2 color="#059669" size={32} />
+                            ) : (
+                                <AlertCircle color="#e11d48" size={32} className="animate-pulse" />
+                            )}
+                            <div style={{ flex: 1 }}>
+                                <h4 style={{ margin: 0, color: vitals.alert === "Normal" ? '#065f46' : '#9f1239' }}>HEALTH STATUS</h4>
+                                <p style={{ margin: '0.2rem 0 0', fontWeight: 700, fontSize: '1.1rem', color: vitals.alert === "Normal" ? '#047857' : '#be123c' }}>
+                                    {vitals.alert}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="neo-card" style={{ background: '#f8fafc', padding: '1.5rem', border: '2px dashed #cbd5e1', textAlign: 'center', color: '#94a3b8', borderRadius: '12px' }}>
+                        <Shield size={28} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', letterSpacing: '1px' }}>SYSTEM STANDBY</div>
+                    </div>
+                )}
 
                 {/* Main Vitals */}
                 <div className="neo-card" style={{ background: 'white', padding: '2rem', flex: 1 }}>
@@ -465,76 +480,104 @@ const VitalsMonitor = () => {
                         <Activity size={24} color="var(--primary)" /> Biometric Analysis
                     </h3>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        {/* Heart Rate */}
-                        <div style={{ background: '#f8f9ff', padding: '1.5rem', borderRadius: '20px', border: '2px solid black', boxShadow: '4px 4px 0px black' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
-                                <Heart size={20} color="#ff4d4d" fill={faceDetected ? "#ff4d4d" : "none"} className={faceDetected ? "animate-pulse" : ""} /> HEART RATE
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-                                <span style={{ fontSize: '3rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.bpm || '--'}</span>
-                                <span style={{ fontWeight: 700, color: '#666' }}>BPM</span>
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: '#999', marginTop: '0.3rem' }}>
-                                Min {vitals.hr_min || '--'} / Max {vitals.hr_max || '--'}
-                            </div>
-                        </div>
+                    {vitals.bpm > 0 ? (
+                        <>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                                {/* Heart Rate */}
+                                <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                                        <Heart size={16} color="#ff4d4d" fill={faceDetected ? "#ff4d4d" : "none"} className={faceDetected ? "animate-pulse" : ""} /> HEART RATE
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
+                                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.bpm || '--'}</span>
+                                        <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>BPM</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.6rem', color: '#999', marginTop: '0.2rem' }}>
+                                        Min {vitals.hr_min || '--'} / Max {vitals.hr_max || '--'}
+                                    </div>
+                                </div>
 
-                        {/* Respiration */}
-                        <div style={{ background: '#fff9f5', padding: '1.5rem', borderRadius: '20px', border: '2px solid black', boxShadow: '4px 4px 0px black' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
-                                <Wind size={20} color="#3b82f6" /> RESPIRATION
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-                                <span style={{ fontSize: '3rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.respiration || '--'}</span>
-                                <span style={{ fontWeight: 700, color: '#666' }}>RPM</span>
-                            </div>
-                        </div>
+                                {/* Respiration */}
+                                <div style={{ background: '#fff9f5', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                                        <Wind size={16} color="#3b82f6" /> RESPIRATION
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
+                                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.respiration || '--'}</span>
+                                        <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>RPM</span>
+                                    </div>
+                                </div>
 
-                        {/* Health Score */}
-                        <div style={{ background: '#ecfdf5', padding: '1.5rem', borderRadius: '20px', border: '2px solid black', boxShadow: '4px 4px 0px black' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
-                                <Zap size={20} color="#059669" /> HEALTH SCORE
+                                {/* SpO2 */}
+                                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                        <Droplets size={16} color="#0ea5e9" /> SpO₂ (EST.)
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
+                                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.spo2 || '--'}</span>
+                                        <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>%</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-                                <span style={{ fontSize: '3rem', fontWeight: 800, color: '#059669' }}>{vitals.health_score || '--'}</span>
-                                <span style={{ fontWeight: 700, color: '#666' }}>/100</span>
-                            </div>
-                        </div>
 
-                        {/* EWS */}
-                        <div style={{ background: vitals.ews === 0 ? '#ecfdf5' : vitals.ews <= 4 ? '#fffbeb' : '#fef2f2', padding: '1.5rem', borderRadius: '20px', border: '2px solid black', boxShadow: '4px 4px 0px black' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
-                                <AlertCircle size={20} color={getEWSColor(vitals.ews)} /> EWS RISK
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-                                <span style={{ fontSize: '3rem', fontWeight: 800, color: getEWSColor(vitals.ews) }}>{vitals.ews}</span>
-                            </div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#666', marginTop: '0.3rem' }}>
-                                {getEWSLabel(vitals.ews).toUpperCase()}
-                            </div>
-                        </div>
-                    </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                {/* Health Score */}
+                                <div style={{ background: '#ecfdf5', padding: '1.25rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
+                                        <Zap size={20} color="#059669" /> HEALTH SCORE
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                                        <span style={{ fontSize: '3rem', fontWeight: 800, color: '#059669' }}>{vitals.health_score || '--'}</span>
+                                        <span style={{ fontWeight: 700, color: '#666' }}>/100</span>
+                                    </div>
+                                </div>
 
-                    {/* Signal Quality */}
-                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f1f5f9', borderRadius: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>SIGNAL QUALITY</span>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: getQualityColor(vitals.signal_quality) }}>
-                                {Math.round(vitals.signal_quality)}%
-                            </span>
+                                {/* EWS */}
+                                <div style={{ background: vitals.ews === 0 ? '#ecfdf5' : vitals.ews <= 4 ? '#fffbeb' : '#fef2f2', padding: '1.25rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
+                                        <AlertCircle size={20} color={getEWSColor(vitals.ews)} /> EWS RISK
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                                        <span style={{ fontSize: '3rem', fontWeight: 800, color: getEWSColor(vitals.ews) }}>{vitals.ews}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#666', marginTop: '0.3rem' }}>
+                                        {getEWSLabel(vitals.ews).toUpperCase()}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Signal Quality */}
+                            <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f1f5f9', borderRadius: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>SIGNAL QUALITY</span>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: getQualityColor(vitals.signal_quality) }}>
+                                        {Math.round(vitals.signal_quality)}%
+                                    </span>
+                                </div>
+                                <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{
+                                        width: `${vitals.signal_quality}%`, height: '100%',
+                                        background: `linear-gradient(90deg, ${getQualityColor(vitals.signal_quality)}, ${getQualityColor(vitals.signal_quality)}88)`,
+                                        transition: 'width 0.5s ease'
+                                    }} />
+                                </div>
+                                <div style={{ marginTop: '0.4rem', fontSize: '0.7rem', color: '#94a3b8' }}>
+                                    {vitals.status === 'tracking' ? 'TRACKING' : vitals.status?.toUpperCase()}
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                            <Activity size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                            <h4 style={{ margin: '0 0 0.5rem', color: '#64748b' }}>Acquiring Signal...</h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem' }}>Please keep your face positioned clearly in the frame.</p>
+                            {isCalibrating && (
+                                <div style={{ marginTop: '1.5rem', color: '#3b82f6', fontWeight: 600 }}>
+                                    Calibrating ({Math.round(vitals.calibration_pct)}%)
+                                </div>
+                            )}
                         </div>
-                        <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{
-                                width: `${vitals.signal_quality}%`, height: '100%',
-                                background: `linear-gradient(90deg, ${getQualityColor(vitals.signal_quality)}, ${getQualityColor(vitals.signal_quality)}88)`,
-                                transition: 'width 0.5s ease'
-                            }} />
-                        </div>
-                        <div style={{ marginTop: '0.4rem', fontSize: '0.7rem', color: '#94a3b8' }}>
-                            {vitals.status === 'tracking' ? 'TRACKING' : vitals.status?.toUpperCase()}
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Download Report Button - Bottom Right */}
