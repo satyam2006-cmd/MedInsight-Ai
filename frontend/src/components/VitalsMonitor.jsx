@@ -51,7 +51,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const [trendDays, setTrendDays] = useState(7);
     const [trendAnalysis, setTrendAnalysis] = useState(null);
     const [trendLoading, setTrendLoading] = useState(false);
-    const [trendPatientId, setTrendPatientId] = useState('anonymous');
+    const [trendPatientId, setTrendPatientId] = useState('');
 
     const getApiBase = () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -579,11 +579,6 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [trendDays]);
 
-    useEffect(() => {
-        fetchLongTermTrend('anonymous', trendDays);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
     const fetchAISummary = async () => {
         try {
             const base = getApiBase();
@@ -601,6 +596,11 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     };
 
     const fetchLongTermTrend = async (patientId = trendPatientId, days = trendDays) => {
+        if (!patientId || !String(patientId).trim()) {
+            setTrendAnalysis(null);
+            setCompareMessage('Save a linked patient session first to view long-term trends.');
+            return;
+        }
         try {
             setTrendLoading(true);
             const base = getApiBase();
@@ -730,6 +730,11 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
 
     const saveSession = async () => {
         setCompareMessage('');
+        const linkedPatientId = patientInputId.trim();
+        if (!linkedPatientId) {
+            setCompareMessage('Link a patient ID before saving this session.');
+            return;
+        }
         try {
             setCompareLoading(true);
             const base = getApiBase();
@@ -738,8 +743,8 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session_id: vitals.session_id || null,
-                    patient_id: patientInputId.trim() || null,
-                    condition_tag: 'general',
+                    patient_id: linkedPatientId,
+                    condition_tag: 'linked-session',
                 }),
             });
             const data = await res.json();
@@ -749,11 +754,11 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
             }
             setSavedSessionId(data.session_id || '');
             setCompareMessage(`Session saved: ${data.session_id}`);
-            setTrendPatientId(data.patient_id || 'anonymous');
+            setTrendPatientId(data.patient_id || linkedPatientId);
             if (data.long_term_trend) {
                 setTrendAnalysis(data.long_term_trend);
             } else {
-                fetchLongTermTrend(data.patient_id || 'anonymous');
+                fetchLongTermTrend(data.patient_id || linkedPatientId);
             }
         } catch (e) {
             setCompareMessage('Could not save session. Please retry.');

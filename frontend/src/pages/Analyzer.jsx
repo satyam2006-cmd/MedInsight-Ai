@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import StaggeredMenu from '../components/StaggeredMenu';
 import { extractText } from '../ocr-engine/services/hybridService.js';
 import { API_BASE_URL } from '../lib/config';
+import { supabase } from '../lib/supabaseClient';
 
 const AnalyzerPage = () => {
     const navigate = useNavigate();
     const [file, setFile] = useState(null);
-    const [targetLanguage, setTargetLanguage] = useState('Hindi');
+    const [targetLanguage, setTargetLanguage] = useState('');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -19,6 +20,19 @@ const AnalyzerPage = () => {
     const [audioLoading, setAudioLoading] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
     const [cameraVitals, setCameraVitals] = useState(null);
+
+    useEffect(() => {
+        const loadPreferredLanguage = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const preferred = user?.user_metadata?.preferred_language || user?.user_metadata?.language || '';
+                if (preferred) setTargetLanguage(preferred);
+            } catch (_) {
+                // Keep manual input available when profile metadata cannot be loaded.
+            }
+        };
+        loadPreferredLanguage();
+    }, []);
 
     const ISO_LANGS = {
         'hindi': 'hi-IN', 'english': 'en-US', 'spanish': 'es-ES', 'french': 'fr-FR',
@@ -136,6 +150,10 @@ const AnalyzerPage = () => {
 
     const handleAnalyze = async () => {
         if (!file) return;
+        if (!targetLanguage.trim()) {
+            setError('Set target language or configure preferred language in profile.');
+            return;
+        }
 
         setLoading(true);
         setResult(null);

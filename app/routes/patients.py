@@ -14,7 +14,7 @@ async def create_patient_and_report(
     patient_id: str = Form(...),
     patient_name: str = Form(...),
     patient_number: str = Form(...),
-    language: str = Form("English"),
+    language: Optional[str] = Form(None),
     report_file: UploadFile = File(...)
 ):
     """
@@ -24,6 +24,15 @@ async def create_patient_and_report(
     try:
         # 0. Initialize user-scoped Supabase client
         supabase = get_supabase_client(authorization)
+
+        auth_response = supabase.auth.get_user()
+        user = auth_response.user if auth_response and auth_response.user else None
+        profile_language = ""
+        if user and user.user_metadata:
+            profile_language = user.user_metadata.get("preferred_language") or user.user_metadata.get("language") or ""
+        resolved_language = (language or profile_language or "").strip()
+        if not resolved_language:
+            raise HTTPException(status_code=400, detail="Target language is required. Set preferred language in profile or provide language.")
         
         # 1. Create Patient
         logger.info(f"Creating patient record for {patient_name}...")
@@ -42,26 +51,25 @@ async def create_patient_and_report(
         extracted_text = ocr_service.extract_text(file_content)
         
         # 3. Analyze with Gemini
-        logger.info(f"Analyzing extracted text with AI (Language: {language})...")
+        logger.info(f"Analyzing extracted text with AI (Language: {resolved_language})...")
         mime_type = report_file.content_type or "application/octet-stream"
         
         analysis_result = await ai_engine.analyze_medical_document(
             file_content=file_content,
             mime_type=mime_type,
-            target_language=language,
+            target_language=resolved_language,
             extracted_text=extracted_text
         )
 
         # 3.1. Fetch User Metadata for branding injection
         try:
-            auth_response = supabase.auth.get_user()
-            if auth_response and auth_response.user:
-                user = auth_response.user
+            if user:
+                phone = f"{user.user_metadata.get('country_code', '')} {user.user_metadata.get('phone', '')}".strip() if user.user_metadata else ""
                 hospital_info = {
-                    "hospital_name": user.user_metadata.get("hospital_name", "Hospital"),
-                    "admin_name": user.user_metadata.get("admin_username", "Administrator"),
-                    "email": user.email,
-                    "phone": f"{user.user_metadata.get('country_code', '')} {user.user_metadata.get('phone', '')}".strip()
+                    "hospital_name": user.user_metadata.get("hospital_name", "") if user.user_metadata else "",
+                    "admin_name": user.user_metadata.get("admin_username", "") if user.user_metadata else "",
+                    "email": user.email or "",
+                    "phone": phone
                 }
                 analysis_result.hospital_details = hospital_info
         except Exception as auth_err:

@@ -43,8 +43,8 @@ export default function ReportsPage() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                     setHospitalInfo({
-                        hospital_name: user.user_metadata?.hospital_name || "Hospital",
-                        admin_name: user.user_metadata?.admin_username || "Admin",
+                        hospital_name: user.user_metadata?.hospital_name || '',
+                        admin_name: user.user_metadata?.admin_username || '',
                         email: user.email,
                         phone: `${user.user_metadata?.country_code || ""} ${user.user_metadata?.phone || ""}`.trim()
                     });
@@ -280,9 +280,14 @@ export default function ReportsPage() {
                                             <div style={{ background: '#f5f5f5', padding: '1.5rem', border: '2px solid black', borderRadius: '4px' }}>
                                                 {/* Hospital Header for trusting branding */}
                                                 <div style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    {(() => {
+                                                        const hospitalName = analysis?.hospital_details?.hospital_name || hospitalInfo?.hospital_name;
+                                                        return (
                                                     <p style={{ margin: 0, fontWeight: 800, fontSize: '0.8rem', color: 'var(--primary, #5227FF)', textTransform: 'uppercase' }}>
-                                                        FROM {analysis?.hospital_details?.hospital_name || hospitalInfo?.hospital_name || "HOSPITAL"}
+                                                        FROM {hospitalName || 'HOSPITAL PROFILE NOT SET'}
                                                     </p>
+                                                        );
+                                                    })()}
                                                     <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.6 }}>WITH MEDINSIGHT AI</span>
                                                 </div>
 
@@ -292,9 +297,9 @@ export default function ReportsPage() {
 
                                                 {/* Hospital Footer for Liability */}
                                                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #ddd', display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>
-                                                    <div>ADMIN: {analysis?.hospital_details?.admin_name || hospitalInfo?.admin_name}</div>
-                                                    <div>EMAIL: {analysis?.hospital_details?.email || hospitalInfo?.email}</div>
-                                                    <div>PHONE: {analysis?.hospital_details?.phone || hospitalInfo?.phone}</div>
+                                                    <div>ADMIN: {analysis?.hospital_details?.admin_name || hospitalInfo?.admin_name || 'Not set in profile'}</div>
+                                                    <div>EMAIL: {analysis?.hospital_details?.email || hospitalInfo?.email || 'Not set in profile'}</div>
+                                                    <div>PHONE: {analysis?.hospital_details?.phone || hospitalInfo?.phone || 'Not set in profile'}</div>
                                                 </div>
                                             </div>
                                         </div>
