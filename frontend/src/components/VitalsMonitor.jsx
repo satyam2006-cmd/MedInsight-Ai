@@ -202,12 +202,24 @@ const VitalsMonitor = () => {
     };
 
     const connectWebSocket = () => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) return;
+        // If already connecting or open, don't start another one
+        if (wsRef.current && wsRef.current.readyState < 2) return;
+        
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const host = isLocal ? 'localhost:8000' : window.location.host;
+        const hostname = window.location.hostname;
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        const port = '8000';
+        
+        // Use 127.0.0.1 consistently if local to avoid localhost resolution issues
+        const host = isLocal ? `127.0.0.1:${port}` : window.location.host;
+        
+        console.log(`[Vitals] Connecting to ${protocol}://${host}/ws/vitals`);
         const ws = new WebSocket(`${protocol}://${host}/ws/vitals`);
-        ws.onopen = () => { setError(null); };
+        
+        ws.onopen = () => { 
+            console.log("[Vitals] WebSocket Connected");
+            setError(null); 
+        };
         ws.onmessage = (event) => {
             try {
                 const d = JSON.parse(event.data);
@@ -218,8 +230,15 @@ const VitalsMonitor = () => {
                 if (d.spectrum) setSpectrum(d.spectrum);
             } catch (e) {}
         };
-        ws.onclose = () => { setTimeout(connectWebSocket, 3000); };
-        ws.onerror = () => {};
+        ws.onclose = (e) => { 
+            if (e.code !== 1000) {
+                console.log("[Vitals] WebSocket Closed, reconnecting...");
+                setTimeout(connectWebSocket, 3000); 
+            }
+        };
+        ws.onerror = (e) => {
+            console.error("[Vitals] WebSocket Error:", e);
+        };
         wsRef.current = ws;
     };
 
