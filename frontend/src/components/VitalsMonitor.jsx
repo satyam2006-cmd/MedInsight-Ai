@@ -813,19 +813,19 @@ const VitalsMonitor = () => {
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '2rem' }}>
+        <div className="vitals-layout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(340px, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
             {/* Left: Video Feed */}
-            <div className="neo-card" style={{ background: 'white', padding: '1.5rem', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div className="neo-card vitals-left-panel" style={{ background: 'white', padding: '1.25rem', position: 'relative' }}>
+                <div className="vitals-top-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.75rem', flexWrap: 'wrap' }}>
                     <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Camera size={24} color="var(--primary)" /> Real-Time Feed
                     </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div className="vitals-controls-row" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <select
                             value={selectedCameraId}
                             onChange={(e) => switchCamera(e.target.value)}
                             disabled={cameraSwitching}
-                            style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.3rem 0.4rem', fontSize: '0.72rem', maxWidth: '220px' }}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.35rem 0.45rem', fontSize: '0.74rem', maxWidth: '260px' }}
                         >
                             {cameraDevices.length === 0 && <option value="">No camera detected</option>}
                             {cameraDevices.map((d, idx) => (
@@ -899,7 +899,7 @@ const VitalsMonitor = () => {
                 </div>
 
                 {/* Pulse & Spectrum Graphs */}
-                <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className="vitals-graphs" style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                     {/* Pulse Graph - Only render if waveform exists */}
                     {waveform.length > 0 && (
                         <div style={{ background: '#f8f9ff', borderRadius: '12px', padding: '1rem', border: '1px solid #e2e8f0' }}>
@@ -946,7 +946,7 @@ const VitalsMonitor = () => {
             </div>
 
             {/* Right: Metrics & Alerts */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="vitals-right-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 
                 {/* Health Alert Section */}
                 {vitals.bpm > 0 ? (
@@ -977,14 +977,14 @@ const VitalsMonitor = () => {
                 )}
 
                 {/* Main Vitals */}
-                <div className="neo-card" style={{ background: 'white', padding: '2rem', flex: 1 }}>
+                <div className="neo-card" style={{ background: 'white', padding: '1.25rem', flex: 1 }}>
                     <h3 style={{ margin: '0 0 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Activity size={24} color="var(--primary)" /> Biometric Analysis
                     </h3>
 
                     {vitals.bpm > 0 ? (
                         <>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div className="vitals-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.8rem', marginBottom: '1rem' }}>
                                 {/* Heart Rate */}
                                 <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
@@ -1058,7 +1058,7 @@ const VitalsMonitor = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div className="vitals-trend-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
                                 <div style={{ background: '#fffaf0', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
                                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.45rem' }}>RESPIRATORY VARIABILITY</div>
                                     <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f766e', lineHeight: 1.1 }}>{vitals.respiratory_variability_status || 'Collecting data'}</div>
@@ -1119,9 +1119,9 @@ const VitalsMonitor = () => {
                             </div>
 
                             {/* Judge Compare Panel */}
-                            <div style={{ marginTop: '1rem', padding: '1rem', background: '#eef2ff', borderRadius: '12px', border: '1px solid #c7d2fe' }}>
+                            <div style={{ marginTop: '0.85rem', padding: '0.9rem', background: '#eef2ff', borderRadius: '12px', border: '1px solid #c7d2fe' }}>
                                 <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#3730a3', marginBottom: '0.5rem' }}>JUDGE SIDE-BY-SIDE CHECK</div>
-                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                                <div className="vitals-action-row" style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                                     <button onClick={saveSession} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>1) Save Session</button>
                                     <button onClick={saveReference} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>2) Save Reference</button>
                                     <button onClick={runCompare} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: '#1e293b', color: 'white', fontWeight: 700, cursor: 'pointer' }}>3) Compare</button>
@@ -1250,6 +1250,61 @@ const VitalsMonitor = () => {
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
                 .animate-pulse { animation: pulse 1s infinite cubic-bezier(0.4, 0, 0.6, 1); }
+
+                .vitals-layout-grid {
+                    min-width: 0;
+                }
+
+                .vitals-controls-row > * {
+                    flex-shrink: 0;
+                }
+
+                .vitals-metrics-grid > div,
+                .vitals-trend-grid > div {
+                    min-width: 0;
+                }
+
+                @media (max-width: 1200px) {
+                    .vitals-layout-grid {
+                        grid-template-columns: minmax(0, 1fr) !important;
+                    }
+                    .vitals-right-panel {
+                        order: 2;
+                    }
+                    .vitals-left-panel {
+                        order: 1;
+                    }
+                }
+
+                @media (max-width: 900px) {
+                    .vitals-metrics-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                    }
+                    .vitals-trend-grid {
+                        grid-template-columns: minmax(0, 1fr) !important;
+                    }
+                }
+
+                @media (max-width: 640px) {
+                    .vitals-top-row {
+                        flex-direction: column;
+                        align-items: flex-start !important;
+                    }
+                    .vitals-controls-row {
+                        width: 100%;
+                        justify-content: flex-start !important;
+                    }
+                    .vitals-controls-row select {
+                        max-width: 100% !important;
+                        min-width: 200px;
+                    }
+                    .vitals-metrics-grid {
+                        grid-template-columns: minmax(0, 1fr) !important;
+                    }
+                    .vitals-action-row button {
+                        flex: 1 1 150px;
+                    }
+                }
             `}} />
         </div>
     );
