@@ -13,6 +13,7 @@ const VitalsMonitor = () => {
     const lastPositionRef = useRef(null);
     const lastSendTimeRef = useRef(0);
     const patchHistoryRef = useRef({ forehead: null, leftCheek: null, rightCheek: null });
+    const roiBoxesRef = useRef(null);
     const detectionLoopActiveRef = useRef(false);
     const lastWsMessageAtRef = useRef(Date.now());
     const reconnectTimerRef = useRef(null);
@@ -146,9 +147,20 @@ const VitalsMonitor = () => {
         } else {
             setFaceDetected(false);
             setVitals(prev => ({ ...prev, status: 'searching' }));
+            roiBoxesRef.current = null;
             const oc = overlayCanvasRef.current;
             if (oc) { const ctx = oc.getContext('2d'); ctx.clearRect(0, 0, oc.width, oc.height); }
         }
+    };
+
+    const smoothRect = (previous, next, alpha = 0.35) => {
+        if (!previous) return { ...next };
+        return {
+            x: previous.x + (next.x - previous.x) * alpha,
+            y: previous.y + (next.y - previous.y) * alpha,
+            w: previous.w + (next.w - previous.w) * alpha,
+            h: previous.h + (next.h - previous.h) * alpha,
+        };
     };
 
     const processFaceMesh = (landmarks) => {
@@ -158,34 +170,77 @@ const VitalsMonitor = () => {
         const oc = overlayCanvasRef.current;
 
         // Core landmarks for adaptive multi-patch ROI fusion
-        const p151 = landmarks[151];
-        const p10 = landmarks[10];
-        const p67 = landmarks[67];
-        const p297 = landmarks[297];
-        const p93 = landmarks[93];
-        const p323 = landmarks[323];
+        const p1 = landmarks[1];
+        const p205 = landmarks[205];
+        const p425 = landmarks[425];
 
         const videoW = video.videoWidth;
         const videoH = video.videoHeight;
 
-        // ROI Math: Pinpoint accuracy using landmarks
-        const fx_center = p151.x * videoW;
-        const fy_center = p151.y * videoH;
-        
-        // Width based on forehead width landmarks (67 to 297)
-        const fw = Math.abs(p297.x - p67.x) * videoW * 0.7;
-        const fh = Math.abs(p151.y - p10.y) * videoH * 1.2;
-        
-        const fx = fx_center - (fw / 2);
-        const fy = fy_center - (fh / 0.85); // Shift up slightly from 151
-
-        // Face square math using landmarks
-        const top = landmarks[10].y * videoH;
+        // Dynamic face bounds. Use min/max so ROIs still track correctly across mirrored/front camera orientations.
+        const top = Math.min(landmarks[10].y * videoH, landmarks[151].y * videoH);
         const bottom = landmarks[152].y * videoH;
-        const left = landmarks[234].x * videoW;
-        const right = landmarks[454].x * videoW;
+        const sideA = landmarks[234].x * videoW;
+        const sideB = landmarks[454].x * videoW;
+        const left = Math.min(sideA, sideB);
+        const right = Math.max(sideA, sideB);
         const faceW = right - left;
         const faceH = bottom - top;
+
+        if (faceW < 20 || faceH < 20) return;
+
+        const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+        // Forehead ROI from live landmarks and face bounds.
+        const rawForehead = {
+            x: left + faceW * 0.3,
+            y: top + faceH * 0.07,
+            w: faceW * 0.4,
+            h: faceH * 0.16,
+        };
+
+        // Cheek ROIs anchored to inner-cheek landmarks and constrained away from ears.
+        const cheekW = faceW * 0.2;
+        const cheekH = faceH * 0.18;
+        const noseX = p1.x * videoW;
+        const rawCheekY = ((p205.y + p425.y) * 0.5) * videoH;
+        const cheekCenterY = clamp(rawCheekY, top + faceH * 0.45, top + faceH * 0.68);
+        const leftCheekCenterX = clamp(p205.x * videoW, left + faceW * 0.24, noseX - faceW * 0.12);
+        const rightCheekCenterX = clamp(p425.x * videoW, noseX + faceW * 0.12, right - faceW * 0.24);
+        const rawLeftCheek = {
+            x: leftCheekCenterX - cheekW / 2,
+            y: cheekCenterY - cheekH / 2,
+            w: cheekW,
+            h: cheekH,
+        };
+        const rawRightCheek = {
+            x: rightCheekCenterX - cheekW / 2,
+            y: cheekCenterY - cheekH / 2,
+            w: cheekW,
+            h: cheekH,
+        };
+
+        // Smooth but keep dynamic so ROI boxes clearly move with the face.
+        const previousRois = roiBoxesRef.current || {};
+        const foreheadRoi = smoothRect(previousRois.forehead, rawForehead, 0.35);
+        const leftCheekRoi = smoothRect(previousRois.leftCheek, rawLeftCheek, 0.35);
+        const rightCheekRoi = smoothRect(previousRois.rightCheek, rawRightCheek, 0.35);
+        roiBoxesRef.current = {
+            forehead: foreheadRoi,
+            leftCheek: leftCheekRoi,
+            rightCheek: rightCheekRoi,
+        };
+
+        const fx = foreheadRoi.x;
+        const fy = foreheadRoi.y;
+        const fw = foreheadRoi.w;
+        const fh = foreheadRoi.h;
+        const lx = leftCheekRoi.x;
+        const ly = leftCheekRoi.y;
+        const rx = rightCheekRoi.x;
+        const ry = rightCheekRoi.y;
+        const fx_center = fx + fw / 2;
+        const fy_center = fy + fh / 2;
 
         // Draw HUD on overlay canvas (Wireframe removed as requested)
         if (oc) {
@@ -199,12 +254,6 @@ const VitalsMonitor = () => {
             o.setLineDash([]); // Reset
             
             // Draw adaptive multi-patch ROIs (forehead + cheeks)
-            const cheekW = fw * 0.48;
-            const cheekH = fh * 0.75;
-            const lx = (p93.x * videoW) - cheekW / 2;
-            const ly = (p93.y * videoH) - cheekH / 2;
-            const rx = (p323.x * videoW) - cheekW / 2;
-            const ry = (p323.y * videoH) - cheekH / 2;
 
             o.strokeStyle = '#22d3ee'; o.lineWidth = 2;
             o.shadowColor = 'rgba(34,211,238,0.5)'; o.shadowBlur = 10;
@@ -220,8 +269,8 @@ const VitalsMonitor = () => {
         }
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = Math.max(1, fw);
-        canvas.height = Math.max(1, fh);
+        canvas.width = Math.max(1, Math.round(fw));
+        canvas.height = Math.max(1, Math.round(fh));
 
         try {
             const samplePatch = (name, x, y, w, h) => {
@@ -264,12 +313,10 @@ const VitalsMonitor = () => {
                 return { aR, aG, aB, weight };
             };
 
-            const cheekW = fw * 0.48;
-            const cheekH = fh * 0.75;
             const patches = [
                 samplePatch('forehead', fx, fy, fw, fh),
-                samplePatch('leftCheek', (p93.x * videoW) - cheekW / 2, (p93.y * videoH) - cheekH / 2, cheekW, cheekH),
-                samplePatch('rightCheek', (p323.x * videoW) - cheekW / 2, (p323.y * videoH) - cheekH / 2, cheekW, cheekH),
+                samplePatch('leftCheek', lx, ly, cheekW, cheekH),
+                samplePatch('rightCheek', rx, ry, cheekW, cheekH),
             ].filter(Boolean);
 
             if (!patches.length) return;
