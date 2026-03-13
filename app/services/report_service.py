@@ -79,6 +79,7 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
         ['Min Heart Rate', f"{session_data.get('min_hr', 0)} BPM", '—'],
         ['Max Heart Rate', f"{session_data.get('max_hr', 0)} BPM", '—'],
         ['Respiration Rate', f"{session_data.get('avg_rr', 0)} RPM", '12-20 RPM'],
+        ['SpO₂ (Est.)', f"{session_data.get('avg_spo2', 0)} %", '95-100 %'],
         ['HRV (SDNN)', f"{session_data.get('hrv_sdnn', 0)} ms", '>50 ms'],
     ]
     vitals_table = Table(vitals_data, colWidths=[150, 150, 150])
