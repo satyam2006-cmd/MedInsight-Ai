@@ -8,6 +8,7 @@ export default function CloudWatchForm() {
     const [hospitalName, setHospitalName] = useState("");
     const [email, setEmail] = useState("");
     const [username, setUsername] = useState("");
+    const [age, setAge] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [authError, setAuthError] = useState("");
@@ -61,7 +62,8 @@ export default function CloudWatchForm() {
                 options: {
                     data: {
                         hospital_name: hospitalName,
-                        admin_username: username
+                        admin_username: username,
+                        age: age ? Number(age) : null,
                     }
                 }
             });
@@ -175,6 +177,18 @@ export default function CloudWatchForm() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     placeholder="Username"
+                                    style={{ width: '100%', padding: '0.8rem', border: '3px solid black', fontWeight: 600 }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ fontWeight: 700, fontSize: '0.9rem' }}>Age (for vitals verification)</label>
+                                <input
+                                    type="number"
+                                    min="13"
+                                    max="100"
+                                    value={age}
+                                    onChange={(e) => setAge(e.target.value)}
+                                    placeholder="e.g. 24"
                                     style={{ width: '100%', padding: '0.8rem', border: '3px solid black', fontWeight: 600 }}
                                 />
                             </div>

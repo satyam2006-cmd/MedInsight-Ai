@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 const VitalsMonitor = () => {
     const videoRef = useRef(null);
@@ -45,6 +46,7 @@ const VitalsMonitor = () => {
     const [selectedCameraId, setSelectedCameraId] = useState('');
     const [cameraSwitching, setCameraSwitching] = useState(false);
     const [isPhoneCamera, setIsPhoneCamera] = useState(false);
+    const [userAge, setUserAge] = useState(null);
 
     const getApiBase = () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -82,6 +84,24 @@ const VitalsMonitor = () => {
             return [];
         }
     };
+
+    useEffect(() => {
+        const loadUserAge = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const rawAge = user?.user_metadata?.age;
+                const parsed = Number(rawAge);
+                if (Number.isFinite(parsed) && parsed >= 13 && parsed <= 100) {
+                    setUserAge(parsed);
+                } else {
+                    setUserAge(null);
+                }
+            } catch (e) {
+                setUserAge(null);
+            }
+        };
+        loadUserAge();
+    }, []);
 
     // MediaPipe initialization
     useEffect(() => {
@@ -824,6 +844,41 @@ const VitalsMonitor = () => {
 
 
     const getQualityColor = (q) => q > 60 ? '#059669' : q > 30 ? '#d97706' : '#dc2626';
+    const getAgeBand = (age) => {
+        if (!age) return 'adult';
+        if (age < 20) return 'teen';
+        if (age < 60) return 'adult';
+        return 'senior';
+    };
+
+    const getAgeRanges = (ageBand) => {
+        if (ageBand === 'teen') {
+            return { hr: [55, 105], rr: [12, 20], spo2Min: 95, label: 'Teen (13-19)' };
+        }
+        if (ageBand === 'senior') {
+            return { hr: [55, 95], rr: [12, 24], spo2Min: 94, label: 'Senior (60+)' };
+        }
+        return { hr: [60, 100], rr: [12, 20], spo2Min: 95, label: 'Adult (20-59)' };
+    };
+
+    const evaluateAgeCrossVerification = (metrics, ranges) => {
+        const issues = [];
+
+        if ((metrics.bpm || 0) > 0 && (metrics.bpm < ranges.hr[0] || metrics.bpm > ranges.hr[1])) {
+            issues.push(`HR out of age range (${ranges.hr[0]}-${ranges.hr[1]} BPM)`);
+        }
+        if ((metrics.respiration || 0) > 0 && (metrics.respiration < ranges.rr[0] || metrics.respiration > ranges.rr[1])) {
+            issues.push(`RR out of age range (${ranges.rr[0]}-${ranges.rr[1]} RPM)`);
+        }
+        if ((metrics.spo2 || 0) > 0 && metrics.spo2 < ranges.spo2Min) {
+            issues.push(`SpO2 below age threshold (>=${ranges.spo2Min}%)`);
+        }
+
+        if (!issues.length) {
+            return { severity: 'ok', text: `Age-verified for ${ranges.label}` };
+        }
+        return { severity: issues.length >= 2 ? 'high' : 'medium', text: issues.join(' | ') };
+    };
     const getStressColors = (level) => {
         if (level === 'HIGH') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
         if (level === 'MODERATE') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
@@ -846,6 +901,11 @@ const VitalsMonitor = () => {
     };
 
     const isCalibrating = vitals.calibration_pct < 100 && vitals.bpm === 0;
+    const ageBand = getAgeBand(userAge);
+    const ageRanges = getAgeRanges(ageBand);
+    const ageCheck = evaluateAgeCrossVerification(vitals, ageRanges);
+    const ageStatusBg = ageCheck.severity === 'high' ? '#fff1f2' : (ageCheck.severity === 'medium' ? '#fffbeb' : '#ecfdf5');
+    const ageStatusTone = ageCheck.severity === 'high' ? '#be123c' : (ageCheck.severity === 'medium' ? '#a16207' : '#065f46');
     const stressColors = getStressColors(vitals.stress_level);
     const riskColors = getRiskColors(vitals.ai_risk);
     const trendColors = getTrendColors(vitals.vital_trend?.direction);
@@ -998,9 +1058,9 @@ const VitalsMonitor = () => {
                 {/* Health Alert Section */}
                 {vitals.bpm > 0 ? (
                     <div className="neo-card" style={{
-                        background: vitals.alert === "Normal" ? '#ecfdf5' : '#fff1f2',
+                        background: vitals.alert === "Normal" && ageCheck.severity === 'ok' ? '#ecfdf5' : '#fff1f2',
                         padding: '1.5rem', border: '2px solid black', boxShadow: '4px 4px 0px black',
-                        borderColor: vitals.alert === "Normal" ? '#059669' : '#e11d48'
+                        borderColor: vitals.alert === "Normal" && ageCheck.severity === 'ok' ? '#059669' : '#e11d48'
                     }}>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             {vitals.alert === "Normal" ? (
@@ -1012,6 +1072,9 @@ const VitalsMonitor = () => {
                                 <h4 style={{ margin: 0, color: vitals.alert === "Normal" ? '#065f46' : '#9f1239' }}>HEALTH STATUS</h4>
                                 <p style={{ margin: '0.2rem 0 0', fontWeight: 700, fontSize: '1.1rem', color: vitals.alert === "Normal" ? '#047857' : '#be123c' }}>
                                     {vitals.alert}
+                                </p>
+                                <p style={{ margin: '0.45rem 0 0', fontWeight: 700, fontSize: '0.85rem', color: ageStatusTone }}>
+                                    {ageCheck.text}
                                 </p>
                             </div>
                         </div>
@@ -1133,6 +1196,14 @@ const VitalsMonitor = () => {
 
                             {/* Signal Quality */}
                             <div style={{ marginTop: '1rem', padding: '1rem', background: '#e8eaee', borderRadius: '16px', border: '1px solid #d4d7dd' }}>
+                                <div style={{ marginBottom: '0.65rem', background: ageStatusBg, border: `1px solid ${ageStatusTone}33`, borderRadius: '10px', padding: '0.6rem 0.75rem' }}>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', letterSpacing: '0.4px' }}>
+                                        AGE PROFILE: {ageRanges.label} {userAge ? `(Age ${userAge})` : '(default)'}
+                                    </div>
+                                    <div style={{ marginTop: '0.2rem', fontSize: '0.72rem', color: ageStatusTone, fontWeight: 700 }}>
+                                        Expected HR {ageRanges.hr[0]}-{ageRanges.hr[1]} BPM | RR {ageRanges.rr[0]}-{ageRanges.rr[1]} RPM | SpO2 {'>='} {ageRanges.spo2Min}%
+                                    </div>
+                                </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>SIGNAL QUALITY</span>
