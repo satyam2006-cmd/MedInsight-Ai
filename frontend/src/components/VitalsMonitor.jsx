@@ -31,20 +31,32 @@ const VitalsMonitor = () => {
         let active = true;
         const loadMediaPipe = async () => {
             if (!active) return;
-            const script = document.createElement('script');
-            script.src = "https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js";
-            script.async = true;
-            script.onload = async () => {
-                if (!active) return;
-                const faceDetection = new window.FaceDetection({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
-                });
-                faceDetection.setOptions({ model: 'short', minDetectionConfidence: 0.5 });
-                faceDetection.onResults(onResults);
-                detectorRef.current = faceDetection;
-                startCamera();
-            };
-            document.head.appendChild(script);
+            
+            // Load both Scripts
+            const loadScript = (src) => new Promise((res) => {
+                const s = document.createElement('script');
+                s.src = src; s.async = true; s.onload = res;
+                document.head.appendChild(s);
+            });
+
+            await Promise.all([
+                loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"),
+                loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js")
+            ]);
+
+            if (!active) return;
+            const faceMesh = new window.FaceMesh({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+            });
+            faceMesh.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
+            });
+            faceMesh.onResults(onResults);
+            detectorRef.current = faceMesh;
+            startCamera();
         };
         loadMediaPipe();
         connectWebSocket();
@@ -56,9 +68,9 @@ const VitalsMonitor = () => {
     }, []);
 
     const onResults = (results) => {
-        if (results.detections.length > 0) {
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
             setFaceDetected(true);
-            processFaceDetection(results.detections[0]);
+            processFaceMesh(results.multiFaceLandmarks[0]);
         } else {
             setFaceDetected(false);
             setVitals(prev => ({ ...prev, status: 'searching' }));
@@ -67,46 +79,59 @@ const VitalsMonitor = () => {
         }
     };
 
-    const processFaceDetection = (detection) => {
+    const processFaceMesh = (landmarks) => {
         if (!videoRef.current || !canvasRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return;
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        const bb = detection.boundingBox;
-
-        // ROI refinement: 45% of face width, 12% of face height
-        const fw = bb.width * video.videoWidth * 0.45;
-        const fh = bb.height * video.videoHeight * 0.12;
-        const fx = (bb.xCenter * video.videoWidth) - (fw / 2);
-        // Position on forehead: ~40% up from center of face box
-        const fy = (bb.yCenter * video.videoHeight) - (bb.height * video.videoHeight * 0.42);
-
-        const cx = bb.xCenter * video.videoWidth;
-        const cy = bb.yCenter * video.videoHeight;
-
-        // Draw HUD/ROI on overlay canvas
         const oc = overlayCanvasRef.current;
+
+        // ROI Point: Landmark 151 (Forehead Center)
+        const p151 = landmarks[151];
+        const p10 = landmarks[10];
+        const p67 = landmarks[67];
+        const p297 = landmarks[297];
+
+        const videoW = video.videoWidth;
+        const videoH = video.videoHeight;
+
+        // ROI Math: Pinpoint accuracy using landmarks
+        const fx_center = p151.x * videoW;
+        const fy_center = p151.y * videoH;
+        
+        // Width based on forehead width landmarks (67 to 297)
+        const fw = Math.abs(p297.x - p67.x) * videoW * 0.7;
+        const fh = Math.abs(p151.y - p10.y) * videoH * 1.2;
+        
+        const fx = fx_center - (fw / 2);
+        const fy = fy_center - (fh / 0.85); // Shift up slightly from 151
+
+        // Face square math using landmarks
+        const top = landmarks[10].y * videoH;
+        const bottom = landmarks[152].y * videoH;
+        const left = landmarks[234].x * videoW;
+        const right = landmarks[454].x * videoW;
+        const faceW = right - left;
+        const faceH = bottom - top;
+
+        // Draw HUD on overlay canvas (Wireframe removed as requested)
         if (oc) {
-            oc.width = video.videoWidth; oc.height = video.videoHeight;
+            oc.width = videoW; oc.height = videoH;
             const o = oc.getContext('2d');
             o.clearRect(0, 0, oc.width, oc.height);
-            
-            // Draw Face Boundary
-            const fX = (bb.xCenter - bb.width / 2) * video.videoWidth;
-            const fY = (bb.yCenter - bb.height / 2) * video.videoHeight;
-            const fW = bb.width * video.videoWidth;
-            const fH = bb.height * video.videoHeight;
-            
+
+            // Draw Face Boundary Square
             o.strokeStyle = 'rgba(74, 222, 128, 0.5)'; o.lineWidth = 2; o.setLineDash([8, 4]);
-            o.strokeRect(fX, fY, fW, fH);
+            o.strokeRect(left, top, faceW, faceH);
+            o.setLineDash([]); // Reset
             
-            // Draw Forehead ROI Focus
-            o.setLineDash([]); o.strokeStyle = '#22d3ee'; o.lineWidth = 2;
-            o.shadowColor = 'rgba(34,211,238,0.5)'; o.shadowBlur = 8;
+            // Highlight Forehead ROI (Keep for visual feedback)
+            o.strokeStyle = '#22d3ee'; o.lineWidth = 2;
+            o.shadowColor = 'rgba(34,211,238,0.5)'; o.shadowBlur = 10;
             o.strokeRect(fx, fy, fw, fh); o.shadowBlur = 0;
             
-            o.save(); o.translate(fx + fw/2, fy - 8); o.scale(-1, 1);
+            o.save(); o.translate(fx + fw/2, fy - 10); o.scale(-1, 1);
             o.fillStyle = '#22d3ee'; o.font = 'bold 10px Inter, monospace'; o.textAlign = 'center';
-            o.fillText('ROI LOCKED', 0, 0); o.restore();
+            o.fillText('PRECISION ROI FIXED', 0, 0); o.restore();
         }
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -114,7 +139,7 @@ const VitalsMonitor = () => {
         canvas.height = Math.max(1, fh);
 
         try {
-            ctx.drawImage(video, fx, fy, fw, fh, 0, 0, fw, fh);
+            ctx.drawImage(video, fx, fy, fw, fh, 0, 0, canvas.width, canvas.height);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
             
@@ -123,24 +148,23 @@ const VitalsMonitor = () => {
                 rS += data[i]; gS += data[i + 1]; bS += data[i + 2];
             }
             const count = data.length / 4;
-            if (count === 0) return;
+            if (count < 10) return;
             
             const aR = rS / count;
             const aG = gS / count;
             const aB = bS / count;
 
-            // Stability check: Ignore large movements
+            // Stability check
             const lp = lastPositionRef.current;
             if (lp) {
-                const dist = Math.sqrt((cx - lp.x)**2 + (cy - lp.y)**2);
-                if (dist > 8) { // Threshold for "stable" head
-                    lastPositionRef.current = { x: cx, y: cy };
+                const dist = Math.sqrt((fx_center - lp.x)**2 + (fy_center - lp.y)**2);
+                if (dist > 15) { // Landmark tracking is more stable, can allow slightly more wiggle
+                    lastPositionRef.current = { x: fx_center, y: fy_center };
                     return;
                 }
             }
-            lastPositionRef.current = { x: cx, y: cy };
+            lastPositionRef.current = { x: fx_center, y: fy_center };
 
-            // Throttled send: ~30 FPS
             const now = performance.now();
             if (now - lastSendTimeRef.current < 32) return;
             lastSendTimeRef.current = now;
