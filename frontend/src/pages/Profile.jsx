@@ -16,6 +16,7 @@ const ProfilePage = () => {
         name: "",
         email: "",
         username: "",
+        age: "",
         countryCode: "+91",
         phone: "",
         joinedDate: "",
@@ -27,6 +28,7 @@ const ProfilePage = () => {
         name: "",
         username: "",
         email: "",
+        age: "",
         countryCode: "+91",
         phone: ""
     });
@@ -46,6 +48,7 @@ const ProfilePage = () => {
                     name: user.user_metadata?.hospital_name || "Hospital Name",
                     email: user.email,
                     username: user.user_metadata?.admin_username || "admin",
+                    age: user.user_metadata?.age ? String(user.user_metadata.age) : "",
                     countryCode: user.user_metadata?.country_code || "+91",
                     phone: user.user_metadata?.phone || "",
                     joinedDate: new Date(user.created_at).toLocaleDateString('en-US', {
@@ -61,6 +64,7 @@ const ProfilePage = () => {
                     name: profile.name,
                     username: profile.username,
                     email: profile.email,
+                    age: profile.age,
                     countryCode: profile.countryCode,
                     phone: profile.phone
                 });
@@ -94,6 +98,7 @@ const ProfilePage = () => {
                 data: {
                     hospital_name: editForm.name,
                     admin_username: editForm.username,
+                    age: editForm.age ? Number(editForm.age) : null,
                     country_code: editForm.countryCode,
                     phone: editForm.phone
                 }
@@ -117,6 +122,7 @@ const ProfilePage = () => {
                 name: editForm.name,
                 username: editForm.username,
                 email: editForm.email,
+                age: editForm.age,
                 countryCode: editForm.countryCode,
                 phone: editForm.phone
             }));
@@ -335,6 +341,34 @@ const ProfilePage = () => {
                                     <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{userData.joinedDate}</p>
                                 </div>
                             </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div style={{ padding: '0.8rem', background: '#f0f0f0', border: '2px solid black' }}>
+                                    <User size={20} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Age</p>
+                                    {isEditing ? (
+                                        <input
+                                            type="number"
+                                            min="13"
+                                            max="100"
+                                            value={editForm.age}
+                                            onChange={(e) => setEditForm({ ...editForm, age: e.target.value })}
+                                            style={{
+                                                fontSize: '1.1rem',
+                                                padding: '0.3rem 0.5rem',
+                                                border: '2px solid black',
+                                                fontWeight: 600,
+                                                width: '120px',
+                                                marginTop: '0.2rem'
+                                            }}
+                                        />
+                                    ) : (
+                                        <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{userData.age || "Not set"}</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -354,7 +388,14 @@ const ProfilePage = () => {
                                     className="neo-btn"
                                     onClick={() => {
                                         setIsEditing(false);
-                                        setEditForm({ name: userData.name, username: userData.username });
+                                        setEditForm({
+                                            name: userData.name,
+                                            username: userData.username,
+                                            email: userData.email,
+                                            age: userData.age,
+                                            countryCode: userData.countryCode,
+                                            phone: userData.phone,
+                                        });
                                     }}
                                     disabled={updating}
                                     style={{ background: '#eee', color: 'black', padding: '0.8rem 1.5rem' }}
