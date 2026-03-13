@@ -22,7 +22,7 @@ const Hub = () => {
                 socialItems={[]}
                 logoUrl=""
                 accentColor="#1a1a1a"
-                menuButtonColor="#000"
+                menuButtonColor="#fff"
                 openMenuButtonColor="#fff"
                 changeMenuColorOnOpen={true}
                 isFixed={true}

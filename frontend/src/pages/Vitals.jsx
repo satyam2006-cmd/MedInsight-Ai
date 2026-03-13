@@ -30,7 +30,7 @@ const VitalsPage = () => {
                 socialItems={socialItems}
                 logoUrl=""
                 accentColor="#5227FF"
-                menuButtonColor="#333"
+                menuButtonColor="#fff"
                 openMenuButtonColor="#000"
                 changeMenuColorOnOpen={true}
                 isFixed={true}
