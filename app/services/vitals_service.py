@@ -13,6 +13,7 @@ class VitalsService:
         self.times = []
         self.bpm = 0.0
         self.respiration_rate = 0.0
+        self.spo2 = 0.0
         self.fps = 0.0
         self.last_calc_time = 0.0
         self.smooth_bpm = 0.0
@@ -124,6 +125,14 @@ class VitalsService:
                         self.smooth_rpm = (1 - alpha) * self.smooth_rpm + alpha * median_rpm
                     self.respiration_rate = self.smooth_rpm
 
+                # SpO2 Estimation Smoothing
+                new_spo2 = result.get('spo2', 0.0)
+                if new_spo2 > 0:
+                    if self.spo2 == 0:
+                        self.spo2 = new_spo2
+                    else:
+                        self.spo2 = 0.9 * self.spo2 + 0.1 * new_spo2
+
                 # Compute HRV from peak intervals
                 self.hrv_sdnn = result.get('hrv', 0.0)
 
@@ -139,6 +148,7 @@ class VitalsService:
         return {
             "bpm": round(self.bpm, 1) if self.bpm else 0,
             "respiration": round(self.respiration_rate, 1) if self.respiration_rate else 0,
+            "spo2": round(self.spo2, 1) if self.spo2 else 0,
             "fps": round(self.fps, 1) if self.fps else 0,
             "alert": alert,
             "spectrum": spectrum,
@@ -169,6 +179,9 @@ class VitalsService:
             alerts.append("Rapid Breathing (RR>24)")
         elif 0 < self.respiration_rate < 8:
             alerts.append("Low Respiration")
+            
+        if 0 < self.spo2 < 92:
+            alerts.append("Low Oxygen (SpO2<92%)")
 
         if alerts:
             alert_str = " | ".join(alerts)
@@ -196,6 +209,13 @@ class VitalsService:
             if self.respiration_rate < 8 or self.respiration_rate > 24:
                 score -= 25
             elif self.respiration_rate < 10 or self.respiration_rate > 20:
+                score -= 10
+
+        # SpO2 penalty
+        if self.spo2 > 0:
+            if self.spo2 < 92:
+                score -= 30
+            elif self.spo2 < 95:
                 score -= 10
 
         # HRV bonus (higher is better, >50ms is good)
@@ -230,6 +250,15 @@ class VitalsService:
             elif self.respiration_rate > 21 or self.respiration_rate < 9:
                 ews += 2
             elif self.respiration_rate > 20 or self.respiration_rate < 12:
+                ews += 1
+
+        # SpO2 scoring
+        if self.spo2 > 0:
+            if self.spo2 <= 91:
+                ews += 3
+            elif self.spo2 <= 93:
+                ews += 2
+            elif self.spo2 <= 95:
                 ews += 1
 
         return ews
@@ -281,7 +310,7 @@ class VitalsService:
 
             fps = self.fps
             if fps < 5:
-                return {'bpm': self.bpm, 'rpm': self.respiration_rate, 'spectrum': [],
+                return {'bpm': self.bpm, 'rpm': self.respiration_rate, 'spo2': self.spo2, 'spectrum': [],
                         'signal_quality': 0, 'peaks': [], 'hrv': 0}
 
             b, a = butter(4, [0.75 / (fps / 2), 3.0 / (fps / 2)], btype='band')
@@ -342,9 +371,27 @@ class VitalsService:
             # === Respiration ===
             best_rpm = self._extract_respiration(ICA, L)
 
+            # === SpO2 Estimation (Empirical AC/DC Ratio) ===
+            spo2_val = 0.0
+            try:
+                # Use unfiltered raw buffer for SpO2 calculation
+                X_raw = np.array(self.data_buffer).T
+                dc_red = np.mean(X_raw[0]) + 1e-6
+                ac_red = np.std(X_raw[0])
+                dc_blue = np.mean(X_raw[2]) + 1e-6
+                ac_blue = np.std(X_raw[2])
+                
+                ratio = (ac_red / dc_red) / (ac_blue / dc_blue) if (ac_blue / dc_blue) > 1e-6 else 0
+                if ratio > 0:
+                    spo2_val = 110.0 - 25.0 * ratio
+                    spo2_val = max(80.0, min(100.0, spo2_val))
+            except Exception:
+                pass
+
             return {
                 'bpm': float(best_bpm),
                 'rpm': float(best_rpm),
+                'spo2': float(spo2_val),
                 'spectrum': best_spec,
                 'signal_quality': sig_quality,
                 'peaks': peaks,
@@ -353,7 +400,7 @@ class VitalsService:
 
         except Exception as e:
             print(f"Vitals Engine Error: {e}")
-            return {'bpm': self.bpm, 'rpm': self.respiration_rate, 'spectrum': [],
+            return {'bpm': self.bpm, 'rpm': self.respiration_rate, 'spo2': self.spo2, 'spectrum': [],
                     'signal_quality': 0, 'peaks': [], 'hrv': 0}
 
     def _extract_hr_from_components(self, ICA, L):
@@ -435,6 +482,7 @@ class VitalsService:
             "min_hr": round(self.hr_min, 1) if self.hr_min != float('inf') else 0,
             "max_hr": round(self.hr_max, 1),
             "avg_rr": round(self.respiration_rate, 1),
+            "avg_spo2": round(self.spo2, 1),
             "avg_signal_quality": round(self.signal_quality, 1),
             "health_score": self.health_score,
             "ews": self.ews_score,
