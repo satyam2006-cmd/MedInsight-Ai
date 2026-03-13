@@ -1266,16 +1266,20 @@ class VitalsService:
     def get_session_summary(self) -> Dict[str, Any]:
         """Return session summary for reports."""
         elapsed = time.time() - self.session_start
+        avg_rr = round(np.mean([r[1] for r in self.resp_readings]) if self.resp_readings else self.respiration_rate, 1)
+        avg_spo2 = round(np.mean([r[1] for r in self.spo2_readings]) if self.spo2_readings else self.spo2, 1)
         return {
             "session_duration_sec": round(elapsed, 0),
             "avg_hr": round(np.mean([r[1] for r in self.hr_readings]) if self.hr_readings else 0, 1),
             "min_hr": round(self.hr_min, 1) if self.hr_min != float('inf') else 0,
             "max_hr": round(self.hr_max, 1),
-            "avg_rr": round(self.respiration_rate, 1),
-            "avg_spo2": round(self.spo2, 1),
+            "avg_rr": avg_rr,
+            "avg_spo2": avg_spo2,
             "avg_signal_quality": round(self.signal_quality, 1),
 
             "hrv_sdnn": round(self.hrv_sdnn, 1),
+            "stress_score": round(self.stress_score, 1),
+            "ai_risk_level": self.risk_level,
             "alerts": self.alerts_history[-10:],
             "hr_trend": self.hr_readings,
         }

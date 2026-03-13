@@ -143,6 +143,34 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
                 
         elements.append(KeepTogether(ai_elements))
 
+    # Long-term trend section
+    long_term = session_data.get('long_term_trend') or {}
+    if long_term:
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph("Long-Term Health Trend Analysis", heading_style))
+        status = long_term.get('trend_status', 'STABLE')
+        indicator = long_term.get('trend_indicator', 'Stable trend')
+        summary = long_term.get('summary', 'No long-term summary available.')
+        rules = long_term.get('abnormal_rules_triggered', [])
+        warning = long_term.get('ai_warning', '')
+
+        elements.append(Paragraph(f"<b>Trend Status:</b> {status}", normal_style))
+        elements.append(Paragraph(f"<b>Indicator:</b> {indicator}", normal_style))
+        elements.append(Paragraph(summary, normal_style))
+
+        if rules:
+            elements.append(Spacer(1, 6))
+            elements.append(Paragraph("<b>Detected Patterns:</b>", normal_style))
+            for rule in rules:
+                elements.append(Paragraph(f"• {rule}", ParagraphStyle('LongTrendBullet', parent=normal_style, leftIndent=15, spaceAfter=3)))
+
+        if warning:
+            elements.append(Spacer(1, 6))
+            elements.append(Paragraph(
+                f"<b>Recommendation:</b> {warning}",
+                ParagraphStyle('LongTrendWarn', parent=normal_style, textColor=colors.HexColor('#9f1239')),
+            ))
+
     elements.append(Spacer(1, 24))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
     elements.append(Spacer(1, 8))

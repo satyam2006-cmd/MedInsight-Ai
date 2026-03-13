@@ -4,6 +4,7 @@ from ..services.vitals_service import VitalsService
 from ..services.report_service import generate_vitals_report
 from ..services.ai_summary_service import ai_summary_service
 from ..services.db_service import db_service, get_supabase_client
+from ..services.trend_analysis_service import trend_analysis_service
 from ..schemas import (
     SaveVitalsSessionRequest,
     CreateReferenceReadingsRequest,
@@ -182,6 +183,17 @@ async def get_report(session_id: str = None):
         return JSONResponse(content={"error": "No active session"}, status_code=404)
     try:
         summary = service.get_session_summary()
+
+        # Attach long-term trend analysis when this session has been persisted.
+        if session_id:
+            try:
+                supabase = get_supabase_client()
+                row = db_service.get_patient_session_by_session_id(supabase, session_id)
+                if row and row.get("patient_id"):
+                    historical = db_service.list_patient_sessions(supabase, patient_id=row["patient_id"], limit=365)
+                    summary["long_term_trend"] = trend_analysis_service.analyze_sessions(historical, days=14)
+            except Exception:
+                pass
         
         # Always try to generate a fresh AI summary for the final report if there's valid data
         if summary.get('avg_hr', 0) > 0:
@@ -212,6 +224,7 @@ async def save_session(payload: SaveVitalsSessionRequest):
         supabase = get_supabase_client()
         summary = service.get_session_summary()
         samples = service.get_recent_samples()
+        patient_key = payload.patient_id or "anonymous"
         saved = db_service.create_vitals_session(
             supabase=supabase,
             session_id=resolved_session_id,
@@ -221,13 +234,46 @@ async def save_session(payload: SaveVitalsSessionRequest):
             summary=summary,
             samples=samples,
         )
+
+        db_service.create_patient_session(
+            supabase=supabase,
+            session_id=resolved_session_id,
+            patient_id=patient_key,
+            timestamp=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            heart_rate=summary.get("avg_hr", 0),
+            respiration_rate=summary.get("avg_rr", 0),
+            spo2=summary.get("avg_spo2", 0),
+            hrv=summary.get("hrv_sdnn", 0),
+            stress_score=summary.get("stress_score", 0),
+            ai_risk_level=summary.get("ai_risk_level", "NORMAL"),
+        )
+
+        trend = db_service.list_patient_sessions(supabase, patient_id=patient_key, limit=365)
+        trend_analysis = trend_analysis_service.analyze_sessions(trend, days=14)
         return {
             "session_id": saved.get("id"),
             "message": "Session saved successfully",
             "sample_count": len(samples),
+            "patient_id": patient_key,
+            "long_term_trend": trend_analysis,
         }
     except Exception as e:
         return JSONResponse(content={"error": f"Failed to save session: {e}"}, status_code=500)
+
+
+@router.get("/api/vitals/long-term-trend")
+async def get_long_term_trend(patient_id: str = "anonymous", days: int = 7):
+    """Return daily aggregation and long-term trend analysis for a patient."""
+    try:
+        supabase = get_supabase_client()
+        sessions = db_service.list_patient_sessions(supabase, patient_id=patient_id, limit=365)
+        analysis = trend_analysis_service.analyze_sessions(sessions, days=days)
+        return {
+            "patient_id": patient_id,
+            "analysis": analysis,
+        }
+    except Exception as e:
+        return JSONResponse(content={"error": f"Failed to analyze long-term trend: {e}"}, status_code=500)
 
 
 @router.post("/api/vitals/reference")

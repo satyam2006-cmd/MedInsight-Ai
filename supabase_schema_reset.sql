@@ -2,6 +2,7 @@
 DROP TABLE IF EXISTS public.accuracy_metrics CASCADE;
 DROP TABLE IF EXISTS public.reference_readings CASCADE;
 DROP TABLE IF EXISTS public.vitals_sessions CASCADE;
+DROP TABLE IF EXISTS public.patient_sessions CASCADE;
 DROP TABLE IF EXISTS public.reports CASCADE;
 DROP TABLE IF EXISTS public.patients CASCADE;
 
@@ -42,6 +43,23 @@ CREATE TABLE public.vitals_sessions (
     samples JSONB DEFAULT '[]'::jsonb
 );
 
+-- 3b. Create patient session table for long-term daily trend monitoring
+CREATE TABLE public.patient_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    session_id UUID REFERENCES public.vitals_sessions(id) ON DELETE CASCADE,
+    patient_id TEXT NOT NULL DEFAULT 'anonymous',
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+    heart_rate NUMERIC(6,2),
+    respiration_rate NUMERIC(6,2),
+    spo2 NUMERIC(6,2),
+    hrv NUMERIC(8,2),
+    stress_score NUMERIC(6,2),
+    ai_risk_level TEXT DEFAULT 'NORMAL'
+);
+
+CREATE INDEX idx_patient_sessions_patient_timestamp ON public.patient_sessions(patient_id, timestamp);
+
 -- 4. Create reference readings table (judge smartwatch or manual)
 CREATE TABLE public.reference_readings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,6 +86,7 @@ CREATE TABLE public.accuracy_metrics (
 ALTER TABLE public.patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vitals_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.patient_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reference_readings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.accuracy_metrics ENABLE ROW LEVEL SECURITY;
 
@@ -116,6 +135,18 @@ WITH CHECK (true);
 
 CREATE POLICY "Anon can access vitals sessions for demos"
 ON public.vitals_sessions FOR ALL
+TO anon
+USING (true)
+WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can manage patient sessions"
+ON public.patient_sessions FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+CREATE POLICY "Anon can access patient sessions for demos"
+ON public.patient_sessions FOR ALL
 TO anon
 USING (true)
 WITH CHECK (true);
