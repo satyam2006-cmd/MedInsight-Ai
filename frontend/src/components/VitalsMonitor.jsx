@@ -24,11 +24,15 @@ const VitalsMonitor = () => {
 
     // MediaPipe initialization via CDN for reliability
     useEffect(() => {
+        let active = true;
+        
         const loadMediaPipe = async () => {
+            if (!active) return;
             const script = document.createElement('script');
             script.src = "https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js";
             script.async = true;
             script.onload = async () => {
+                if (!active) return;
                 const faceDetection = new window.FaceDetection({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
                 });
@@ -49,8 +53,12 @@ const VitalsMonitor = () => {
         connectWebSocket();
 
         return () => {
+            active = false;
             stopCamera();
-            if (wsRef.current) wsRef.current.close();
+            if (wsRef.current) {
+                wsRef.current.onclose = null; // Prevent reconnect on deliberate close
+                wsRef.current.close();
+            }
         };
     }, []);
 
@@ -155,7 +163,9 @@ const VitalsMonitor = () => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
         
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
+        // In development, target port 8000. In production, use the same host.
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const host = isLocal ? 'localhost:8000' : window.location.host;
         const wsUrl = `${protocol}://${host}/ws/vitals`;
         
         console.log("Connecting to Vitals WebSocket:", wsUrl);
