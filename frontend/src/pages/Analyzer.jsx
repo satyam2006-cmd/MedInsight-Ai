@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Search, Languages, Loader2, AlertCircle, FileText, Volume2, VolumeX } from 'lucide-react';
+import { Upload, Search, Languages, Loader2, AlertCircle, FileText, Volume2, VolumeX, Activity, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import StaggeredMenu from '../components/StaggeredMenu';
 import { extractText } from '../ocr-engine/services/hybridService.js';
@@ -18,6 +18,7 @@ const AnalyzerPage = () => {
     const [audio, setAudio] = useState(null);
     const [audioLoading, setAudioLoading] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
+    const [cameraVitals, setCameraVitals] = useState(null);
 
     const ISO_LANGS = {
         'hindi': 'hi-IN', 'english': 'en-US', 'spanish': 'es-ES', 'french': 'fr-FR',
@@ -158,6 +159,14 @@ const AnalyzerPage = () => {
 
             const data = await response.json();
             setResult(data);
+            // Fetch active camera vitals session to compare with document vitals
+            try {
+                const vRes = await fetch(`${API_BASE_URL}/api/vitals/session`);
+                if (vRes.ok) {
+                    const vData = await vRes.json();
+                    if (vData && vData.avg_hr > 0) setCameraVitals(vData);
+                }
+            } catch (_) { /* no active session, that is fine */ }
         } catch (err) {
             setError(err.message);
         } finally {
@@ -306,6 +315,74 @@ const AnalyzerPage = () => {
                         <div className="neo-card secondary-bg" style={{ marginBottom: '2rem', color: 'white' }}>
                             <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><AlertCircle size={32} /> Analysis Failed</h2>
                             <p style={{ fontWeight: 700 }}>{error}</p>
+                        </div>
+                    )}
+
+                    {result && (
+                        <div className="neo-card" style={{ marginBottom: '2rem', borderLeft: '10px solid #5227FF', padding: '1.5rem' }}>
+                            {/* Header row */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.4rem' }}>
+                                    <Activity size={26} color="#5227FF" />
+                                    Camera &amp; Document Cross-Check
+                                </h2>
+                                {cameraVitals && (
+                                    <span style={{ fontSize: '0.75rem', background: '#f0fdf4', color: '#16a34a', padding: '0.3rem 0.8rem', border: '1px solid #bbf7d0', borderRadius: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <span style={{ width: 7, height: 7, background: '#22c55e', borderRadius: '50%', display: 'inline-block' }} /> Session loaded
+                                    </span>
+                                )}
+                            </div>
+
+                            {cameraVitals ? (
+                                <>
+                                    <p style={{ fontSize: '0.88rem', color: '#555', marginBottom: '1.2rem', marginTop: 0 }}>
+                                        Comparing your most recent camera session against vitals found in the document.
+                                    </p>
+
+                                    {/* Camera vitals tiles */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.9rem', marginBottom: '1.2rem' }}>
+                                        {[
+                                            { label: 'HEART RATE', value: cameraVitals.avg_hr, unit: 'BPM', bg: '#f0f9ff', border: '#bae6fd', labelColor: '#0369a1', valColor: '#0c4a6e' },
+                                            { label: 'SpO₂', value: cameraVitals.avg_spo2, unit: '%', bg: '#f0fdf4', border: '#bbf7d0', labelColor: '#15803d', valColor: '#14532d' },
+                                            { label: 'RESP RATE', value: cameraVitals.avg_rr, unit: 'br/min', bg: '#fff7ed', border: '#fed7aa', labelColor: '#c2410c', valColor: '#7c2d12' },
+                                        ].map(({ label, value, unit, bg, border, labelColor, valColor }) => (
+                                            <div key={label} style={{ background: bg, border: `2px solid ${border}`, borderRadius: '12px', padding: '1rem', textAlign: 'center' }}>
+                                                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: labelColor, marginBottom: '0.35rem', letterSpacing: '0.5px' }}>{label}</div>
+                                                <div style={{ fontSize: '2rem', fontWeight: 900, color: valColor, lineHeight: 1 }}>{value || '--'}</div>
+                                                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.3rem' }}>{unit}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Document vital signs found */}
+                                    {result.medical_entities?.vital_signs?.length > 0 ? (
+                                        <div style={{ background: '#f8faff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.9rem' }}>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#475569', marginBottom: '0.5rem', letterSpacing: '0.4px' }}>VITALS FOUND IN DOCUMENT</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                                {result.medical_entities.vital_signs.map((vs, i) => (
+                                                    <span key={i} style={{ background: '#e0e7ff', color: '#3730a3', padding: '0.25rem 0.65rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>{vs}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '0.8rem', fontSize: '0.83rem', color: '#92400e' }}>
+                                            ⚠️ No explicit vital sign values were extracted from this document, but the camera session data above is available for clinical reference.
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                /* No camera session — CTA */
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '1.5rem 1rem', background: '#f8faff', borderRadius: '10px', border: '1px dashed #c7d2fe' }}>
+                                    <Heart size={36} color="#a5b4fc" style={{ marginBottom: '0.75rem' }} />
+                                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#3730a3', marginBottom: '0.3rem' }}>No active camera session found</div>
+                                    <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '380px', marginBottom: '1.2rem' }}>
+                                        Run a real-time rPPG vitals scan and come back to see how camera-measured HR, SpO₂ and RR compare against the values in this document.
+                                    </p>
+                                    <a href="/vitals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem', background: '#5227FF', color: 'white', border: '2px solid black', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none', boxShadow: '3px 3px 0px black' }}>
+                                        <Activity size={16} /> Open Camera Vitals
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     )}
 
