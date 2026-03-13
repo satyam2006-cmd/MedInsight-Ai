@@ -27,9 +27,28 @@ class VitalsService:
         self.hr_min = float('inf')
         self.hr_max = 0.0
         self.hr_readings = []  # (timestamp, bpm) for trend
+        self.resp_readings = []
+        self.spo2_readings = []
         self.signal_quality = 0.0
         self.motion_status = "GOOD" # Initialize motion status
         self.hrv_sdnn = 0.0
+        self.hrv_status = "Collecting data"
+        self.respiratory_variability = 0.0
+        self.respiratory_variability_status = "Collecting data"
+        self.stress_score = 0.0
+        self.stress_level = "LOW"
+        self.risk_level = "NORMAL"
+        self.risk_confidence = 0.0
+        self.vital_trend = {
+            "direction": "stable",
+            "arrow": "->",
+            "label": "Stable",
+            "summary": "Gathering baseline",
+            "metric": "overall",
+            "heart_rate": "stable",
+            "respiration": "stable",
+            "spo2": "stable",
+        }
 
         self.peak_indices = []
         self.calibration_pct = 0.0
@@ -158,6 +177,14 @@ class VitalsService:
             "spo2_uncertainty": round(self.spo2_uncertainty, 2),
             "motion_status": self.motion_status,
             "hrv": round(self.hrv_sdnn, 1),
+            "hrv_status": self.hrv_status,
+            "stress_score": round(self.stress_score, 1),
+            "stress_level": self.stress_level,
+            "ai_risk": self.risk_level,
+            "ai_risk_confidence": round(self.risk_confidence, 2),
+            "respiratory_variability": round(self.respiratory_variability, 1),
+            "respiratory_variability_status": self.respiratory_variability_status,
+            "vital_trend": self.vital_trend,
             "calibration_pct": round(self.calibration_pct, 1),
             "hr_min": round(self.hr_min, 1) if self.hr_min != float('inf') else 0,
             "hr_max": round(self.hr_max, 1),
@@ -317,6 +344,9 @@ class VitalsService:
                     self.respiration_rate = self.smooth_rpm
                     self.respiration_rate = self._kalman_update("rr", self.respiration_rate, confidence=self.signal_quality / 100.0)
                     self.respiration_rate = self._apply_live_calibration("rr", self.respiration_rate)
+                    self.resp_readings.append((current_time - self.session_start, round(self.respiration_rate, 1)))
+                    if len(self.resp_readings) > 120:
+                        self.resp_readings = self.resp_readings[-120:]
 
                 # SpO2 Estimation Smoothing — heavier smoothing for stability
                 new_spo2 = result.get('spo2', 0.0)
@@ -334,9 +364,18 @@ class VitalsService:
                         self.spo2 = 0.92 * self.spo2 + 0.08 * median_spo2
                     self.spo2 = self._kalman_update("spo2", self.spo2, confidence=self.signal_quality / 100.0)
                     self.spo2 = self._apply_live_calibration("spo2", self.spo2)
+                    self.spo2_readings.append((current_time - self.session_start, round(self.spo2, 1)))
+                    if len(self.spo2_readings) > 120:
+                        self.spo2_readings = self.spo2_readings[-120:]
 
                 # Compute HRV from peak intervals
                 self.hrv_sdnn = result.get('hrv', 0.0)
+                self.hrv_status = self._classify_hrv(self.hrv_sdnn)
+                self.respiratory_variability = result.get('respiratory_variability', self.respiratory_variability)
+                self.respiratory_variability_status = self._classify_respiratory_variability(self.respiratory_variability)
+                self.stress_score, self.stress_level = self._calculate_stress_score()
+                self.risk_level, self.risk_confidence = self._predict_risk_level()
+                self.vital_trend = self._compute_vital_trend_indicator()
 
 
 
@@ -391,6 +430,145 @@ class VitalsService:
                 self.alerts_history = self.alerts_history[-50:]
             return alert_str
         return "Normal"
+
+    def _classify_hrv(self, hrv_ms: float) -> str:
+        if hrv_ms <= 0:
+            return "Collecting data"
+        if hrv_ms >= 45:
+            return "Normal variability"
+        if hrv_ms >= 25:
+            return "Moderate variability"
+        return "Reduced variability"
+
+    def _classify_respiratory_variability(self, variability_ms: float) -> str:
+        if variability_ms <= 0:
+            return "Collecting data"
+        if variability_ms < 350:
+            return "Stable"
+        if variability_ms < 700:
+            return "Mild variation"
+        return "Irregular"
+
+    def _calculate_stress_score(self) -> Tuple[float, str]:
+        hr_component = np.clip((self.bpm - 60.0) / 40.0, 0.0, 1.0)
+        resp_component = np.clip((self.respiration_rate - 12.0) / 10.0, 0.0, 1.0)
+        hrv_component = 1.0 - np.clip((self.hrv_sdnn - 20.0) / 40.0, 0.0, 1.0)
+
+        score = (0.45 * hr_component + 0.35 * hrv_component + 0.20 * resp_component) * 100.0
+        score = float(np.clip(score, 0.0, 100.0))
+
+        if score >= 70:
+            level = "HIGH"
+        elif score >= 35:
+            level = "MODERATE"
+        else:
+            level = "LOW"
+        return score, level
+
+    def _risk_tree_votes(self, features: Dict[str, float]) -> Dict[str, int]:
+        votes = {"NORMAL": 0, "WARNING": 0, "CRITICAL": 0}
+
+        def cast(label: str):
+            votes[label] += 1
+
+        hr = features["hr"]
+        rr = features["rr"]
+        spo2 = features["spo2"]
+        hrv = features["hrv"]
+        stress = features["stress"]
+
+        cast("CRITICAL" if spo2 < 90 or (hr > 140 and stress > 70) else "WARNING" if spo2 < 94 or hr > 115 else "NORMAL")
+        cast("CRITICAL" if stress > 82 and hrv < 22 else "WARNING" if stress > 58 or hrv < 30 else "NORMAL")
+        cast("CRITICAL" if rr > 25 and spo2 < 93 else "WARNING" if rr > 21 or spo2 < 95 else "NORMAL")
+        cast("CRITICAL" if hr > 130 and rr > 24 else "WARNING" if hr > 105 or rr > 20 else "NORMAL")
+        cast("CRITICAL" if hrv < 18 and stress > 72 else "WARNING" if hrv < 28 or stress > 60 else "NORMAL")
+        cast("CRITICAL" if spo2 < 92 and stress > 68 else "WARNING" if spo2 < 96 and stress > 45 else "NORMAL")
+        cast("CRITICAL" if hr > 125 and hrv < 20 else "WARNING" if hr > 110 or hrv < 35 else "NORMAL")
+
+        return votes
+
+    def _predict_risk_level(self) -> Tuple[str, float]:
+        features = {
+            "hr": float(self.bpm),
+            "rr": float(self.respiration_rate),
+            "spo2": float(self.spo2),
+            "hrv": float(self.hrv_sdnn),
+            "stress": float(self.stress_score),
+        }
+        votes = self._risk_tree_votes(features)
+        order = {"NORMAL": 0, "WARNING": 1, "CRITICAL": 2}
+        best_label = max(votes, key=lambda label: (votes[label], order[label]))
+        confidence = votes[best_label] / max(1, sum(votes.values()))
+        return best_label, confidence
+
+    def _compute_series_trend(self, readings: Any, lookback_sec: float, threshold: float, metric: str) -> Dict[str, Any]:
+        if len(readings) < 2:
+            return {"metric": metric, "direction": "stable", "delta": 0.0, "label": "Stable"}
+
+        latest_time, latest_value = readings[-1]
+        baseline = readings[0]
+        target_time = latest_time - lookback_sec
+        for item in reversed(readings):
+            if item[0] <= target_time:
+                baseline = item
+                break
+
+        delta = float(latest_value - baseline[1])
+        if delta > threshold:
+            direction = "increasing"
+            label = "Increasing"
+        elif delta < -threshold:
+            direction = "decreasing"
+            label = "Decreasing"
+        else:
+            direction = "stable"
+            label = "Stable"
+
+        return {
+            "metric": metric,
+            "direction": direction,
+            "delta": round(delta, 1),
+            "label": label,
+        }
+
+    def _compute_vital_trend_indicator(self) -> Dict[str, Any]:
+        hr_trend = self._compute_series_trend(self.hr_readings, 10.0, 3.0, "heart_rate")
+        resp_trend = self._compute_series_trend(self.resp_readings, 10.0, 2.0, "respiration")
+        spo2_trend = self._compute_series_trend(self.spo2_readings, 10.0, 0.8, "spo2")
+
+        candidates = [
+            (hr_trend, abs(hr_trend["delta"]) / 3.0 if 3.0 else 0.0),
+            (resp_trend, abs(resp_trend["delta"]) / 2.0 if 2.0 else 0.0),
+            (spo2_trend, abs(spo2_trend["delta"]) / 0.8 if 0.8 else 0.0),
+        ]
+        primary, strength = max(candidates, key=lambda item: item[1])
+
+        if strength < 1.0:
+            primary = {"metric": "overall", "direction": "stable", "delta": 0.0, "label": "Stable"}
+
+        arrow_map = {"increasing": "↑", "decreasing": "↓", "stable": "→"}
+        metric_labels = {
+            "heart_rate": "Heart rate",
+            "respiration": "Respiration",
+            "spo2": "SpO2",
+            "overall": "Vitals",
+        }
+        summary = (
+            f"{metric_labels.get(primary['metric'], 'Vitals')} {primary['label'].lower()}"
+            if primary["metric"] == "overall"
+            else f"{metric_labels.get(primary['metric'], primary['metric'])} {primary['label'].lower()}"
+        )
+
+        return {
+            "direction": primary["direction"],
+            "arrow": arrow_map[primary["direction"]],
+            "label": primary["label"],
+            "summary": summary,
+            "metric": primary["metric"],
+            "heart_rate": hr_trend["direction"],
+            "respiration": resp_trend["direction"],
+            "spo2": spo2_trend["direction"],
+        }
 
 
 
@@ -707,6 +885,7 @@ class VitalsService:
 
             # === Respiration: Use POS signal with dedicated respiratory bandpass ===
             best_rpm = self._extract_respiration_improved(X_proc, L, fps)
+            respiratory_variability = self._compute_respiratory_variability(X_proc, fps)
             rr_uncertainty = max(0.8, 5.0 * (1.0 - min(1.0, best_conf)) + 1.5 * max(0.0, min(1.0, self.motion_score / 8.0)))
 
             # === SpO2 Estimation: Bandpass-filtered AC/DC ===
@@ -721,6 +900,7 @@ class VitalsService:
                 'signal_quality': sig_quality,
                 'peaks': peaks,
                 'hrv': hrv,
+                'respiratory_variability': respiratory_variability,
                 'hr_uncertainty': float(hr_uncertainty),
                 'rr_uncertainty': float(rr_uncertainty),
                 'spo2_uncertainty': float(spo2_uncertainty),
@@ -732,6 +912,31 @@ class VitalsService:
             print(f"Vitals Engine Error: {e}")
             return {'bpm': self.bpm, 'rpm': self.respiration_rate, 'spo2': self.spo2,
                     'spectrum': [], 'signal_quality': 0, 'peaks': [], 'hrv': 0}
+
+    def _compute_respiratory_variability(self, X_proc: np.ndarray, fps: float) -> float:
+        try:
+            nyq = fps / 2.0
+            resp_low = max(0.001, min(0.1 / nyq, 0.99))
+            resp_high = max(resp_low + 0.01, min(0.5 / nyq, 0.99))
+            b_resp, a_resp = butter(2, [resp_low, resp_high], btype='band')
+
+            blended = 0.65 * X_proc[1] + 0.35 * X_proc[2]
+            resp_signal = filtfilt(b_resp, a_resp, blended)
+            prominence = max(np.std(resp_signal) * 0.18, 0.02)
+            min_distance = max(1, int(fps * 1.4))
+            peaks, _ = find_peaks(resp_signal, distance=min_distance, prominence=prominence)
+
+            if len(peaks) < 3:
+                return self.respiratory_variability
+
+            intervals = np.diff(peaks) / fps * 1000.0
+            valid = intervals[(intervals > 1000.0) & (intervals < 10000.0)]
+            if len(valid) < 2:
+                return self.respiratory_variability
+
+            return float(np.std(valid))
+        except Exception:
+            return self.respiratory_variability
 
     def _compute_signal_quality(self, best_conf: float, X_raw: np.ndarray, valid_methods: list) -> float:
         """Multi-metric signal quality assessment (0-100)."""
