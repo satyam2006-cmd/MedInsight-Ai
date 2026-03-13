@@ -57,8 +57,7 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
     overview_data = [
         ['Duration', f"{duration_min:.1f} minutes"],
         ['Signal Quality', f"{session_data.get('avg_signal_quality', 0)}%"],
-        ['Health Score', f"{session_data.get('health_score', 0)} / 100"],
-        ['Early Warning Score', f"{session_data.get('ews', 0)}"],
+
     ]
     overview_table = Table(overview_data, colWidths=[150, 300])
     overview_table.setStyle(TableStyle([
