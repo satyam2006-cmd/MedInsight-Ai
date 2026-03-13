@@ -38,40 +38,22 @@ const VitalsMonitor = () => {
     const [cameraDevices, setCameraDevices] = useState([]);
     const [selectedCameraId, setSelectedCameraId] = useState('');
     const [cameraSwitching, setCameraSwitching] = useState(false);
+    const [isPhoneCamera, setIsPhoneCamera] = useState(false);
 
     const getApiBase = () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         return isLocal ? 'http://localhost:8000' : '';
     };
 
+    const PHONE_KEYWORDS = ['droidcam', 'iriun', 'epoccam', 'ivcam', 'camo', 'phone', 'android', 'iphone', 'continuity'];
+    const isPhoneDevice = (label) => {
+        const lower = (label || '').toLowerCase();
+        return PHONE_KEYWORDS.some((h) => lower.includes(h));
+    };
+
     const pickPreferredCamera = (devices) => {
-        const getStressColors = (level) => {
-            if (level === 'HIGH') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
-            if (level === 'MODERATE') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
-            return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
-        };
-        const getRiskColors = (level) => {
-            if (level === 'CRITICAL') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
-            if (level === 'WARNING') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
-            return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
-        };
-        const getTrendColors = (direction) => {
-            if (direction === 'increasing') return { tone: '#2563eb', bg: '#eff6ff', accent: '#bfdbfe' };
-            if (direction === 'decreasing') return { tone: '#7c3aed', bg: '#f5f3ff', accent: '#ddd6fe' };
-            return { tone: '#475569', bg: '#f8fafc', accent: '#cbd5e1' };
-        };
-        const trendDotColor = (direction) => {
-            if (direction === 'increasing') return '#2563eb';
-            if (direction === 'decreasing') return '#7c3aed';
-            return '#64748b';
-        };
         if (!devices?.length) return '';
-        const phoneHints = ['droidcam', 'iriun', 'epoccam', 'camo', 'phone', 'android', 'iphone', 'continuity'];
-        const stressColors = getStressColors(vitals.stress_level);
-        const riskColors = getRiskColors(vitals.ai_risk);
-        const trendColors = getTrendColors(vitals.vital_trend?.direction);
-        const trendData = vitals.vital_trend || { direction: 'stable', label: 'Stable', summary: 'Gathering baseline', heart_rate: 'stable', respiration: 'stable', spo2: 'stable', arrow: '->' };
-        const preferred = devices.find((d) => phoneHints.some((h) => (d.label || '').toLowerCase().includes(h)));
+        const preferred = devices.find((d) => isPhoneDevice(d.label));
         return preferred?.deviceId || devices[0].deviceId;
     };
 
@@ -80,8 +62,13 @@ const VitalsMonitor = () => {
             const all = await navigator.mediaDevices.enumerateDevices();
             const videos = all.filter((d) => d.kind === 'videoinput');
             setCameraDevices(videos);
-            if (!selectedCameraId && videos.length > 0) {
-                setSelectedCameraId(pickPreferredCamera(videos));
+            if (videos.length > 0) {
+                const preferred = pickPreferredCamera(videos);
+                const selectedStillExists = selectedCameraId && videos.some((d) => d.deviceId === selectedCameraId);
+                const nextId = selectedStillExists ? selectedCameraId : preferred;
+                setSelectedCameraId(nextId);
+                const active = videos.find((d) => d.deviceId === nextId);
+                setIsPhoneCamera(isPhoneDevice(active?.label || ''));
             }
         } catch (e) {
             console.error('Could not enumerate cameras', e);
@@ -122,10 +109,14 @@ const VitalsMonitor = () => {
             await loadVideoDevices();
         };
         loadMediaPipe();
+        loadVideoDevices();
         connectWebSocket();
+        const handleDeviceChange = () => loadVideoDevices();
+        navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
         return () => {
             active = false;
             stopCamera();
+            navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
             if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
         };
     }, []);
@@ -298,11 +289,12 @@ const VitalsMonitor = () => {
     };
 
     const startCamera = async (deviceId = null) => {
+        const targetDevice = deviceId || selectedCameraId;
         try {
             stopCamera();
-            const videoConstraints = deviceId
+            const videoConstraints = targetDevice
                 ? {
-                    deviceId: { exact: deviceId },
+                    deviceId: { exact: targetDevice },
                     width: { ideal: 1920 },
                     height: { ideal: 1080 },
                     frameRate: { ideal: 30, max: 30 },
@@ -324,6 +316,8 @@ const VitalsMonitor = () => {
                 const activeSettings = activeTrack?.getSettings();
                 if (activeSettings?.deviceId) {
                     setSelectedCameraId(activeSettings.deviceId);
+                    const active = cameraDevices.find((d) => d.deviceId === activeSettings.deviceId);
+                    if (active) setIsPhoneCamera(isPhoneDevice(active.label || ''));
                 }
 
                 const loop = async () => {
@@ -335,7 +329,30 @@ const VitalsMonitor = () => {
                 loop();
             }
         } catch (err) {
-            setError('Camera access denied or unavailable. Ensure phone camera app (DroidCam/Iriun/Continuity) is active.');
+            if (targetDevice) {
+                try {
+                    const fallback = await navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+                        audio: false,
+                    });
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = fallback;
+                        setIsStreaming(true);
+                        await loadVideoDevices();
+                        const loop = async () => {
+                            if (videoRef.current && detectorRef.current) {
+                                try { await detectorRef.current.send({ image: videoRef.current }); } catch (e) {}
+                            }
+                            requestAnimationFrame(loop);
+                        };
+                        loop();
+                        return;
+                    }
+                } catch (fallbackErr) {
+                    // fall through to user-facing error
+                }
+            }
+            setError('Camera access denied or unavailable. Ensure DroidCam/Iriun is running and selected from camera list.');
         }
     };
 
@@ -691,7 +708,7 @@ const VitalsMonitor = () => {
                             {cameraDevices.length === 0 && <option value="">No camera detected</option>}
                             {cameraDevices.map((d, idx) => (
                                 <option key={d.deviceId || idx} value={d.deviceId}>
-                                    {d.label || `Camera ${idx + 1}`}
+                                    {(d.label || `Camera ${idx + 1}`) + (isPhoneDevice(d.label) ? ' (Phone)' : '')}
                                 </option>
                             ))}
                         </select>
@@ -701,6 +718,11 @@ const VitalsMonitor = () => {
                         >
                             Refresh
                         </button>
+                        {isPhoneCamera && (
+                            <span style={{ fontSize: '0.7rem', color: '#166534', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '999px', padding: '0.12rem 0.45rem', fontWeight: 700 }}>
+                                PHONE CAM
+                            </span>
+                        )}
                         <span style={{ fontSize: '0.8rem', color: '#666' }}>{vitals.fps} FPS</span>
                         <span style={{ fontSize: '0.75rem', color: '#999' }}>⏱ {formatTime(vitals.session_time)}</span>
                         <div style={{
