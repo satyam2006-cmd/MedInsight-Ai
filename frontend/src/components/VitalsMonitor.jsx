@@ -13,6 +13,7 @@ const VitalsMonitor = () => {
     const lastPositionRef = useRef(null);
     const lastSendTimeRef = useRef(0);
     const patchHistoryRef = useRef({ forehead: null, leftCheek: null, rightCheek: null });
+    const detectionLoopActiveRef = useRef(false);
 
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
@@ -316,25 +317,51 @@ const VitalsMonitor = () => {
         });
     };
 
+    const runDetectionLoop = () => {
+        detectionLoopActiveRef.current = true;
+        const tick = async () => {
+            if (!detectionLoopActiveRef.current) return;
+            if (videoRef.current && detectorRef.current) {
+                try { await detectorRef.current.send({ image: videoRef.current }); } catch (e) {}
+            }
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    };
+
+    const getCameraConstraintCandidates = (targetDevice) => {
+        if (targetDevice) {
+            return [
+                { deviceId: { exact: targetDevice }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } },
+                { deviceId: { exact: targetDevice }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+            ];
+        }
+        return [
+            { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+            { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+            { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+            true,
+        ];
+    };
+
+    const openCameraStream = async (targetDevice) => {
+        const candidates = getCameraConstraintCandidates(targetDevice);
+        let lastErr = null;
+        for (const videoConstraint of candidates) {
+            try {
+                return await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
+            } catch (err) {
+                lastErr = err;
+            }
+        }
+        throw lastErr || new Error('Unable to open camera stream');
+    };
+
     const startCamera = async (deviceId = null) => {
         const targetDevice = deviceId || selectedCameraId;
         try {
             stopCamera();
-            const videoConstraints = targetDevice
-                ? {
-                    deviceId: { exact: targetDevice },
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                    frameRate: { ideal: 30, max: 30 },
-                }
-                : {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                    frameRate: { ideal: 30, max: 30 },
-                };
-
-            const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+            const stream = await openCameraStream(targetDevice);
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 try { await videoRef.current.play(); } catch (e) {}
@@ -348,46 +375,17 @@ const VitalsMonitor = () => {
                     setSelectedCameraId(activeSettings.deviceId);
                     setIsPhoneCamera(isPhoneDevice(activeTrack?.label || ''));
                 }
-
-                const loop = async () => {
-                    if (videoRef.current && detectorRef.current) {
-                        try { await detectorRef.current.send({ image: videoRef.current }); } catch (e) {}
-                    }
-                    requestAnimationFrame(loop);
-                };
-                loop();
+                runDetectionLoop();
             }
         } catch (err) {
-            if (targetDevice) {
-                try {
-                    const fallback = await navigator.mediaDevices.getUserMedia({
-                        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-                        audio: false,
-                    });
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = fallback;
-                        try { await videoRef.current.play(); } catch (e) {}
-                        await waitForVideoReady(videoRef.current);
-                        setIsStreaming(true);
-                        await loadVideoDevices();
-                        const loop = async () => {
-                            if (videoRef.current && detectorRef.current) {
-                                try { await detectorRef.current.send({ image: videoRef.current }); } catch (e) {}
-                            }
-                            requestAnimationFrame(loop);
-                        };
-                        loop();
-                        return;
-                    }
-                } catch (fallbackErr) {
-                    // fall through to user-facing error
-                }
-            }
-            setError('Camera access denied or unavailable. Ensure DroidCam/Iriun is running and selected from camera list.');
+            console.error('Camera start failed', err);
+            setError('Camera unavailable. Close other apps using camera, then select camera again (Laptop Cam or DroidCam/Iriun).');
         }
     };
 
     const stopCamera = () => {
+        detectionLoopActiveRef.current = false;
+        setIsStreaming(false);
         if (videoRef.current?.srcObject) {
             videoRef.current.srcObject.getTracks().forEach(t => t.stop());
             videoRef.current.srcObject = null;
