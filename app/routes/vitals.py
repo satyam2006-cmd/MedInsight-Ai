@@ -7,7 +7,9 @@ router = APIRouter()
 
 @router.websocket("/ws/vitals")
 async def vitals_websocket(websocket: WebSocket):
+    print("Incoming Vitals WebSocket connection...")
     await websocket.accept()
+    print("Vitals WebSocket accepted")
     vitals_service = VitalsService()
     
     try:
