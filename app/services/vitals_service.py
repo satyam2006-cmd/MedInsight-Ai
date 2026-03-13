@@ -1,15 +1,15 @@
 import numpy as np
 import scipy.signal
-from scipy.signal import butter, filtfilt, welch
+from scipy.signal import butter, filtfilt, welch, find_peaks
 import time
 from collections import deque
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 from app.services.jade_service import jadeR
 
 class VitalsService:
-    def __init__(self, buffer_size: int = 512): 
-        self.buffer_size = buffer_size
-        self.data_buffer = [] # List of [r, g, b]
+    def __init__(self, buffer_size: int = 900):
+        self.buffer_size = buffer_size  # ~30s at 30fps
+        self.data_buffer = []  # List of [r, g, b]
         self.times = []
         self.bpm = 0.0
         self.respiration_rate = 0.0
@@ -17,14 +17,26 @@ class VitalsService:
         self.last_calc_time = 0.0
         self.smooth_bpm = 0.0
         self.smooth_rpm = 0.0
-        # BPM history for median filtering (last 10 readings)
+        # BPM history for median filtering
         self.bpm_history = deque(maxlen=10)
         self.rpm_history = deque(maxlen=10)
+        # Session statistics
+        self.session_start = time.time()
+        self.hr_min = float('inf')
+        self.hr_max = 0.0
+        self.hr_readings = []  # (timestamp, bpm) for trend
+        self.signal_quality = 0.0
+        self.hrv_sdnn = 0.0
+        self.health_score = 0
+        self.ews_score = 0
+        self.peak_indices = []
+        self.calibration_pct = 0.0
+        self.waveform = []  # last 200 green samples for frontend graph
+        self.alerts_history = []
 
-    def process_signal(self, values: List[float], timestamp: float) -> Tuple[float, float, float, str, List[float]]:
+    def process_signal(self, values: List[float], timestamp: float) -> Dict[str, Any]:
         """
-        Receives a list of RGB values [r, g, b] and processes it.
-        Returns (bpm, respiration_rate, current_fps, health_alert, power_spectrum)
+        Receives RGB values and returns a comprehensive vitals dictionary.
         """
         self.data_buffer.append(values)
         self.times.append(timestamp)
@@ -38,47 +50,67 @@ class VitalsService:
         alert = "Normal"
         spectrum = []
         current_time = time.time()
-        
+
+        # Track green channel for waveform display
+        green_val = values[1] if len(values) > 1 else 0
+        self.waveform.append(green_val)
+        if len(self.waveform) > 200:
+            self.waveform = self.waveform[-200:]
+
+        # Calibration progress
+        target_samples = min(self.buffer_size, 900)
+        self.calibration_pct = min(100.0, (L / target_samples) * 100.0)
+
         if L > 10:
             # Calculate FPS
             duration = self.times[-1] - self.times[0]
             if duration > 0:
-                self.fps = float(L-1) / duration
+                self.fps = float(L - 1) / duration
 
-            # Throttle: Only calculate vitals every 1 second
+            # Calculate vitals every 1 second once enough buffer
             if L >= 150 and (current_time - self.last_calc_time) > 1.0:
-                new_bpm, new_rpm, spectrum = self._calculate_vitals()
+                result = self._calculate_vitals()
                 self.last_calc_time = current_time
-                
-                # Median-filter BPM history before smoothing
+
+                new_bpm = result['bpm']
+                new_rpm = result['rpm']
+                spectrum = result['spectrum']
+                self.signal_quality = result['signal_quality']
+                self.peak_indices = result['peaks']
+
+                # Median-filter + adaptive EMA for BPM
                 if new_bpm > 0:
                     self.bpm_history.append(new_bpm)
-                    if len(self.bpm_history) >= 3:
-                        median_bpm = float(np.median(list(self.bpm_history)))
-                    else:
-                        median_bpm = new_bpm
-                    
+                    median_bpm = float(np.median(list(self.bpm_history))) if len(self.bpm_history) >= 3 else new_bpm
+
                     if self.smooth_bpm == 0:
                         self.smooth_bpm = median_bpm
                     else:
-                        # 3-tier adaptive EMA
                         deviation = abs(median_bpm - self.smooth_bpm)
                         if deviation > 20:
-                            alpha = 0.6   # large jump — track fast
+                            alpha = 0.6
                         elif deviation > 8:
-                            alpha = 0.3   # moderate change
+                            alpha = 0.3
                         else:
-                            alpha = 0.1   # stable — smooth heavily
+                            alpha = 0.1
                         self.smooth_bpm = (1 - alpha) * self.smooth_bpm + alpha * median_bpm
                     self.bpm = self.smooth_bpm
-                
+
+                    # Session min/max
+                    if self.bpm > 30:  # Only valid readings
+                        if self.bpm < self.hr_min:
+                            self.hr_min = self.bpm
+                        if self.bpm > self.hr_max:
+                            self.hr_max = self.bpm
+                        self.hr_readings.append((current_time - self.session_start, round(self.bpm, 1)))
+                        # Keep last 120 readings (~2 min of history)
+                        if len(self.hr_readings) > 120:
+                            self.hr_readings = self.hr_readings[-120:]
+
                 if new_rpm > 0:
                     self.rpm_history.append(new_rpm)
-                    if len(self.rpm_history) >= 3:
-                        median_rpm = float(np.median(list(self.rpm_history)))
-                    else:
-                        median_rpm = new_rpm
-                    
+                    median_rpm = float(np.median(list(self.rpm_history))) if len(self.rpm_history) >= 3 else new_rpm
+
                     if self.smooth_rpm == 0:
                         self.smooth_rpm = median_rpm
                     else:
@@ -91,210 +123,284 @@ class VitalsService:
                             alpha = 0.1
                         self.smooth_rpm = (1 - alpha) * self.smooth_rpm + alpha * median_rpm
                     self.respiration_rate = self.smooth_rpm
-                
-                # Health Alert Logic
-                if self.bpm > 110:
-                    alert = "High Heart Rate (Tachycardia)"
-                elif self.bpm < 50 and self.bpm > 0:
-                    alert = "Low Heart Rate (Bradycardia)"
-                elif self.respiration_rate > 25:
-                    alert = "High Respiration (Tachypnea)"
-                elif self.respiration_rate < 8 and self.respiration_rate > 0:
-                    alert = "Low Respiration (Bradypnea)"
 
-        return self.bpm, self.respiration_rate, self.fps, alert, spectrum
+                # Compute HRV from peak intervals
+                self.hrv_sdnn = result.get('hrv', 0.0)
+
+                # Compute health score and EWS
+                self.health_score = self._compute_health_score()
+                self.ews_score = self._compute_ews()
+
+                # Emergency alerts
+                alert = self._check_alerts()
+
+        # Build response
+        session_elapsed = current_time - self.session_start
+        return {
+            "bpm": round(self.bpm, 1) if self.bpm else 0,
+            "respiration": round(self.respiration_rate, 1) if self.respiration_rate else 0,
+            "fps": round(self.fps, 1) if self.fps else 0,
+            "alert": alert,
+            "spectrum": spectrum,
+            "status": "tracking" if self.bpm > 0 else ("calibrating" if self.calibration_pct < 100 else "buffering"),
+            "signal_quality": round(self.signal_quality, 1),
+            "health_score": self.health_score,
+            "ews": self.ews_score,
+            "hrv": round(self.hrv_sdnn, 1),
+            "calibration_pct": round(self.calibration_pct, 1),
+            "hr_min": round(self.hr_min, 1) if self.hr_min != float('inf') else 0,
+            "hr_max": round(self.hr_max, 1),
+            "hr_trend": self.hr_readings[-30:],  # Last 30 points for chart
+            "waveform": self.waveform[-200:],
+            "peaks": self.peak_indices[-20:],  # Last 20 peak positions
+            "session_time": round(session_elapsed, 0),
+        }
+
+    def _check_alerts(self) -> str:
+        """Emergency detection rules."""
+        alerts = []
+        if self.bpm > 120:
+            alerts.append("Tachycardia (HR>120)")
+        elif self.bpm > 110:
+            alerts.append("Elevated HR")
+        if 0 < self.bpm < 50:
+            alerts.append("Bradycardia (HR<50)")
+        if self.respiration_rate > 24:
+            alerts.append("Rapid Breathing (RR>24)")
+        elif 0 < self.respiration_rate < 8:
+            alerts.append("Low Respiration")
+
+        if alerts:
+            alert_str = " | ".join(alerts)
+            self.alerts_history.append((time.time(), alert_str))
+            if len(self.alerts_history) > 50:
+                self.alerts_history = self.alerts_history[-50:]
+            return alert_str
+        return "Normal"
+
+    def _compute_health_score(self) -> int:
+        """Composite health score 0-100 based on HR, RR, HRV, signal quality."""
+        score = 100
+
+        # HR penalty
+        if self.bpm > 0:
+            if self.bpm < 50 or self.bpm > 120:
+                score -= 30
+            elif self.bpm < 55 or self.bpm > 110:
+                score -= 15
+            elif self.bpm < 60 or self.bpm > 100:
+                score -= 5
+
+        # RR penalty
+        if self.respiration_rate > 0:
+            if self.respiration_rate < 8 or self.respiration_rate > 24:
+                score -= 25
+            elif self.respiration_rate < 10 or self.respiration_rate > 20:
+                score -= 10
+
+        # HRV bonus (higher is better, >50ms is good)
+        if self.hrv_sdnn > 50:
+            score += 5
+        elif self.hrv_sdnn < 20 and self.hrv_sdnn > 0:
+            score -= 10
+
+        # Signal quality factor
+        quality_factor = self.signal_quality / 100.0
+        score = int(score * max(0.5, quality_factor))
+
+        return max(0, min(100, score))
+
+    def _compute_ews(self) -> int:
+        """Early Warning Score — clinical risk assessment."""
+        ews = 0
+
+        # Heart rate scoring
+        if self.bpm > 0:
+            if self.bpm > 130 or self.bpm < 40:
+                ews += 3
+            elif self.bpm > 110 or self.bpm < 50:
+                ews += 2
+            elif self.bpm > 100 or self.bpm < 55:
+                ews += 1
+
+        # Respiration rate scoring
+        if self.respiration_rate > 0:
+            if self.respiration_rate > 25 or self.respiration_rate < 8:
+                ews += 3
+            elif self.respiration_rate > 21 or self.respiration_rate < 9:
+                ews += 2
+            elif self.respiration_rate > 20 or self.respiration_rate < 12:
+                ews += 1
+
+        return ews
+
+    # =====================================================
+    # SIGNAL PROCESSING ENGINE
+    # =====================================================
 
     def _pos_extract(self, X: np.ndarray, L: int) -> np.ndarray:
-        """
-        POS (Plane-Orthogonal-to-Skin) rPPG signal extraction.
-        Wang et al., IEEE Trans. Biomed. Eng., 2017.
-        
-        X: shape (3, N) — raw RGB time series
-        Returns: 1D pulse signal of length N
-        """
-        WinSec = 1.6  # ~1.6 second window
+        """POS rPPG signal extraction (Wang et al., 2017)."""
+        WinSec = 1.6
         N = X.shape[1]
         win_len = max(int(self.fps * WinSec), 32)
         H = np.zeros(N)
-        
-        # Projection matrix for POS
         P = np.array([[0, 1, -1], [-2, 1, 1]], dtype=float)
-        
+
         for t in range(0, N - win_len + 1):
-            # Temporal normalization within the window
-            window = X[:, t:t + win_len]  # (3, win_len)
+            window = X[:, t:t + win_len]
             means = np.mean(window, axis=1, keepdims=True)
             means[means < 1e-6] = 1e-6
-            C_n = window / means  # column-wise normalization
-            
-            # POS projection
-            S = P @ C_n  # (2, win_len)
-            
-            # Adaptive combination
-            std_s0 = np.std(S[0])
-            std_s1 = np.std(S[1])
-            if std_s1 > 1e-6:
-                alpha = std_s0 / std_s1
-            else:
-                alpha = 0.0
-            
+            C_n = window / means
+            S = P @ C_n
+            std_s0, std_s1 = np.std(S[0]), np.std(S[1])
+            alpha = std_s0 / std_s1 if std_s1 > 1e-6 else 0.0
             h = S[0] + alpha * S[1]
-            
-            # Overlap-add with Hanning window
             h = h - np.mean(h)
             H[t:t + win_len] += h * np.hanning(win_len)
-        
         return H
 
     def _harmonic_score(self, freqs_bpm: np.ndarray, psd: np.ndarray, peak_bpm: float) -> float:
-        """
-        Check for harmonic support at 2× the fundamental frequency.
-        Returns a bonus score if a harmonic is found.
-        """
+        """Check for harmonic support at 2x fundamental."""
         harmonic_bpm = 2.0 * peak_bpm
-        harmonic_mask = (freqs_bpm >= harmonic_bpm - 5) & (freqs_bpm <= harmonic_bpm + 5)
-        harmonic_idx = np.where(harmonic_mask)[0]
-        
-        if len(harmonic_idx) > 0:
-            harmonic_power = np.max(psd[harmonic_idx])
-            total_power = np.sum(psd) + 1e-6
-            return float(harmonic_power / total_power)
+        mask = (freqs_bpm >= harmonic_bpm - 5) & (freqs_bpm <= harmonic_bpm + 5)
+        idx = np.where(mask)[0]
+        if len(idx) > 0:
+            return float(np.max(psd[idx]) / (np.sum(psd) + 1e-6))
         return 0.0
 
-    def _calculate_vitals(self) -> Tuple[float, float, List[float]]:
-        """
-        Core engine: combines ICA + POS for heart rate, uses confidence-weighted fusion.
-        """
+    def _calculate_vitals(self) -> Dict[str, Any]:
+        """Core engine: ICA + POS fusion with all analytics."""
         try:
-            # 1. Prepare and Normalization
-            X = np.array(self.data_buffer).T  # Shape (3, N)
+            X = np.array(self.data_buffer).T  # (3, N)
             L = X.shape[1]
             X_proc = np.zeros_like(X, dtype=float)
-            
+
             for i in range(3):
                 X_proc[i] = scipy.signal.detrend(X[i])
                 X_proc[i] = (X_proc[i] - np.mean(X_proc[i])) / (np.std(X_proc[i]) + 1e-6)
-            
-            # Bandpass filter before ICA (0.75 - 3.0 Hz)
+
             fps = self.fps
             if fps < 5:
-                return self.bpm, self.respiration_rate, []
-            
-            b, a = butter(4, [0.75 / (fps/2), 3.0 / (fps/2)], btype='band')
+                return {'bpm': self.bpm, 'rpm': self.respiration_rate, 'spectrum': [],
+                        'signal_quality': 0, 'peaks': [], 'hrv': 0}
+
+            b, a = butter(4, [0.75 / (fps / 2), 3.0 / (fps / 2)], btype='band')
             for i in range(3):
                 X_proc[i] = filtfilt(b, a, X_proc[i])
-            
-            # ======= METHOD 1: ICA (JADE) =======
+
+            # === ICA ===
             B = jadeR(X_proc)
             ICA = np.asarray(np.dot(B, X_proc))
-            
-            ica_bpm, ica_confidence, ica_spectrum = self._extract_hr_from_components(ICA, L)
-            
-            # ======= METHOD 2: POS =======
+            ica_bpm, ica_conf, ica_spec = self._extract_hr_from_components(ICA, L)
+
+            # === POS ===
             pos_signal = self._pos_extract(X, L)
-            # Bandpass the POS signal
             pos_filtered = filtfilt(b, a, pos_signal)
-            pos_bpm, pos_confidence, pos_spectrum = self._extract_hr_single(pos_filtered, L)
-            
-            # ======= Confidence-weighted fusion =======
+            pos_bpm, pos_conf, pos_spec = self._extract_hr_single(pos_filtered, L)
+
+            # === Fusion ===
             best_bpm = self.bpm
-            best_spectrum = []
-            
-            # Require minimum confidence to update
-            MIN_CONFIDENCE = 0.05
-            
-            if ica_confidence > MIN_CONFIDENCE or pos_confidence > MIN_CONFIDENCE:
-                if ica_confidence >= pos_confidence:
-                    best_bpm = ica_bpm
-                    best_spectrum = ica_spectrum
+            best_spec = []
+            best_conf = 0.0
+            best_source = None
+
+            if ica_conf > 0.05 or pos_conf > 0.05:
+                if ica_conf >= pos_conf:
+                    best_bpm, best_spec, best_conf = ica_bpm, ica_spec, ica_conf
+                    best_source = ICA[int(np.argmax([self._extract_hr_single(ICA[i].flatten(), L)[1] for i in range(3)]))]
                 else:
-                    best_bpm = pos_bpm
-                    best_spectrum = pos_spectrum
-            # else: hold previous BPM (don't update with low-confidence readings)
-            
-            # ======= Respiration (separate ICA component) =======
+                    best_bpm, best_spec, best_conf = pos_bpm, pos_spec, pos_conf
+                    best_source = pos_filtered
+
+            # === Signal Quality (0-100) ===
+            sig_quality = min(100, max(0, best_conf * 200))  # Scale confidence to 0-100
+
+            # === Peak Detection ===
+            peaks = []
+            hrv = 0.0
+            if best_source is not None and len(best_source) > 50:
+                # Bandpass the best source for peak detection
+                try:
+                    bp_b, bp_a = butter(2, [0.8 / (fps / 2), 2.5 / (fps / 2)], btype='band')
+                    peak_signal = filtfilt(bp_b, bp_a, best_source.flatten())
+                    min_distance = int(fps * 0.4)  # Min 0.4s between beats (~150bpm max)
+                    peak_idx, peak_props = find_peaks(peak_signal,
+                                                      distance=max(1, min_distance),
+                                                      prominence=np.std(peak_signal) * 0.3)
+                    peaks = peak_idx.tolist()
+
+                    # === HRV (SDNN) ===
+                    if len(peak_idx) > 2:
+                        intervals = np.diff(peak_idx) / fps * 1000  # in ms
+                        # Filter out unrealistic intervals
+                        valid = intervals[(intervals > 300) & (intervals < 2000)]
+                        if len(valid) > 2:
+                            hrv = float(np.std(valid))
+                except Exception:
+                    pass
+
+            # === Respiration ===
             best_rpm = self._extract_respiration(ICA, L)
-            
-            return float(best_bpm), float(best_rpm), best_spectrum
-            
+
+            return {
+                'bpm': float(best_bpm),
+                'rpm': float(best_rpm),
+                'spectrum': best_spec,
+                'signal_quality': sig_quality,
+                'peaks': peaks,
+                'hrv': hrv,
+            }
+
         except Exception as e:
             print(f"Vitals Engine Error: {e}")
-            return self.bpm, self.respiration_rate, []
+            return {'bpm': self.bpm, 'rpm': self.respiration_rate, 'spectrum': [],
+                    'signal_quality': 0, 'peaks': [], 'hrv': 0}
 
-    def _extract_hr_from_components(self, ICA: np.ndarray, L: int) -> Tuple[float, float, list]:
-        """
-        Extract heart rate from 3 ICA components, returning best BPM, confidence, and spectrum.
-        """
-        component_scores = []
-        component_bpms = []
-        component_spectra = []
-        
+    def _extract_hr_from_components(self, ICA, L):
+        scores, bpms, spectra = [], [], []
         for i in range(3):
-            source = ICA[i].flatten()
-            bpm_val, confidence, norm_spectrum = self._extract_hr_single(source, L)
-            component_scores.append(confidence)
-            component_bpms.append(bpm_val)
-            component_spectra.append(norm_spectrum)
-        
-        best_idx = int(np.argmax(component_scores))
-        return component_bpms[best_idx], component_scores[best_idx], component_spectra[best_idx]
+            bpm_val, conf, spec = self._extract_hr_single(ICA[i].flatten(), L)
+            scores.append(conf)
+            bpms.append(bpm_val)
+            spectra.append(spec)
+        best = int(np.argmax(scores))
+        return bpms[best], scores[best], spectra[best]
 
-    def _extract_hr_single(self, source: np.ndarray, L: int) -> Tuple[float, float, list]:
-        """
-        Extract heart rate from a single signal using Welch's PSD + parabolic interpolation + harmonic check.
-        Returns (bpm, confidence_score, normalized_spectrum).
-        """
+    def _extract_hr_single(self, source, L):
         if len(source) < 32:
             return 0.0, -1.0, []
-        
-        # Welch's PSD with good frequency resolution
         nperseg = min(256, L // 2)
         if nperseg < 16:
             return 0.0, -1.0, []
-        
+
         freqs_hz, psd = welch(source, fs=self.fps, nperseg=nperseg, nfft=max(512, nperseg * 2))
         freqs_bpm = 60.0 * freqs_hz
-        
-        # Filter for Heart Rate (45-180 BPM)
         hr_mask = (freqs_bpm >= 45) & (freqs_bpm <= 180)
         hr_idx = np.where(hr_mask)[0]
-        
+
         if len(hr_idx) == 0:
             return 0.0, -1.0, []
-        
+
         hr_mags = psd[hr_idx]
-        peak_local_idx = np.argmax(hr_mags)
-        peak_idx = hr_idx[peak_local_idx]
-        
-        # Parabolic interpolation for sub-bin precision
+        peak_idx = hr_idx[np.argmax(hr_mags)]
+
+        # Parabolic interpolation
         if 0 < peak_idx < len(psd) - 1:
-            alpha_v = psd[peak_idx - 1]
-            beta_v = psd[peak_idx]
-            gamma_v = psd[peak_idx + 1]
-            denom = alpha_v - 2 * beta_v + gamma_v + 1e-9
-            p = 0.5 * (alpha_v - gamma_v) / denom
+            a_v, b_v, g_v = psd[peak_idx - 1], psd[peak_idx], psd[peak_idx + 1]
+            p = 0.5 * (a_v - g_v) / (a_v - 2 * b_v + g_v + 1e-9)
             bpm_val = float(freqs_bpm[peak_idx] + p * (freqs_bpm[1] - freqs_bpm[0]))
         else:
             bpm_val = float(freqs_bpm[peak_idx])
-        
-        # Confidence = peak prominence (peak-to-sum ratio)
-        max_p = np.max(hr_mags)
-        sum_p = np.sum(hr_mags)
-        prominence = float(max_p / (sum_p + 1e-6))
-        
-        # Harmonic bonus
-        harmonic_bonus = self._harmonic_score(freqs_bpm, psd, bpm_val)
-        confidence = prominence + 0.3 * harmonic_bonus
-        
-        # Normalize spectrum
-        norm_spectrum = (hr_mags / (max_p + 1e-6)).tolist()
-        
-        return bpm_val, confidence, norm_spectrum
 
-    def _extract_respiration(self, ICA: np.ndarray, L: int) -> float:
-        """
-        Separate ICA component selection and extraction for respiration rate.
-        """
+        max_p = np.max(hr_mags)
+        prominence = float(max_p / (np.sum(hr_mags) + 1e-6))
+        harmonic = self._harmonic_score(freqs_bpm, psd, bpm_val)
+        confidence = prominence + 0.3 * harmonic
+        norm_spec = (hr_mags / (max_p + 1e-6)).tolist()
+
+        return bpm_val, confidence, norm_spec
+
+    def _extract_respiration(self, ICA, L):
         rpm_scores = []
         for i in range(3):
             source = ICA[i].flatten()
@@ -308,18 +414,31 @@ class VitalsService:
                 rpm_scores.append(np.max(mags) / (np.sum(mags) + 1e-6))
             else:
                 rpm_scores.append(-1)
-        
-        best_rpm_idx = int(np.argmax(rpm_scores))
-        
-        rr_source = ICA[best_rpm_idx].flatten()
-        rr_windowed = np.hamming(L) * rr_source
-        rr_fft = np.abs(np.fft.rfft(rr_windowed))
-        rr_freqs = 60.0 * (float(self.fps) / L * np.arange(L // 2 + 1))
-        rr_mask_final = (rr_freqs >= 8) & (rr_freqs <= 25)
-        rr_idx_final = np.where(rr_mask_final)[0]
-        
-        if len(rr_idx_final) > 0:
-            rr_peak = rr_idx_final[np.argmax(rr_fft[rr_idx_final])]
-            return float(rr_freqs[rr_peak])
-        
+
+        best_i = int(np.argmax(rpm_scores))
+        rr_src = ICA[best_i].flatten()
+        rr_w = np.hamming(L) * rr_src
+        rr_fft = np.abs(np.fft.rfft(rr_w))
+        rr_f = 60.0 * (float(self.fps) / L * np.arange(L // 2 + 1))
+        mask = (rr_f >= 8) & (rr_f <= 25)
+        idx = np.where(mask)[0]
+        if len(idx) > 0:
+            return float(rr_f[idx[np.argmax(rr_fft[idx])]])
         return self.respiration_rate
+
+    def get_session_summary(self) -> Dict[str, Any]:
+        """Return session summary for reports."""
+        elapsed = time.time() - self.session_start
+        return {
+            "session_duration_sec": round(elapsed, 0),
+            "avg_hr": round(np.mean([r[1] for r in self.hr_readings]) if self.hr_readings else 0, 1),
+            "min_hr": round(self.hr_min, 1) if self.hr_min != float('inf') else 0,
+            "max_hr": round(self.hr_max, 1),
+            "avg_rr": round(self.respiration_rate, 1),
+            "avg_signal_quality": round(self.signal_quality, 1),
+            "health_score": self.health_score,
+            "ews": self.ews_score,
+            "hrv_sdnn": round(self.hrv_sdnn, 1),
+            "alerts": self.alerts_history[-10:],
+            "hr_trend": self.hr_readings,
+        }

@@ -17,6 +17,7 @@ edge-tts>=6.1.9
 # However, vitals monitoring requires numpy and scipy
 numpy>=1.24.0
 scipy>=1.10.0
+reportlab>=4.0.0
 supabase>=2.0.0
 # sentence-transformers removed
 # faiss-cpu removed
