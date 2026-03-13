@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2, RefreshCw, Smartphone, Monitor } from 'lucide-react';
 
 const VitalsMonitor = () => {
     const videoRef = useRef(null);
@@ -13,6 +13,10 @@ const VitalsMonitor = () => {
     const lastPositionRef = useRef(null);
     const lastSendTimeRef = useRef(0);
 
+    const [videoDevices, setVideoDevices] = useState([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState('');
+    const [isPhoneCamera, setIsPhoneCamera] = useState(false);
+
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
         signal_quality: 0, motion_status: 'GOOD', hrv: 0, spo2: 0,
@@ -25,6 +29,29 @@ const VitalsMonitor = () => {
     const [peaks, setPeaks] = useState([]);
     const [hrTrend, setHrTrend] = useState([]);
     const [spectrum, setSpectrum] = useState([]);
+
+    // Detect if a device label looks like a phone camera
+    const PHONE_KEYWORDS = ['droidcam', 'iriun', 'epoccam', 'ivcam', 'camo', 'phone', 'android', 'iphone', 'mobile'];
+    const isPhoneDevice = (label) => {
+        const lower = (label || '').toLowerCase();
+        return PHONE_KEYWORDS.some(kw => lower.includes(kw));
+    };
+
+    // Enumerate available video devices
+    const enumerateDevices = useCallback(async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const vDevices = devices.filter(d => d.kind === 'videoinput');
+            setVideoDevices(vDevices);
+            // If no device is selected yet, pick the first one
+            if (vDevices.length > 0 && !selectedDeviceId) {
+                setSelectedDeviceId(vDevices[0].deviceId);
+                setIsPhoneCamera(isPhoneDevice(vDevices[0].label));
+            }
+        } catch (err) {
+            console.error('[Vitals] Device enumeration error:', err);
+        }
+    }, [selectedDeviceId]);
 
     // MediaPipe initialization
     useEffect(() => {
@@ -59,10 +86,17 @@ const VitalsMonitor = () => {
             startCamera();
         };
         loadMediaPipe();
+        enumerateDevices();
         connectWebSocket();
+
+        // Listen for device connect/disconnect
+        const handleDeviceChange = () => enumerateDevices();
+        navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+
         return () => {
             active = false;
             stopCamera();
+            navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
             if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
         };
     }, []);
@@ -180,12 +214,33 @@ const VitalsMonitor = () => {
         }
     };
 
-    const startCamera = async () => {
+    const startCamera = async (deviceId = null) => {
+        // Stop any existing stream first
+        stopCamera();
+        
+        const targetDevice = deviceId || selectedDeviceId;
+        const useHighRes = targetDevice ? isPhoneDevice(
+            videoDevices.find(d => d.deviceId === targetDevice)?.label || ''
+        ) : false;
+
+        const constraints = {
+            video: {
+                width: useHighRes ? { ideal: 1280 } : 640,
+                height: useHighRes ? { ideal: 720 } : 480,
+                frameRate: { ideal: 30 },
+                ...(targetDevice ? { deviceId: { exact: targetDevice } } : {})
+            }
+        };
+
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, frameRate: 30 } });
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 setIsStreaming(true);
+                
+                // Re-enumerate to get labels (labels only available after permission grant)
+                enumerateDevices();
+
                 const loop = async () => {
                     if (videoRef.current && detectorRef.current) {
                         try { await detectorRef.current.send({ image: videoRef.current }); } catch (e) {}
@@ -194,7 +249,39 @@ const VitalsMonitor = () => {
                 };
                 loop();
             }
-        } catch (err) { setError("Camera access denied. Please allow permissions."); }
+        } catch (err) {
+            // Fallback: try without exact device constraint
+            if (targetDevice) {
+                console.warn('[Vitals] Exact device failed, trying fallback...');
+                try {
+                    const fallback = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, frameRate: 30 } });
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = fallback;
+                        setIsStreaming(true);
+                        enumerateDevices();
+                        const loop = async () => {
+                            if (videoRef.current && detectorRef.current) {
+                                try { await detectorRef.current.send({ image: videoRef.current }); } catch (e) {}
+                            }
+                            requestAnimationFrame(loop);
+                        };
+                        loop();
+                    }
+                } catch (e2) {
+                    setError("Camera access denied. Please allow permissions.");
+                }
+            } else {
+                setError("Camera access denied. Please allow permissions.");
+            }
+        }
+    };
+
+    // Restart camera when user selects a different device
+    const handleDeviceSelect = (deviceId) => {
+        setSelectedDeviceId(deviceId);
+        const device = videoDevices.find(d => d.deviceId === deviceId);
+        setIsPhoneCamera(isPhoneDevice(device?.label || ''));
+        startCamera(deviceId);
     };
 
     const stopCamera = () => {
@@ -381,7 +468,7 @@ const VitalsMonitor = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '2rem' }}>
             {/* Left: Video Feed */}
             <div className="neo-card" style={{ background: 'white', padding: '1.5rem', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Camera size={24} color="var(--primary)" /> Real-Time Feed
                     </h3>
@@ -394,6 +481,60 @@ const VitalsMonitor = () => {
                             boxShadow: `0 0 10px ${faceDetected ? '#4ade80' : '#f87171'}`
                         }} />
                     </div>
+                </div>
+
+                {/* Camera Source Selector */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    marginBottom: '1rem', padding: '0.6rem 0.8rem',
+                    background: isPhoneCamera ? '#f0fdf4' : '#f8fafc',
+                    borderRadius: '10px', border: `1.5px solid ${isPhoneCamera ? '#86efac' : '#e2e8f0'}`,
+                    transition: 'all 0.3s ease'
+                }}>
+                    {isPhoneCamera
+                        ? <Smartphone size={16} color="#16a34a" strokeWidth={2.5} />
+                        : <Monitor size={16} color="#64748b" strokeWidth={2.5} />
+                    }
+                    <select
+                        id="camera-select"
+                        value={selectedDeviceId}
+                        onChange={(e) => handleDeviceSelect(e.target.value)}
+                        style={{
+                            flex: 1, border: 'none', background: 'transparent',
+                            fontSize: '0.82rem', fontWeight: 600, color: '#1e293b',
+                            cursor: 'pointer', outline: 'none',
+                            fontFamily: 'inherit'
+                        }}
+                    >
+                        {videoDevices.length === 0 && (
+                            <option value="">Scanning for cameras...</option>
+                        )}
+                        {videoDevices.map((device, i) => (
+                            <option key={device.deviceId} value={device.deviceId}>
+                                {device.label || `Camera ${i + 1}`}
+                                {isPhoneDevice(device.label) ? ' 📱' : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={enumerateDevices}
+                        title="Refresh camera list"
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: '28px', height: '28px', borderRadius: '8px',
+                            border: '1.5px solid #e2e8f0', background: 'white',
+                            cursor: 'pointer', transition: 'all 0.2s'
+                        }}
+                    >
+                        <RefreshCw size={13} color="#64748b" />
+                    </button>
+                    {isPhoneCamera && (
+                        <span style={{
+                            fontSize: '0.65rem', fontWeight: 700, color: '#16a34a',
+                            background: '#dcfce7', padding: '2px 8px',
+                            borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.5px'
+                        }}>HD</span>
+                    )}
                 </div>
 
                 <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', background: '#0f172a', border: '2px solid black' }}>
