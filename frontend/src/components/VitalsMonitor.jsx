@@ -70,8 +70,10 @@ const VitalsMonitor = () => {
                 const active = videos.find((d) => d.deviceId === nextId);
                 setIsPhoneCamera(isPhoneDevice(active?.label || ''));
             }
+            return videos;
         } catch (e) {
             console.error('Could not enumerate cameras', e);
+            return [];
         }
     };
 
@@ -105,8 +107,19 @@ const VitalsMonitor = () => {
             });
             faceMesh.onResults(onResults);
             detectorRef.current = faceMesh;
-            await startCamera();
-            await loadVideoDevices();
+
+            // Request camera access once so device labels (DroidCam/Iriun) are available.
+            let videos = [];
+            try {
+                const perm = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                perm.getTracks().forEach((t) => t.stop());
+            } catch (e) {
+                // Continue; explicit camera start below will surface actionable errors.
+            }
+
+            videos = await loadVideoDevices();
+            const preferred = pickPreferredCamera(videos);
+            await startCamera(preferred || null);
         };
         loadMediaPipe();
         loadVideoDevices();
@@ -288,6 +301,21 @@ const VitalsMonitor = () => {
         }
     };
 
+    const waitForVideoReady = async (videoEl) => {
+        if (!videoEl) return;
+        if (videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) return;
+        await new Promise((resolve) => {
+            const done = () => {
+                videoEl.removeEventListener('loadedmetadata', done);
+                videoEl.removeEventListener('canplay', done);
+                resolve();
+            };
+            videoEl.addEventListener('loadedmetadata', done, { once: true });
+            videoEl.addEventListener('canplay', done, { once: true });
+            setTimeout(done, 1200);
+        });
+    };
+
     const startCamera = async (deviceId = null) => {
         const targetDevice = deviceId || selectedCameraId;
         try {
@@ -309,6 +337,8 @@ const VitalsMonitor = () => {
             const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
+                try { await videoRef.current.play(); } catch (e) {}
+                await waitForVideoReady(videoRef.current);
                 setIsStreaming(true);
                 await loadVideoDevices();
 
@@ -316,8 +346,7 @@ const VitalsMonitor = () => {
                 const activeSettings = activeTrack?.getSettings();
                 if (activeSettings?.deviceId) {
                     setSelectedCameraId(activeSettings.deviceId);
-                    const active = cameraDevices.find((d) => d.deviceId === activeSettings.deviceId);
-                    if (active) setIsPhoneCamera(isPhoneDevice(active.label || ''));
+                    setIsPhoneCamera(isPhoneDevice(activeTrack?.label || ''));
                 }
 
                 const loop = async () => {
@@ -337,6 +366,8 @@ const VitalsMonitor = () => {
                     });
                     if (videoRef.current) {
                         videoRef.current.srcObject = fallback;
+                        try { await videoRef.current.play(); } catch (e) {}
+                        await waitForVideoReady(videoRef.current);
                         setIsStreaming(true);
                         await loadVideoDevices();
                         const loop = async () => {
