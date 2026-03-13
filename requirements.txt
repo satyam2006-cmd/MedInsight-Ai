@@ -1,0 +1,23 @@
+fastapi>=0.109.2
+uvicorn>=0.27.1
+python-multipart>=0.0.9
+pillow>=10.2.0
+google-genai>=0.3.0
+google-cloud-vision>=3.7.2
+pdfplumber>=0.10.4
+python-dotenv>=1.0.1
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+requests>=2.31.0
+urllib3<2.0.0
+deep-translator>=1.11.4
+gtts>=2.5.1
+edge-tts>=6.1.9
+# Heavy dependencies removed to fit in Render 512MB RAM
+# However, vitals monitoring requires numpy and scipy
+numpy>=1.24.0
+scipy>=1.10.0
+reportlab>=4.0.0
+supabase>=2.0.0
+# sentence-transformers removed
+# faiss-cpu removed
