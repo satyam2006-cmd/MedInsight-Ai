@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-const VitalsMonitor = () => {
+const VitalsMonitor = ({ initialPatientId = '' }) => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const graphCanvasRef = useRef(null);
@@ -46,6 +46,7 @@ const VitalsMonitor = () => {
     const [selectedCameraId, setSelectedCameraId] = useState('');
     const [cameraSwitching, setCameraSwitching] = useState(false);
     const [isPhoneCamera, setIsPhoneCamera] = useState(false);
+    const [patientInputId, setPatientInputId] = useState(initialPatientId);
     const [userAge, setUserAge] = useState(null);
     const [trendDays, setTrendDays] = useState(7);
     const [trendAnalysis, setTrendAnalysis] = useState(null);
@@ -737,7 +738,8 @@ const VitalsMonitor = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session_id: vitals.session_id || null,
-                    condition_tag: 'judge-demo',
+                    patient_id: patientInputId.trim() || null,
+                    condition_tag: 'general',
                 }),
             });
             const data = await res.json();
@@ -1329,9 +1331,32 @@ const VitalsMonitor = () => {
                                 </div>
                             </div>
 
-                            {/* Judge Compare Panel */}
-                            <div style={{ marginTop: '0.85rem', padding: '0.9rem', background: '#eef2ff', borderRadius: '12px', border: '1px solid #c7d2fe' }}>
-                                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#3730a3', marginBottom: '0.5rem' }}>JUDGE SIDE-BY-SIDE CHECK</div>
+                            {/* Patient linkage + Compare Panel */}
+                            <div style={{ marginTop: '0.85rem', borderRadius: '12px', border: '1px solid #c7d2fe', overflow: 'hidden' }}>
+
+                                {/* Patient linkage row */}
+                                <div style={{ padding: '0.75rem 0.9rem', background: patientInputId ? 'linear-gradient(135deg,#eef2ff,#f0fdf4)' : '#f8faff', borderBottom: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                    <div style={{ background: patientInputId ? '#5227FF' : '#cbd5e1', padding: '0.35rem', borderRadius: '6px', flexShrink: 0 }}>
+                                        <Shield size={13} color="white" />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: patientInputId ? '#5227FF' : '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{patientInputId ? 'Linked Patient' : 'Link Patient'}</div>
+                                        <input
+                                            type="text"
+                                            value={patientInputId}
+                                            onChange={(e) => setPatientInputId(e.target.value)}
+                                            placeholder="Enter Patient ID to link session…"
+                                            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '0.78rem', fontWeight: 700, color: '#1a1a1a', padding: 0, marginTop: '0.1rem' }}
+                                        />
+                                    </div>
+                                    {patientInputId && (
+                                        <span style={{ fontSize: '0.65rem', background: '#dcfce7', color: '#16a34a', padding: '0.15rem 0.5rem', borderRadius: '10px', fontWeight: 700, flexShrink: 0 }}>Linked</span>
+                                    )}
+                                </div>
+
+                                {/* Session actions */}
+                                <div style={{ padding: '0.9rem', background: '#eef2ff' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3730a3', marginBottom: '0.5rem' }}>ACCURACY CROSS-CHECK</div>
                                 <div className="vitals-action-row" style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                                     <button onClick={saveSession} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>1) Save Session</button>
                                     <button onClick={saveReference} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>2) Save Reference</button>
@@ -1365,6 +1390,7 @@ const VitalsMonitor = () => {
                                         ))}
                                     </div>
                                 )}
+                                </div>
                             </div>
                         </>
                     ) : (

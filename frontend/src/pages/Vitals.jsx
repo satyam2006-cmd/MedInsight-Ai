@@ -1,11 +1,13 @@
 import React from 'react';
 import StaggeredMenu from '../components/StaggeredMenu';
-import { ArrowLeft, Activity } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Activity, UserCheck, ChevronRight } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import VitalsMonitor from '../components/VitalsMonitor';
 
 const VitalsPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const patientIdFromUrl = searchParams.get('patient') || '';
 
     const menuItems = [
         { label: 'Hub', link: '/', ariaLabel: 'Go to Hub', hoverColor: '#a855f7' },
@@ -38,13 +40,40 @@ const VitalsPage = () => {
             />
 
             <div style={{ padding: '3rem 2rem', maxWidth: '1400px', margin: '0 auto', zIndex: 1, position: 'relative' }}>
-                <button
-                    onClick={() => navigate('/')}
-                    className="neo-btn"
-                    style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black', padding: '0.5rem 1rem' }}
-                >
-                    <ArrowLeft size={18} /> Back to Hub
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="neo-btn"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black', padding: '0.5rem 1rem' }}
+                    >
+                        <ArrowLeft size={18} /> Back to Hub
+                    </button>
+                    {patientIdFromUrl && (
+                        <button
+                            onClick={() => navigate('/patients')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#eef2ff', border: '2px solid #5227FF', color: '#3730a3', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
+                        >
+                            <ArrowLeft size={15} /> Back to Patients
+                        </button>
+                    )}
+                </div>
+
+                {patientIdFromUrl && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem', padding: '1rem 1.5rem', background: 'linear-gradient(135deg, #eef2ff 0%, #f0fdf4 100%)', border: '2px solid #5227FF', boxShadow: '4px 4px 0px #5227FF', borderRadius: '4px' }}>
+                        <div style={{ background: '#5227FF', padding: '0.6rem', borderRadius: '8px', flexShrink: 0 }}>
+                            <UserCheck size={22} color="white" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#5227FF', letterSpacing: '0.8px', textTransform: 'uppercase' }}>Linked Patient Session</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1a1a1a', marginTop: '0.1rem' }}>Patient ID: <span style={{ color: '#5227FF' }}>{patientIdFromUrl}</span></div>
+                            <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.1rem' }}>This vitals session will be saved against the patient record above. Click <strong>Save Session</strong> when done.</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', color: '#059669', fontWeight: 700, background: '#f0fdf4', padding: '0.4rem 0.8rem', border: '1px solid #bbf7d0', borderRadius: '20px' }}>
+                            <span style={{ width: 8, height: 8, background: '#22c55e', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                            Active
+                        </div>
+                    </div>
+                )}
 
                 <header style={{ marginBottom: '3rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
@@ -64,7 +93,7 @@ const VitalsPage = () => {
                 </header>
 
                 <div style={{ width: '100%' }}>
-                    <VitalsMonitor />
+                    <VitalsMonitor initialPatientId={patientIdFromUrl} />
                     
                     <section className="neo-card" style={{ marginTop: '2rem', background: '#f8f9ff', padding: '1.5rem', borderLeft: '10px solid var(--primary)' }}>
                         <h4 style={{ margin: '0 0 1rem' }}>How it works</h4>

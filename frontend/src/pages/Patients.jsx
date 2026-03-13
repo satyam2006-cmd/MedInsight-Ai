@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { UserPlus, Loader2, Phone, User, Activity, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
+import { useNavigate } from 'react-router-dom';
 
 
 export default function PatientsPage() {
+    const navigate = useNavigate();
     const [patientId, setPatientId] = useState('');
     const [patientName, setPatientName] = useState('');
     const [patientNumber, setPatientNumber] = useState('');
@@ -184,12 +186,13 @@ export default function PatientsPage() {
                                     <th style={{ padding: '1rem', fontWeight: 800 }}>Contact</th>
                                     <th style={{ padding: '1rem', fontWeight: 800 }}>Document</th>
                                     <th style={{ padding: '1rem', fontWeight: 800 }}>Date</th>
+                                    <th style={{ padding: '1rem', fontWeight: 800 }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {patientsList.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#666', fontStyle: 'italic' }}>
+                                        <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#666', fontStyle: 'italic' }}>
                                             No patients added yet. Fill out the form to add an entry.
                                         </td>
                                     </tr>
@@ -208,6 +211,14 @@ export default function PatientsPage() {
                                                 {patient.reportName}
                                             </td>
                                             <td style={{ padding: '1rem', color: '#666' }}>{patient.dateAdded}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <button
+                                                    onClick={() => navigate(`/vitals?patient=${encodeURIComponent(patient.id)}`)}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.7rem', background: '#5227FF', color: 'white', border: '2px solid black', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                                >
+                                                    <Activity size={13} /> Take Vitals
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))
                                 )}
