@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, TrendingDown, Minus, BarChart3, Loader2, Brain, ShieldAlert, Waves, RefreshCw, Smartphone, Monitor } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
 
 const VitalsMonitor = () => {
     const videoRef = useRef(null);
@@ -12,21 +12,15 @@ const VitalsMonitor = () => {
     const overlayCanvasRef = useRef(null);
     const lastPositionRef = useRef(null);
     const lastSendTimeRef = useRef(0);
-    const roiStateRef = useRef(null);
-    const rgbEmaRef = useRef(null);
-
-    const [videoDevices, setVideoDevices] = useState([]);
-    const [selectedDeviceId, setSelectedDeviceId] = useState('');
-    const [isPhoneCamera, setIsPhoneCamera] = useState(false);
+    const patchHistoryRef = useRef({ forehead: null, leftCheek: null, rightCheek: null });
 
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
         signal_quality: 0, motion_status: 'GOOD', hrv: 0, spo2: 0,
         calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0, ai_summary: '',
-        hrv_status: 'Collecting data', stress_score: 0, stress_level: 'LOW',
-        ai_risk: 'NORMAL', ai_risk_confidence: 0, respiratory_variability: 0,
-        respiratory_variability_status: 'Collecting data',
-        vital_trend: { direction: 'stable', arrow: '→', label: 'Stable', summary: 'Gathering baseline', metric: 'overall' },
+        confidence: 0, hr_uncertainty: 0, rr_uncertainty: 0, spo2_uncertainty: 0,
+        quality_reason: 'Warm-up',
+        session_id: '',
     });
     const [error, setError] = useState(null);
     const [isStreaming, setIsStreaming] = useState(false);
@@ -35,29 +29,40 @@ const VitalsMonitor = () => {
     const [peaks, setPeaks] = useState([]);
     const [hrTrend, setHrTrend] = useState([]);
     const [spectrum, setSpectrum] = useState([]);
+    const [savedSessionId, setSavedSessionId] = useState('');
+    const [referenceInput, setReferenceInput] = useState('');
+    const [referenceId, setReferenceId] = useState('');
+    const [compareResult, setCompareResult] = useState(null);
+    const [compareMessage, setCompareMessage] = useState('');
+    const [compareLoading, setCompareLoading] = useState(false);
+    const [cameraDevices, setCameraDevices] = useState([]);
+    const [selectedCameraId, setSelectedCameraId] = useState('');
+    const [cameraSwitching, setCameraSwitching] = useState(false);
 
-    // Detect if a device label looks like a phone camera
-    const PHONE_KEYWORDS = ['droidcam', 'iriun', 'epoccam', 'ivcam', 'camo', 'phone', 'android', 'iphone', 'mobile'];
-    const isPhoneDevice = (label) => {
-        const lower = (label || '').toLowerCase();
-        return PHONE_KEYWORDS.some(kw => lower.includes(kw));
+    const getApiBase = () => {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        return isLocal ? 'http://localhost:8000' : '';
     };
 
-    // Enumerate available video devices
-    const enumerateDevices = useCallback(async () => {
+    const pickPreferredCamera = (devices) => {
+        if (!devices?.length) return '';
+        const phoneHints = ['droidcam', 'iriun', 'epoccam', 'camo', 'phone', 'android', 'iphone', 'continuity'];
+        const preferred = devices.find((d) => phoneHints.some((h) => (d.label || '').toLowerCase().includes(h)));
+        return preferred?.deviceId || devices[0].deviceId;
+    };
+
+    const loadVideoDevices = async () => {
         try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const vDevices = devices.filter(d => d.kind === 'videoinput');
-            setVideoDevices(vDevices);
-            // If no device is selected yet, pick the first one
-            if (vDevices.length > 0 && !selectedDeviceId) {
-                setSelectedDeviceId(vDevices[0].deviceId);
-                setIsPhoneCamera(isPhoneDevice(vDevices[0].label));
+            const all = await navigator.mediaDevices.enumerateDevices();
+            const videos = all.filter((d) => d.kind === 'videoinput');
+            setCameraDevices(videos);
+            if (!selectedCameraId && videos.length > 0) {
+                setSelectedCameraId(pickPreferredCamera(videos));
             }
-        } catch (err) {
-            console.error('[Vitals] Device enumeration error:', err);
+        } catch (e) {
+            console.error('Could not enumerate cameras', e);
         }
-    }, [selectedDeviceId]);
+    };
 
     // MediaPipe initialization
     useEffect(() => {
@@ -89,20 +94,14 @@ const VitalsMonitor = () => {
             });
             faceMesh.onResults(onResults);
             detectorRef.current = faceMesh;
-            startCamera();
+            await startCamera();
+            await loadVideoDevices();
         };
         loadMediaPipe();
-        enumerateDevices();
         connectWebSocket();
-
-        // Listen for device connect/disconnect
-        const handleDeviceChange = () => enumerateDevices();
-        navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
-
         return () => {
             active = false;
             stopCamera();
-            navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
             if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
         };
     }, []);
@@ -119,74 +118,33 @@ const VitalsMonitor = () => {
         }
     };
 
-    const clampRectToFrame = (rect, frameW, frameH) => {
-        const x = Math.max(0, Math.min(frameW - 2, rect.x));
-        const y = Math.max(0, Math.min(frameH - 2, rect.y));
-        const w = Math.max(2, Math.min(frameW - x, rect.w));
-        const h = Math.max(2, Math.min(frameH - y, rect.h));
-        return { x, y, w, h };
-    };
-
-    const smoothRect = (prevRect, nextRect, alpha = 0.25, maxJump = 22) => {
-        if (!prevRect) return { ...nextRect };
-        const dx = nextRect.x - prevRect.x;
-        const dy = nextRect.y - prevRect.y;
-        const dist = Math.hypot(dx, dy);
-        const limitedAlpha = dist > maxJump ? 0.12 : alpha;
-        return {
-            x: prevRect.x + limitedAlpha * dx,
-            y: prevRect.y + limitedAlpha * dy,
-            w: prevRect.w + limitedAlpha * (nextRect.w - prevRect.w),
-            h: prevRect.h + limitedAlpha * (nextRect.h - prevRect.h),
-        };
-    };
-
-    const extractSkinAverageFromRect = (ctx, rect, frameW, frameH) => {
-        const r = clampRectToFrame(rect, frameW, frameH);
-        const image = ctx.getImageData(Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h));
-        const data = image.data;
-
-        let sr = 0, sg = 0, sb = 0, count = 0;
-        let fallbackR = 0, fallbackG = 0, fallbackB = 0;
-        const pxCount = data.length / 4;
-
-        for (let i = 0; i < data.length; i += 4) {
-            const R = data[i];
-            const G = data[i + 1];
-            const B = data[i + 2];
-
-            fallbackR += R;
-            fallbackG += G;
-            fallbackB += B;
-
-            const Y = 0.299 * R + 0.587 * G + 0.114 * B;
-            const Cr = (R - Y) * 0.713 + 128;
-            const Cb = (B - Y) * 0.564 + 128;
-
-            const isSkin = Y > 40 && Cr >= 133 && Cr <= 173 && Cb >= 77 && Cb <= 127;
-            if (isSkin) {
-                sr += R;
-                sg += G;
-                sb += B;
-                count += 1;
-            }
-        }
-
-        if (pxCount < 20) return null;
-        if (count < 20) {
-            return [fallbackR / pxCount, fallbackG / pxCount, fallbackB / pxCount];
-        }
-        return [sr / count, sg / count, sb / count];
-    };
-
     const processFaceMesh = (landmarks) => {
         if (!videoRef.current || !canvasRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return;
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const oc = overlayCanvasRef.current;
 
+        // Core landmarks for adaptive multi-patch ROI fusion
+        const p151 = landmarks[151];
+        const p10 = landmarks[10];
+        const p67 = landmarks[67];
+        const p297 = landmarks[297];
+        const p93 = landmarks[93];
+        const p323 = landmarks[323];
+
         const videoW = video.videoWidth;
         const videoH = video.videoHeight;
+
+        // ROI Math: Pinpoint accuracy using landmarks
+        const fx_center = p151.x * videoW;
+        const fy_center = p151.y * videoH;
+        
+        // Width based on forehead width landmarks (67 to 297)
+        const fw = Math.abs(p297.x - p67.x) * videoW * 0.7;
+        const fh = Math.abs(p151.y - p10.y) * videoH * 1.2;
+        
+        const fx = fx_center - (fw / 2);
+        const fy = fy_center - (fh / 0.85); // Shift up slightly from 151
 
         // Face square math using landmarks
         const top = landmarks[10].y * videoH;
@@ -195,42 +153,6 @@ const VitalsMonitor = () => {
         const right = landmarks[454].x * videoW;
         const faceW = right - left;
         const faceH = bottom - top;
-
-        if (faceW < 20 || faceH < 20) return;
-
-        const rawForehead = {
-            x: left + 0.29 * faceW,
-            y: top + 0.08 * faceH,
-            w: 0.42 * faceW,
-            h: 0.18 * faceH,
-        };
-        const rawLeftCheek = {
-            x: left + 0.12 * faceW,
-            y: top + 0.43 * faceH,
-            w: 0.22 * faceW,
-            h: 0.2 * faceH,
-        };
-        const rawRightCheek = {
-            x: left + 0.66 * faceW,
-            y: top + 0.43 * faceH,
-            w: 0.22 * faceW,
-            h: 0.2 * faceH,
-        };
-
-        const previous = roiStateRef.current || {};
-        const smoothedForehead = clampRectToFrame(smoothRect(previous.forehead, rawForehead, 0.22, 20), videoW, videoH);
-        const smoothedLeftCheek = clampRectToFrame(smoothRect(previous.leftCheek, rawLeftCheek, 0.2, 20), videoW, videoH);
-        const smoothedRightCheek = clampRectToFrame(smoothRect(previous.rightCheek, rawRightCheek, 0.2, 20), videoW, videoH);
-
-        roiStateRef.current = {
-            forehead: smoothedForehead,
-            leftCheek: smoothedLeftCheek,
-            rightCheek: smoothedRightCheek,
-        };
-
-        const fx_center = smoothedForehead.x + smoothedForehead.w / 2;
-        const fy_center = smoothedForehead.y + smoothedForehead.h / 2;
-        lastPositionRef.current = { x: fx_center, y: fy_center };
 
         // Draw HUD on overlay canvas (Wireframe removed as requested)
         if (oc) {
@@ -243,49 +165,98 @@ const VitalsMonitor = () => {
             o.strokeRect(left, top, faceW, faceH);
             o.setLineDash([]); // Reset
             
-            // Highlight stabilized signal ROIs.
+            // Draw adaptive multi-patch ROIs (forehead + cheeks)
+            const cheekW = fw * 0.48;
+            const cheekH = fh * 0.75;
+            const lx = (p93.x * videoW) - cheekW / 2;
+            const ly = (p93.y * videoH) - cheekH / 2;
+            const rx = (p323.x * videoW) - cheekW / 2;
+            const ry = (p323.y * videoH) - cheekH / 2;
+
             o.strokeStyle = '#22d3ee'; o.lineWidth = 2;
             o.shadowColor = 'rgba(34,211,238,0.5)'; o.shadowBlur = 10;
-            o.strokeRect(smoothedForehead.x, smoothedForehead.y, smoothedForehead.w, smoothedForehead.h); o.shadowBlur = 0;
-            o.strokeStyle = 'rgba(74, 222, 128, 0.9)';
-            o.strokeRect(smoothedLeftCheek.x, smoothedLeftCheek.y, smoothedLeftCheek.w, smoothedLeftCheek.h);
-            o.strokeRect(smoothedRightCheek.x, smoothedRightCheek.y, smoothedRightCheek.w, smoothedRightCheek.h);
+            o.strokeRect(fx, fy, fw, fh);
+            o.strokeStyle = 'rgba(59,130,246,0.85)';
+            o.strokeRect(lx, ly, cheekW, cheekH);
+            o.strokeRect(rx, ry, cheekW, cheekH);
+            o.shadowBlur = 0;
             
-            o.save(); o.translate(smoothedForehead.x + smoothedForehead.w / 2, smoothedForehead.y - 10); o.scale(-1, 1);
+            o.save(); o.translate(fx + fw/2, fy - 10); o.scale(-1, 1);
             o.fillStyle = '#22d3ee'; o.font = 'bold 10px Inter, monospace'; o.textAlign = 'center';
-            o.fillText('FOREHEAD + CHEEKS (SKIN)', 0, 0); o.restore();
+            o.fillText('ADAPTIVE MULTI-PATCH ROI', 0, 0); o.restore();
         }
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = videoW;
-        canvas.height = videoH;
+        canvas.width = Math.max(1, fw);
+        canvas.height = Math.max(1, fh);
 
         try {
-            ctx.drawImage(video, 0, 0, videoW, videoH);
+            const samplePatch = (name, x, y, w, h) => {
+                const sx = Math.max(0, x);
+                const sy = Math.max(0, y);
+                const sw = Math.max(1, Math.min(videoW - sx, w));
+                const sh = Math.max(1, Math.min(videoH - sy, h));
+                if (sw < 2 || sh < 2) return null;
 
-            const foreheadRGB = extractSkinAverageFromRect(ctx, smoothedForehead, videoW, videoH);
-            const leftCheekRGB = extractSkinAverageFromRect(ctx, smoothedLeftCheek, videoW, videoH);
-            const rightCheekRGB = extractSkinAverageFromRect(ctx, smoothedRightCheek, videoW, videoH);
-            if (!foreheadRGB || !leftCheekRGB || !rightCheekRGB) return;
+                canvas.width = sw;
+                canvas.height = sh;
+                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                if (data.length < 40) return null;
 
-            const combined = [
-                0.6 * foreheadRGB[0] + 0.2 * leftCheekRGB[0] + 0.2 * rightCheekRGB[0],
-                0.6 * foreheadRGB[1] + 0.2 * leftCheekRGB[1] + 0.2 * rightCheekRGB[1],
-                0.6 * foreheadRGB[2] + 0.2 * leftCheekRGB[2] + 0.2 * rightCheekRGB[2],
-            ];
+                let rS = 0, gS = 0, bS = 0, gSq = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i], g = data[i + 1], b = data[i + 2];
+                    rS += r;
+                    gS += g;
+                    bS += b;
+                    gSq += g * g;
+                }
+                const count = data.length / 4;
+                const aR = rS / count;
+                const aG = gS / count;
+                const aB = bS / count;
+                const gVar = Math.max(0, (gSq / count) - (aG * aG));
+                const gStd = Math.sqrt(gVar);
 
-            let aR = combined[0], aG = combined[1], aB = combined[2];
-            if (!rgbEmaRef.current) {
-                rgbEmaRef.current = [aR, aG, aB];
-            } else {
-                const alpha = 0.25;
-                rgbEmaRef.current = [
-                    (1 - alpha) * rgbEmaRef.current[0] + alpha * aR,
-                    (1 - alpha) * rgbEmaRef.current[1] + alpha * aG,
-                    (1 - alpha) * rgbEmaRef.current[2] + alpha * aB,
-                ];
-                [aR, aG, aB] = rgbEmaRef.current;
+                const chromaBalance = 1.0 - Math.min(1.0, Math.abs(aR - aG) / 90.0);
+                const noisePenalty = 1.0 / (1.0 + gStd / 25.0);
+                const prev = patchHistoryRef.current[name];
+                const temporalDelta = prev ? Math.abs(aG - prev) : 0;
+                const temporalStability = 1.0 / (1.0 + temporalDelta / 12.0);
+                patchHistoryRef.current[name] = aG;
+                const weight = Math.max(0.05, chromaBalance * noisePenalty * temporalStability);
+
+                return { aR, aG, aB, weight };
+            };
+
+            const cheekW = fw * 0.48;
+            const cheekH = fh * 0.75;
+            const patches = [
+                samplePatch('forehead', fx, fy, fw, fh),
+                samplePatch('leftCheek', (p93.x * videoW) - cheekW / 2, (p93.y * videoH) - cheekH / 2, cheekW, cheekH),
+                samplePatch('rightCheek', (p323.x * videoW) - cheekW / 2, (p323.y * videoH) - cheekH / 2, cheekW, cheekH),
+            ].filter(Boolean);
+
+            if (!patches.length) return;
+            const totalWeight = patches.reduce((acc, p) => acc + p.weight, 0);
+            if (totalWeight <= 0) return;
+
+            const aR = patches.reduce((acc, p) => acc + p.aR * p.weight, 0) / totalWeight;
+            const aG = patches.reduce((acc, p) => acc + p.aG * p.weight, 0) / totalWeight;
+            const aB = patches.reduce((acc, p) => acc + p.aB * p.weight, 0) / totalWeight;
+
+            // Stability check
+            const lp = lastPositionRef.current;
+            if (lp) {
+                const dist = Math.sqrt((fx_center - lp.x)**2 + (fy_center - lp.y)**2);
+                if (dist > 15) { // Landmark tracking is more stable, can allow slightly more wiggle
+                    lastPositionRef.current = { x: fx_center, y: fy_center };
+                    return;
+                }
             }
+            lastPositionRef.current = { x: fx_center, y: fy_center };
 
             const now = performance.now();
             if (now - lastSendTimeRef.current < 32) return;
@@ -303,31 +274,33 @@ const VitalsMonitor = () => {
     };
 
     const startCamera = async (deviceId = null) => {
-        // Stop any existing stream first
-        stopCamera();
-        
-        const targetDevice = deviceId || selectedDeviceId;
-        const useHighRes = targetDevice ? isPhoneDevice(
-            videoDevices.find(d => d.deviceId === targetDevice)?.label || ''
-        ) : false;
-
-        const constraints = {
-            video: {
-                width: useHighRes ? { ideal: 1280 } : 640,
-                height: useHighRes ? { ideal: 720 } : 480,
-                frameRate: { ideal: 30 },
-                ...(targetDevice ? { deviceId: { exact: targetDevice } } : {})
-            }
-        };
-
         try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            stopCamera();
+            const videoConstraints = deviceId
+                ? {
+                    deviceId: { exact: deviceId },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    frameRate: { ideal: 30, max: 30 },
+                }
+                : {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    frameRate: { ideal: 30, max: 30 },
+                };
+
+            const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 setIsStreaming(true);
-                
-                // Re-enumerate to get labels (labels only available after permission grant)
-                enumerateDevices();
+                await loadVideoDevices();
+
+                const activeTrack = stream.getVideoTracks()[0];
+                const activeSettings = activeTrack?.getSettings();
+                if (activeSettings?.deviceId) {
+                    setSelectedCameraId(activeSettings.deviceId);
+                }
 
                 const loop = async () => {
                     if (videoRef.current && detectorRef.current) {
@@ -338,42 +311,22 @@ const VitalsMonitor = () => {
                 loop();
             }
         } catch (err) {
-            // Fallback: try without exact device constraint
-            if (targetDevice) {
-                console.warn('[Vitals] Exact device failed, trying fallback...');
-                try {
-                    const fallback = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, frameRate: 30 } });
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = fallback;
-                        setIsStreaming(true);
-                        enumerateDevices();
-                        const loop = async () => {
-                            if (videoRef.current && detectorRef.current) {
-                                try { await detectorRef.current.send({ image: videoRef.current }); } catch (e) {}
-                            }
-                            requestAnimationFrame(loop);
-                        };
-                        loop();
-                    }
-                } catch (e2) {
-                    setError("Camera access denied. Please allow permissions.");
-                }
-            } else {
-                setError("Camera access denied. Please allow permissions.");
-            }
+            setError('Camera access denied or unavailable. Ensure phone camera app (DroidCam/Iriun/Continuity) is active.');
         }
     };
 
-    // Restart camera when user selects a different device
-    const handleDeviceSelect = (deviceId) => {
-        setSelectedDeviceId(deviceId);
-        const device = videoDevices.find(d => d.deviceId === deviceId);
-        setIsPhoneCamera(isPhoneDevice(device?.label || ''));
-        startCamera(deviceId);
+    const stopCamera = () => {
+        if (videoRef.current?.srcObject) {
+            videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+            videoRef.current.srcObject = null;
+        }
     };
 
-    const stopCamera = () => {
-        if (videoRef.current?.srcObject) videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+    const switchCamera = async (deviceId) => {
+        setSelectedCameraId(deviceId);
+        setCameraSwitching(true);
+        await startCamera(deviceId || null);
+        setCameraSwitching(false);
     };
 
     const connectWebSocket = () => {
@@ -419,9 +372,9 @@ const VitalsMonitor = () => {
 
     const fetchAISummary = async () => {
         try {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const base = isLocal ? 'http://localhost:8000' : '';
-            const res = await fetch(`${base}/api/vitals/session`);
+            const base = getApiBase();
+            const suffix = vitals.session_id ? `?session_id=${encodeURIComponent(vitals.session_id)}` : '';
+            const res = await fetch(`${base}/api/vitals/session${suffix}`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.ai_summary) {
@@ -537,9 +490,153 @@ const VitalsMonitor = () => {
 
     // Helpers
     const downloadReport = () => {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const base = isLocal ? 'http://localhost:8000' : '';
-        window.open(`${base}/api/vitals/report`, '_blank');
+        const base = getApiBase();
+        const suffix = vitals.session_id ? `?session_id=${encodeURIComponent(vitals.session_id)}` : '';
+        window.open(`${base}/api/vitals/report${suffix}`, '_blank');
+    };
+
+    const saveSession = async () => {
+        setCompareMessage('');
+        try {
+            setCompareLoading(true);
+            const base = getApiBase();
+            const res = await fetch(`${base}/api/vitals/save-session`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: vitals.session_id || null,
+                    condition_tag: 'judge-demo',
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCompareMessage(data.error || 'Failed to save session.');
+                return;
+            }
+            setSavedSessionId(data.session_id || '');
+            setCompareMessage(`Session saved: ${data.session_id}`);
+        } catch (e) {
+            setCompareMessage('Could not save session. Please retry.');
+        } finally {
+            setCompareLoading(false);
+        }
+    };
+
+    const parseReferenceCsv = (raw) => {
+        const rows = raw
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean);
+        const parsed = [];
+        for (const row of rows) {
+            const [t, hr, rr, spo2] = row.split(',').map((v) => v?.trim());
+            const timestamp_sec = Number(t);
+            if (Number.isNaN(timestamp_sec)) continue;
+            parsed.push({
+                timestamp_sec,
+                hr: hr ? Number(hr) : null,
+                rr: rr ? Number(rr) : null,
+                spo2: spo2 ? Number(spo2) : null,
+            });
+        }
+        return parsed.filter((r) => !Number.isNaN(r.timestamp_sec));
+    };
+
+    const saveReference = async () => {
+        setCompareMessage('');
+        const sessionId = savedSessionId || vitals.session_id;
+        if (!sessionId) {
+            setCompareMessage('Save a session first.');
+            return;
+        }
+        const readings = parseReferenceCsv(referenceInput);
+        if (!readings.length) {
+            setCompareMessage('Enter reference rows as: time,hr,rr,spo2');
+            return;
+        }
+        try {
+            setCompareLoading(true);
+            const base = getApiBase();
+            const res = await fetch(`${base}/api/vitals/reference`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    device_name: 'Apple Watch',
+                    condition_tag: 'judge-demo',
+                    readings,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCompareMessage(data.error || 'Failed to save reference readings.');
+                return;
+            }
+            setReferenceId(data.reference_id || '');
+            setCompareMessage(`Reference saved: ${data.reference_id}`);
+        } catch (e) {
+            setCompareMessage('Could not save reference data.');
+        } finally {
+            setCompareLoading(false);
+        }
+    };
+
+    const runCompare = async () => {
+        setCompareMessage('');
+        const sessionId = savedSessionId || vitals.session_id;
+        if (!sessionId || !referenceId) {
+            setCompareMessage('Need both session and reference IDs.');
+            return;
+        }
+        try {
+            setCompareLoading(true);
+            const base = getApiBase();
+            const query = new URLSearchParams({ session_id: sessionId, reference_id: referenceId });
+            const res = await fetch(`${base}/api/vitals/compare?${query.toString()}`);
+            const data = await res.json();
+            if (!res.ok) {
+                setCompareMessage(data.error || 'Comparison failed.');
+                return;
+            }
+            setCompareResult(data);
+            setCompareMessage('Comparison complete.');
+        } catch (e) {
+            setCompareMessage('Could not run comparison.');
+        } finally {
+            setCompareLoading(false);
+        }
+    };
+
+    const runCalibrate = async () => {
+        setCompareMessage('');
+        const sessionId = savedSessionId || vitals.session_id;
+        if (!sessionId || !referenceId) {
+            setCompareMessage('Save session and reference before calibration.');
+            return;
+        }
+        try {
+            setCompareLoading(true);
+            const base = getApiBase();
+            const res = await fetch(`${base}/api/vitals/calibrate-live`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    reference_id: referenceId,
+                    metrics: ['hr', 'rr', 'spo2'],
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCompareMessage(data.error || 'Calibration failed.');
+                return;
+            }
+            setCompareMessage('Live calibration applied. Continue streaming for improved alignment.');
+        } catch (e) {
+            setCompareMessage('Could not calibrate live.');
+        } finally {
+            setCompareLoading(false);
+        }
     };
 
     const formatTime = (sec) => {
@@ -549,56 +646,37 @@ const VitalsMonitor = () => {
 
 
     const getQualityColor = (q) => q > 60 ? '#059669' : q > 30 ? '#d97706' : '#dc2626';
-    const getStressColors = (level) => {
-        if (level === 'HIGH') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
-        if (level === 'MODERATE') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
-        return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
-    };
-    const getRiskColors = (level) => {
-        if (level === 'CRITICAL') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
-        if (level === 'WARNING') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
-        return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
-    };
-    const getTrendColors = (direction) => {
-        if (direction === 'increasing') return { tone: '#2563eb', bg: '#eff6ff', accent: '#bfdbfe' };
-        if (direction === 'decreasing') return { tone: '#7c3aed', bg: '#f5f3ff', accent: '#ddd6fe' };
-        return { tone: '#475569', bg: '#f8fafc', accent: '#cbd5e1' };
-    };
-    const getTrendIcon = (direction) => {
-        if (direction === 'increasing') return TrendingUp;
-        if (direction === 'decreasing') return TrendingDown;
-        return Minus;
-    };
-    const toTitleCase = (value) => {
-        if (!value) return 'Unknown';
-        return value
-            .toLowerCase()
-            .split(' ')
-            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ');
-    };
-    const trendDotColor = (direction) => {
-        if (direction === 'increasing') return '#2563eb';
-        if (direction === 'decreasing') return '#7c3aed';
-        return '#64748b';
-    };
 
     const isCalibrating = vitals.calibration_pct < 100 && vitals.bpm === 0;
-    const stressColors = getStressColors(vitals.stress_level);
-    const riskColors = getRiskColors(vitals.ai_risk);
-    const trendColors = getTrendColors(vitals.vital_trend?.direction);
-    const TrendIcon = getTrendIcon(vitals.vital_trend?.direction);
-    const trendData = vitals.vital_trend || { direction: 'stable', label: 'Stable', summary: 'Gathering baseline' };
 
     return (
-        <div className="vitals-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '2rem' }}>
             {/* Left: Video Feed */}
             <div className="neo-card" style={{ background: 'white', padding: '1.5rem', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Camera size={24} color="var(--primary)" /> Real-Time Feed
                     </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <select
+                            value={selectedCameraId}
+                            onChange={(e) => switchCamera(e.target.value)}
+                            disabled={cameraSwitching}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.3rem 0.4rem', fontSize: '0.72rem', maxWidth: '220px' }}
+                        >
+                            {cameraDevices.length === 0 && <option value="">No camera detected</option>}
+                            {cameraDevices.map((d, idx) => (
+                                <option key={d.deviceId || idx} value={d.deviceId}>
+                                    {d.label || `Camera ${idx + 1}`}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={loadVideoDevices}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.28rem 0.45rem', background: '#fff', fontSize: '0.7rem', cursor: 'pointer' }}
+                        >
+                            Refresh
+                        </button>
                         <span style={{ fontSize: '0.8rem', color: '#666' }}>{vitals.fps} FPS</span>
                         <span style={{ fontSize: '0.75rem', color: '#999' }}>⏱ {formatTime(vitals.session_time)}</span>
                         <div style={{
@@ -607,60 +685,6 @@ const VitalsMonitor = () => {
                             boxShadow: `0 0 10px ${faceDetected ? '#4ade80' : '#f87171'}`
                         }} />
                     </div>
-                </div>
-
-                {/* Camera Source Selector */}
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    marginBottom: '1rem', padding: '0.6rem 0.8rem',
-                    background: isPhoneCamera ? '#f0fdf4' : '#f8fafc',
-                    borderRadius: '10px', border: `1.5px solid ${isPhoneCamera ? '#86efac' : '#e2e8f0'}`,
-                    transition: 'all 0.3s ease'
-                }}>
-                    {isPhoneCamera
-                        ? <Smartphone size={16} color="#16a34a" strokeWidth={2.5} />
-                        : <Monitor size={16} color="#64748b" strokeWidth={2.5} />
-                    }
-                    <select
-                        id="camera-select"
-                        value={selectedDeviceId}
-                        onChange={(e) => handleDeviceSelect(e.target.value)}
-                        style={{
-                            flex: 1, border: 'none', background: 'transparent',
-                            fontSize: '0.82rem', fontWeight: 600, color: '#1e293b',
-                            cursor: 'pointer', outline: 'none',
-                            fontFamily: 'inherit'
-                        }}
-                    >
-                        {videoDevices.length === 0 && (
-                            <option value="">Scanning for cameras...</option>
-                        )}
-                        {videoDevices.map((device, i) => (
-                            <option key={device.deviceId} value={device.deviceId}>
-                                {device.label || `Camera ${i + 1}`}
-                                {isPhoneDevice(device.label) ? ' 📱' : ''}
-                            </option>
-                        ))}
-                    </select>
-                    <button
-                        onClick={enumerateDevices}
-                        title="Refresh camera list"
-                        style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            width: '28px', height: '28px', borderRadius: '8px',
-                            border: '1.5px solid #e2e8f0', background: 'white',
-                            cursor: 'pointer', transition: 'all 0.2s'
-                        }}
-                    >
-                        <RefreshCw size={13} color="#64748b" />
-                    </button>
-                    {isPhoneCamera && (
-                        <span style={{
-                            fontSize: '0.65rem', fontWeight: 700, color: '#16a34a',
-                            background: '#dcfce7', padding: '2px 8px',
-                            borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.5px'
-                        }}>HD</span>
-                    )}
                 </div>
 
                 <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', background: '#0f172a', border: '2px solid black' }}>
@@ -691,13 +715,7 @@ const VitalsMonitor = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                             <div style={{ width: '8px', height: '8px', background: vitals.status === 'tracking' ? '#22c55e' : '#eab308', borderRadius: '50%', boxShadow: vitals.status === 'tracking' ? '0 0 8px #22c55e' : 'none' }} />
                             <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                                {vitals.status === 'tracking'
-                                    ? 'TRACKING'
-                                    : vitals.status === 'low_signal'
-                                        ? 'LOW SIGNAL'
-                                        : isCalibrating
-                                            ? `CALIBRATING (${Math.round(vitals.calibration_pct)}%)`
-                                            : 'BUFFERING'}
+                                {vitals.status === 'tracking' ? 'TRACKING' : isCalibrating ? `CALIBRATING (${Math.round(vitals.calibration_pct)}%)` : 'BUFFERING'}
                             </span>
                         </div>
                     </div>
@@ -763,7 +781,7 @@ const VitalsMonitor = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 
                 {/* Health Alert Section */}
-                {vitals.bpm > 0 || vitals.alert !== 'Normal' ? (
+                {vitals.bpm > 0 ? (
                     <div className="neo-card" style={{
                         background: vitals.alert === "Normal" ? '#ecfdf5' : '#fff1f2',
                         padding: '1.5rem', border: '2px solid black', boxShadow: '4px 4px 0px black',
@@ -798,24 +816,24 @@ const VitalsMonitor = () => {
 
                     {vitals.bpm > 0 ? (
                         <>
-                            <div className="biometric-grid-3" style={{ marginBottom: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                                 {/* Heart Rate */}
-                                <div className="biometric-card" style={{ background: '#f8f9ff' }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
+                                <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <Heart size={16} color="#ff4d4d" fill={faceDetected ? "#ff4d4d" : "none"} className={faceDetected ? "animate-pulse" : ""} /> HEART RATE
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
                                         <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.bpm || '--'}</span>
                                         <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>BPM</span>
                                     </div>
-                                    <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.3rem', fontWeight: 600 }}>
+                                    <div style={{ fontSize: '0.6rem', color: '#999', marginTop: '0.2rem' }}>
                                         Min {vitals.hr_min || '--'} / Max {vitals.hr_max || '--'}
                                     </div>
                                 </div>
 
                                 {/* Respiration */}
-                                <div className="biometric-card" style={{ background: '#fff9f5' }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
+                                <div style={{ background: '#fff9f5', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <Wind size={16} color="#3b82f6" /> RESPIRATION
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
@@ -825,81 +843,13 @@ const VitalsMonitor = () => {
                                 </div>
 
                                 {/* SpO2 */}
-                                <div className="biometric-card" style={{ background: '#f0fdf4' }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem', whiteSpace: 'nowrap' }}>
+                                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
                                         <Droplets size={16} color="#0ea5e9" /> SpO₂ (EST.)
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
                                         <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.spo2 || '--'}</span>
                                         <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>%</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="biometric-grid-3" style={{ marginBottom: '1rem' }}>
-                                <div className="biometric-card" style={{ background: '#f6f8ff' }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
-                                        <BarChart3 size={16} color="#4f46e5" /> HRV
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
-                                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.hrv || '--'}</span>
-                                        <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>ms</span>
-                                    </div>
-                                    <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: '#6366f1', fontWeight: 700 }}>
-                                        {vitals.hrv_status}
-                                    </div>
-                                </div>
-
-                                <div className="biometric-card" style={{ background: stressColors.bg }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
-                                        <Brain size={16} color={stressColors.tone} /> STRESS LEVEL
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem' }}>
-                                        <span style={{ fontSize: '1.08rem', fontWeight: 800, color: stressColors.tone }}>{toTitleCase(vitals.stress_level)}</span>
-                                        <span style={{ fontSize: '1.7rem', fontWeight: 800, color: '#1a1a1a' }}>{Math.round(vitals.stress_score || 0)}%</span>
-                                    </div>
-                                    <div style={{ height: '8px', borderRadius: '999px', background: stressColors.accent, marginTop: '0.6rem', overflow: 'hidden' }}>
-                                        <div style={{ width: `${Math.min(100, Math.max(0, vitals.stress_score || 0))}%`, height: '100%', background: stressColors.tone, transition: 'width 0.3s ease' }} />
-                                    </div>
-                                </div>
-
-                                <div className="biometric-card" style={{ background: riskColors.bg }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
-                                        <ShieldAlert size={16} color={riskColors.tone} /> AI RISK
-                                    </div>
-                                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: riskColors.tone }}>{toTitleCase(vitals.ai_risk)}</div>
-                                    <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#666', fontWeight: 700 }}>
-                                        Classifier confidence {(vitals.ai_risk_confidence * 100).toFixed(0)}%
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="biometric-grid-2">
-                                <div className="biometric-card" style={{ background: '#fffaf0' }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
-                                        <Waves size={16} color="#0f766e" /> RESPIRATORY VARIABILITY
-                                    </div>
-                                    <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f766e' }}>{vitals.respiratory_variability_status}</div>
-                                    <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#666', fontWeight: 700 }}>
-                                        Interval spread {Math.round(vitals.respiratory_variability || 0)} ms
-                                    </div>
-                                </div>
-
-                                <div className="biometric-card" style={{ background: trendColors.bg }}>
-                                    <div className="metric-label" style={{ marginBottom: '0.55rem' }}>
-                                        <TrendIcon size={16} color={trendColors.tone} /> VITAL TREND
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span style={{ fontSize: '1.8rem', fontWeight: 800, color: trendColors.tone }}>{trendData.arrow || '→'}</span>
-                                        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1a1a1a' }}>{trendData.label || 'Stable'}</span>
-                                    </div>
-                                    <div style={{ marginTop: '0.35rem', fontSize: '0.72rem', color: '#666', fontWeight: 700 }}>
-                                        {trendData.summary || 'Gathering baseline'}
-                                    </div>
-                                    <div style={{ marginTop: '0.7rem', display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
-                                        <span className="trend-chip"><span style={{ color: trendDotColor(trendData.heart_rate) }}>●</span> HR</span>
-                                        <span className="trend-chip"><span style={{ color: trendDotColor(trendData.respiration) }}>●</span> RR</span>
-                                        <span className="trend-chip"><span style={{ color: trendDotColor(trendData.spo2) }}>●</span> SpO₂</span>
                                     </div>
                                 </div>
                             </div>
@@ -930,6 +880,52 @@ const VitalsMonitor = () => {
                                         transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s'
                                     }} />
                                 </div>
+                                <div style={{ marginTop: '0.7rem', fontSize: '0.72rem', color: '#64748b', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem' }}>
+                                    <div>HR ±{(vitals.hr_uncertainty || 0).toFixed(1)}</div>
+                                    <div>RR ±{(vitals.rr_uncertainty || 0).toFixed(1)}</div>
+                                    <div>SpO₂ ±{(vitals.spo2_uncertainty || 0).toFixed(1)}</div>
+                                </div>
+                                <div style={{ marginTop: '0.45rem', fontSize: '0.68rem', color: '#475569' }}>
+                                    {vitals.quality_reason || 'Signal reason unavailable'}
+                                </div>
+                            </div>
+
+                            {/* Judge Compare Panel */}
+                            <div style={{ marginTop: '1rem', padding: '1rem', background: '#eef2ff', borderRadius: '12px', border: '1px solid #c7d2fe' }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#3730a3', marginBottom: '0.5rem' }}>JUDGE SIDE-BY-SIDE CHECK</div>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                                    <button onClick={saveSession} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>1) Save Session</button>
+                                    <button onClick={saveReference} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>2) Save Reference</button>
+                                    <button onClick={runCompare} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: '#1e293b', color: 'white', fontWeight: 700, cursor: 'pointer' }}>3) Compare</button>
+                                    <button onClick={runCalibrate} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: '#0f766e', color: 'white', fontWeight: 700, cursor: 'pointer' }}>4) Calibrate Live</button>
+                                </div>
+                                <textarea
+                                    value={referenceInput}
+                                    onChange={(e) => setReferenceInput(e.target.value)}
+                                    placeholder={'time,hr,rr,spo2\n10,78,15,98\n20,80,16,98'}
+                                    style={{ width: '100%', minHeight: '84px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem', fontSize: '0.75rem' }}
+                                />
+                                <div style={{ marginTop: '0.4rem', fontSize: '0.7rem', color: '#475569' }}>
+                                    Session: {savedSessionId || vitals.session_id || '--'} | Reference: {referenceId || '--'}
+                                </div>
+                                {compareMessage && <div style={{ marginTop: '0.4rem', fontSize: '0.72rem', color: '#0f172a' }}>{compareMessage}</div>}
+                                {compareResult && (
+                                    <div style={{ marginTop: '0.7rem', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem' }}>
+                                        {[
+                                            ['HR', compareResult.hr],
+                                            ['RR', compareResult.rr],
+                                            ['SpO2', compareResult.spo2],
+                                        ].map(([label, m]) => (
+                                            <div key={label} style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem' }}>
+                                                <div style={{ fontSize: '0.7rem', fontWeight: 800 }}>{label}</div>
+                                                <div style={{ fontSize: '0.68rem', color: '#334155' }}>MAE: {m?.mae ?? '--'}</div>
+                                                <div style={{ fontSize: '0.68rem', color: '#334155' }}>RMSE: {m?.rmse ?? '--'}</div>
+                                                <div style={{ fontSize: '0.68rem', color: '#334155' }}>r: {m?.correlation ?? '--'}</div>
+                                                <div style={{ fontSize: '0.68rem', color: '#334155' }}>±tol: {m?.within_tolerance_pct ?? '--'}%</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </>
                     ) : (
@@ -1026,64 +1022,6 @@ const VitalsMonitor = () => {
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
                 .animate-pulse { animation: pulse 1s infinite cubic-bezier(0.4, 0, 0.6, 1); }
-                @media (max-width: 1180px) {
-                    .vitals-layout { grid-template-columns: 1fr !important; }
-                }
-                .biometric-grid-3 {
-                    display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
-                    gap: 1rem;
-                }
-                .biometric-grid-2 {
-                    display: grid;
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
-                    gap: 1rem;
-                }
-                .biometric-card {
-                    padding: 1rem;
-                    border-radius: 16px;
-                    border: 2px solid black;
-                    box-shadow: 3px 3px 0px black;
-                    min-height: 136px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    transition: transform 0.12s ease, box-shadow 0.12s ease;
-                }
-                .biometric-card:hover {
-                    transform: translate(-1px, -1px);
-                    box-shadow: 4px 4px 0px black;
-                }
-                .metric-label {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.4rem;
-                    color: #64748b;
-                    font-weight: 700;
-                    font-size: 0.76rem;
-                    letter-spacing: 0.3px;
-                }
-                .trend-chip {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.25rem;
-                    background: rgba(255,255,255,0.6);
-                    border: 1px solid #cbd5e1;
-                    border-radius: 999px;
-                    padding: 0.2rem 0.45rem;
-                    font-size: 0.65rem;
-                    font-weight: 700;
-                    color: #475569;
-                }
-                @media (max-width: 820px) {
-                    .biometric-grid-3,
-                    .biometric-grid-2 {
-                        grid-template-columns: 1fr;
-                    }
-                    .biometric-card {
-                        min-height: 122px;
-                    }
-                }
             `}} />
         </div>
     );

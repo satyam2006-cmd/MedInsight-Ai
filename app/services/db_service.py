@@ -70,5 +70,114 @@ class DBService:
             logger.error(f"Error creating report: {e}")
             raise
 
+    @staticmethod
+    def create_vitals_session(
+        supabase: Client,
+        session_id: str,
+        patient_id: str,
+        device_label: str,
+        condition_tag: str,
+        summary: dict,
+        samples: list,
+    ):
+        data = {
+            "id": session_id,
+            "patient_id": patient_id,
+            "device_label": device_label,
+            "condition_tag": condition_tag,
+            "summary": summary,
+            "samples": samples,
+        }
+        try:
+            response = supabase.table("vitals_sessions").insert(data).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            raise ValueError("Failed to insert vitals session")
+        except Exception as e:
+            logger.error(f"Error creating vitals session: {e}")
+            raise
+
+    @staticmethod
+    def get_vitals_session(supabase: Client, session_id: str):
+        try:
+            response = (
+                supabase.table("vitals_sessions")
+                .select("id, samples, summary")
+                .eq("id", session_id)
+                .limit(1)
+                .execute()
+            )
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching vitals session: {e}")
+            raise
+
+    @staticmethod
+    def create_reference_readings(
+        supabase: Client,
+        session_id: str,
+        device_name: str,
+        condition_tag: str,
+        readings: list,
+    ):
+        data = {
+            "session_id": session_id,
+            "device_name": device_name,
+            "condition_tag": condition_tag,
+            "readings": readings,
+        }
+        try:
+            response = supabase.table("reference_readings").insert(data).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            raise ValueError("Failed to insert reference readings")
+        except Exception as e:
+            logger.error(f"Error creating reference readings: {e}")
+            raise
+
+    @staticmethod
+    def get_reference_reading_set(supabase: Client, reference_id: str):
+        try:
+            response = (
+                supabase.table("reference_readings")
+                .select("id, session_id, readings")
+                .eq("id", reference_id)
+                .limit(1)
+                .execute()
+            )
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching reference reading set: {e}")
+            raise
+
+    @staticmethod
+    def create_accuracy_metric(
+        supabase: Client,
+        session_id: str,
+        reference_id: str,
+        hr_metrics: dict,
+        rr_metrics: dict,
+        spo2_metrics: dict,
+    ):
+        data = {
+            "session_id": session_id,
+            "reference_id": reference_id,
+            "hr_metrics": hr_metrics,
+            "rr_metrics": rr_metrics,
+            "spo2_metrics": spo2_metrics,
+        }
+        try:
+            response = supabase.table("accuracy_metrics").insert(data).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            raise ValueError("Failed to insert accuracy metric")
+        except Exception as e:
+            logger.error(f"Error creating accuracy metric: {e}")
+            raise
+
 
 db_service = DBService()
