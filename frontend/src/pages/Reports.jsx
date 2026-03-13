@@ -162,16 +162,31 @@ export default function ReportsPage() {
     };
 
     return (
-        <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem' }}>
-            <button
-                onClick={() => window.location.href = '/'}
-                className="neo-btn"
-                style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black', padding: '0.5rem 1rem' }}
-            >
-                ← Back to Hub
-            </button>
+        <div className="v2-shell" role="main" aria-label="Reports workspace">
+            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
+                <div>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
+                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Reports Layer</h2>
+                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
+                        Review AI outputs, share with patients, and manage report lifecycle from one feed.
+                    </p>
+                </div>
+                <button type="button" className="neo-btn" onClick={() => window.location.href = '/'} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Back to Mission Control
+                </button>
+                <button type="button" className="neo-btn" onClick={() => window.location.href = '/patients'} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Patient Registry
+                </button>
+                <button type="button" className="neo-btn" onClick={() => window.location.href = '/analyzer'} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Report Forge
+                </button>
+            </aside>
 
-            <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Patient AI Reports</h2>
+            <section className="v2-main">
+                <header className="neo-card staggered-enter">
+                    <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>Patient AI Reports</h1>
+                    <p>Longitudinal report feed with sharing and deletion controls.</p>
+                </header>
 
             {loading && <p style={{ fontSize: '1.2rem', color: '#666' }}>Loading patient records...</p>}
 
@@ -189,7 +204,7 @@ export default function ReportsPage() {
             )}
 
             {!loading && patients.map((patient) => (
-                <div key={patient.id} className="neo-card" style={{ padding: '1.5rem', marginBottom: '1.5rem', background: 'white', border: '2px solid black' }}>
+                <div key={patient.id} className="neo-card panel-soft" style={{ padding: '1.5rem', marginBottom: '1.5rem', background: 'white' }}>
 
                     {/* Header Row */}
                     <div
@@ -277,7 +292,7 @@ export default function ReportsPage() {
                                             </div>
 
                                             {/* Hospital Dashboard View: English Only */}
-                                            <div style={{ background: '#f5f5f5', padding: '1.5rem', border: '2px solid black', borderRadius: '4px' }}>
+                                            <div className="panel-soft" style={{ background: '#f5f5f5', padding: '1.5rem', borderRadius: '10px' }}>
                                                 {/* Hospital Header for trusting branding */}
                                                 <div style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     {(() => {
@@ -312,6 +327,7 @@ export default function ReportsPage() {
                     )}
                 </div>
             ))}
+            </section>
         </div>
     );
 }

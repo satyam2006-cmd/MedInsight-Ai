@@ -107,58 +107,71 @@ export default function PatientsPage() {
 
 
     return (
-        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-            <button
-                onClick={() => window.location.href = '/'}
-                className="neo-btn"
-                style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black', padding: '0.5rem 1rem' }}
-            >
-                ← Back to Hub
-            </button>
-            <h2 style={{ fontSize: '2.5rem', marginBottom: '2rem' }}>Patient Records</h2>
+        <div className="v2-shell" role="main" aria-label="Patient registry workspace">
+            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
+                <div>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
+                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Patient Registry</h2>
+                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
+                        Add records, attach reports, and route patients directly to contactless vitals.
+                    </p>
+                </div>
+                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Back to Mission Control
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/analyzer')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Report Forge
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Reports Layer
+                </button>
+            </aside>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 1fr) 2fr', gap: '2rem', alignItems: 'start' }}>
+            <section className="v2-main">
+                <header className="neo-card staggered-enter">
+                    <h1 style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>Patient Records</h1>
+                    <p>Register patients, add target language, and upload clinical documents for AI processing.</p>
+                </header>
+
+                <div className="module-content" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', display: 'grid', alignItems: 'start' }}>
                 {/* Left Side: Form */}
-                <form onSubmit={handleSubmit} className="neo-card" style={{ padding: '2rem', background: '#f9f9f9', border: '2px solid black' }}>
+                <form onSubmit={handleSubmit} className="neo-card panel-soft" style={{ padding: '2rem' }}>
                     <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem' }}>Add New Patient</h3>
                     <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="patientId" style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem' }}>Patient ID</label>
+                        <label htmlFor="patientId" className="field-label">Patient ID</label>
                         <input
                             id="patientId"
                             type="text"
                             value={patientId}
                             onChange={(e) => setPatientId(e.target.value)}
                             required
-                            className="neo-input"
-                            style={{ width: '100%', padding: '0.6rem', border: '2px solid black', background: 'white' }}
+                            className="input-v2"
                         />
                     </div>
                     <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="patientName" style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem' }}>Patient Name</label>
+                        <label htmlFor="patientName" className="field-label">Patient Name</label>
                         <input
                             id="patientName"
                             type="text"
                             value={patientName}
                             onChange={(e) => setPatientName(e.target.value)}
                             required
-                            className="neo-input"
-                            style={{ width: '100%', padding: '0.6rem', border: '2px solid black', background: 'white' }}
+                            className="input-v2"
                         />
                     </div>
                     <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="patientNumber" style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem' }}>Contact Number</label>
+                        <label htmlFor="patientNumber" className="field-label">Contact Number</label>
                         <input
                             id="patientNumber"
                             type="tel"
                             value={patientNumber}
                             onChange={(e) => setPatientNumber(e.target.value)}
                             required
-                            className="neo-input"
-                            style={{ width: '100%', padding: '0.6rem', border: '2px solid black', background: 'white' }}
+                            className="input-v2"
                         />
                     </div>
                     <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="language" style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem' }}>Report Target Language</label>
+                        <label htmlFor="language" className="field-label">Report Target Language</label>
                         <input
                             id="language"
                             type="text"
@@ -166,20 +179,18 @@ export default function PatientsPage() {
                             onChange={(e) => setLanguage(e.target.value)}
                             required
                             placeholder="Profile default or type language (e.g. Hindi, Spanish)"
-                            className="neo-input"
-                            style={{ width: '100%', padding: '0.6rem', border: '2px solid black', background: 'white' }}
+                            className="input-v2"
                         />
                     </div>
                     <div style={{ marginBottom: '1.5rem' }}>
-                        <label htmlFor="report" style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem' }}>Report Document</label>
+                        <label htmlFor="report" className="field-label">Report Document</label>
                         <input
                             id="report"
                             type="file"
                             accept=".jpg,.jpeg,.pdf,.docx"
                             onChange={(e) => setReport(e.target.files[0])}
                             required
-                            className="neo-input"
-                            style={{ width: '100%', padding: '0.6rem', border: '2px solid black', background: 'white' }}
+                            className="input-v2"
                         />
                     </div>
                     <button type="submit" disabled={isLoading} className="neo-btn" style={{ background: 'var(--primary)', color: 'white', padding: '0.8rem 1.2rem', width: '100%', fontSize: '1.1rem', opacity: isLoading ? 0.7 : 1 }}>
@@ -188,7 +199,7 @@ export default function PatientsPage() {
                 </form>
 
                 {/* Right Side: Table */}
-                <div className="neo-card" style={{ padding: '2rem', background: 'white', border: '2px solid black' }}>
+                <div className="neo-card panel-soft" style={{ padding: '2rem', background: 'white' }}>
                     <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         Recent Entries
                         <span style={{ fontSize: '1rem', background: 'var(--accent)', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
@@ -197,9 +208,9 @@ export default function PatientsPage() {
                     </h3>
 
                     <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <table className="table-v2">
                             <thead>
-                                <tr style={{ background: '#f0f0f0', borderBottom: '2px solid black' }}>
+                                <tr>
                                     <th style={{ padding: '1rem', fontWeight: 800 }}>ID</th>
                                     <th style={{ padding: '1rem', fontWeight: 800 }}>Name</th>
                                     <th style={{ padding: '1rem', fontWeight: 800 }}>Contact</th>
@@ -217,7 +228,7 @@ export default function PatientsPage() {
                                     </tr>
                                 ) : (
                                     patientsList.map((patient, index) => (
-                                        <tr key={index} style={{ borderBottom: '1px solid #ccc' }}>
+                                        <tr key={index}>
                                             <td style={{ padding: '1rem', fontWeight: 600 }}>{patient.id}</td>
                                             <td style={{ padding: '1rem' }}>{patient.name}</td>
                                             <td style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -233,7 +244,8 @@ export default function PatientsPage() {
                                             <td style={{ padding: '1rem' }}>
                                                 <button
                                                     onClick={() => navigate(`/vitals?patient=${encodeURIComponent(patient.id)}`)}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.7rem', background: '#5227FF', color: 'white', border: '2px solid black', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                                    className="neo-btn"
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.7rem', background: 'var(--secondary)', color: 'white', fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'nowrap' }}
                                                 >
                                                     <Activity size={13} /> Take Vitals
                                                 </button>
@@ -245,7 +257,8 @@ export default function PatientsPage() {
                         </table>
                     </div>
                 </div>
-            </div>
+                </div>
+            </section>
         </div>
     );
 }
