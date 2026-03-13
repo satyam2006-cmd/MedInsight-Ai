@@ -11,7 +11,7 @@ try:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch, mm
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     HAS_REPORTLAB = True
 except ImportError:
@@ -115,6 +115,34 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
     else:
         elements.append(Paragraph("Alert History", heading_style))
         elements.append(Paragraph("No alerts recorded during this session.", normal_style))
+
+    elements.append(Spacer(1, 16))
+
+    # AI Health Summary Section
+    ai_summary_text = session_data.get('ai_summary', '')
+    if ai_summary_text:
+        ai_elements = []
+        ai_elements.append(Paragraph("AI Health Summary", heading_style))
+        ai_elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#e8eaf6')))
+        ai_elements.append(Spacer(1, 8))
+        
+        # Simple parsing of the markdown-like output from AI
+        lines = ai_summary_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith('##'):
+                # Treat as subheading
+                text = line.replace('##', '').strip()
+                ai_elements.append(Paragraph(f"<b>{text}</b>", ParagraphStyle('Sub', parent=normal_style, spaceAfter=6, spaceBefore=6)))
+            elif line.startswith('-') or line.startswith('*'):
+                text = line[1:].strip()
+                ai_elements.append(Paragraph(f"• {text}", ParagraphStyle('Bullet', parent=normal_style, leftIndent=15, spaceAfter=4)))
+            else:
+                ai_elements.append(Paragraph(line, ParagraphStyle('Text', parent=normal_style, spaceAfter=8)))
+                
+        elements.append(KeepTogether(ai_elements))
 
     elements.append(Spacer(1, 24))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.grey))

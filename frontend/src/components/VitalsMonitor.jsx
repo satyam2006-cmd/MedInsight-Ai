@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, Zap, TrendingUp, BarChart3 } from 'lucide-react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, Zap, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
 
 const VitalsMonitor = () => {
     const videoRef = useRef(null);
@@ -15,8 +15,8 @@ const VitalsMonitor = () => {
 
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
-        signal_quality: 0, health_score: 0, ews: 0, hrv: 0, spo2: 0,
-        calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0,
+        signal_quality: 0, motion_status: 'GOOD', health_score: 0, ews: 0, hrv: 0, spo2: 0,
+        calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0, ai_summary: '',
     });
     const [error, setError] = useState(null);
     const [isStreaming, setIsStreaming] = useState(false);
@@ -199,6 +199,22 @@ const VitalsMonitor = () => {
         wsRef.current = ws;
     };
 
+    const fetchAISummary = async () => {
+        try {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const base = isLocal ? 'http://localhost:8000' : '';
+            const res = await fetch(`${base}/api/vitals/session`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.ai_summary) {
+                    setVitals(prev => ({ ...prev, ai_summary: data.ai_summary }));
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching AI summary:", e);
+        }
+    };
+
     // Render Pulse Waveform
     useEffect(() => {
         if (!graphCanvasRef.current || waveform.length < 2) return;
@@ -348,6 +364,15 @@ const VitalsMonitor = () => {
                             <Shield size={48} style={{ marginBottom: '1rem' }} />
                             <h2 style={{ margin: 0 }}>Be in frame</h2>
                             <p style={{ opacity: 0.8 }}>Please position your face clearly</p>
+                        </div>
+                    )}
+
+                    {faceDetected && isStreaming && vitals.motion_status === 'POOR' && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: 'rgba(225,29,72,0.85)', color: 'white', zIndex: 10, backdropFilter: 'blur(2px)' }}>
+                            <AlertCircle size={56} className="animate-pulse" style={{ marginBottom: '1rem' }} />
+                            <h2 style={{ margin: '0 0 0.5rem', fontWeight: 800, letterSpacing: '1px' }}>MOTION DETECTED</h2>
+                            <p style={{ opacity: 0.9, fontSize: '1.1rem', fontWeight: 600 }}>Please remain still.</p>
+                            <p style={{ opacity: 0.7, fontSize: '0.85rem', marginTop: '1rem' }}>Vital calculation paused</p>
                         </div>
                     )}
 
@@ -523,22 +548,28 @@ const VitalsMonitor = () => {
                             </div>
 
                             {/* Signal Quality */}
-                            <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f1f5f9', borderRadius: '12px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>SIGNAL QUALITY</span>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: getQualityColor(vitals.signal_quality) }}>
+                            <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>SIGNAL QUALITY</span>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: vitals.motion_status === 'GOOD' ? '#059669' : (vitals.motion_status === 'MODERATE' ? '#d97706' : '#dc2626') }}>
+                                            {vitals.motion_status}
+                                        </span>
+                                    </div>
+                                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: getQualityColor(vitals.signal_quality) }}>
                                         {Math.round(vitals.signal_quality)}%
                                     </span>
                                 </div>
-                                <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
                                     <div style={{
                                         width: `${vitals.signal_quality}%`, height: '100%',
-                                        background: `linear-gradient(90deg, ${getQualityColor(vitals.signal_quality)}, ${getQualityColor(vitals.signal_quality)}88)`,
-                                        transition: 'width 0.5s ease'
+                                        background: vitals.motion_status === 'POOR' 
+                                            ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
+                                            : vitals.motion_status === 'MODERATE'
+                                                ? 'linear-gradient(90deg, #f59e0b, #d97706)'
+                                                : `linear-gradient(90deg, #34d399, #059669)`,
+                                        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s'
                                     }} />
-                                </div>
-                                <div style={{ marginTop: '0.4rem', fontSize: '0.7rem', color: '#94a3b8' }}>
-                                    {vitals.status === 'tracking' ? 'TRACKING' : vitals.status?.toUpperCase()}
                                 </div>
                             </div>
                         </>
@@ -556,7 +587,73 @@ const VitalsMonitor = () => {
                     )}
                 </div>
 
-                {/* Download Report Button - Bottom Right */}
+                {/* AI Health Summary Panel */}
+                <div className="neo-card" style={{ 
+                    background: '#f1f5f9', 
+                    borderRadius: '16px', 
+                    padding: '1.5rem', 
+                    border: '2px solid black', 
+                    boxShadow: '4px 4px 0px black',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.1rem' }}>
+                            <Activity size={22} color="var(--primary)" /> AI HEALTH REPORT
+                        </h3>
+                        <button 
+                            onClick={fetchAISummary}
+                            disabled={vitals.bpm === 0}
+                            style={{ 
+                                padding: '0.4rem 0.8rem', 
+                                background: vitals.bpm === 0 ? '#cbd5e1' : 'black', 
+                                color: 'white', 
+                                border: '2px solid black',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: vitals.bpm === 0 ? 'not-allowed' : 'pointer',
+                                boxShadow: vitals.bpm === 0 ? 'none' : '2px 2px 0px black'
+                            }}
+                        >
+                            GENERATE SUMMARY
+                        </button>
+                    </div>
+                    
+                    <div style={{ 
+                        background: 'white', 
+                        padding: '1.25rem', 
+                        borderRadius: '12px', 
+                        border: '1px solid #e2e8f0',
+                        minHeight: '120px',
+                        maxHeight: '300px',
+                        overflowY: 'auto',
+                        fontSize: '0.95rem',
+                        lineHeight: '1.6',
+                        color: '#1e293b'
+                    }}>
+                        {vitals.ai_summary ? (
+                            <div className="ai-content">
+                                {vitals.ai_summary.split('\n').map((line, i) => {
+                                    if (line.startsWith('##')) {
+                                        return <h4 key={i} style={{ margin: '1rem 0 0.5rem', color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{line.replace('##', '').trim()}</h4>;
+                                    }
+                                    if (line.startsWith('Recommendation:')) {
+                                        return <div key={i} style={{ marginTop: '1rem', padding: '0.8rem', background: '#f0fdf4', borderLeft: '4px solid #22c55e', fontWeight: 600 }}>{line}</div>;
+                                    }
+                                    return <p key={i} style={{ margin: '0 0 0.8rem' }}>{line}</p>;
+                                })}
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.5, gap: '0.5rem' }}>
+                                <Loader2 size={24} className="animate-spin" />
+                                <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>Vitals required to generate AI insights.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Download Report Button - Bottom */}
                 <button onClick={downloadReport} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                     background: '#1a1a1a', color: 'white', border: '2px solid black', borderRadius: '12px',

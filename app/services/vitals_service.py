@@ -27,6 +27,7 @@ class VitalsService:
         self.hr_max = 0.0
         self.hr_readings = []  # (timestamp, bpm) for trend
         self.signal_quality = 0.0
+        self.motion_status = "GOOD" # Initialize motion status
         self.hrv_sdnn = 0.0
         self.health_score = 0
         self.ews_score = 0
@@ -154,6 +155,7 @@ class VitalsService:
             "spectrum": spectrum,
             "status": "tracking" if self.bpm > 0 else ("calibrating" if self.calibration_pct < 100 else "buffering"),
             "signal_quality": round(self.signal_quality, 1),
+            "motion_status": self.motion_status,
             "health_score": self.health_score,
             "ews": self.ews_score,
             "hrv": round(self.hrv_sdnn, 1),
@@ -182,6 +184,9 @@ class VitalsService:
             
         if 0 < self.spo2 < 92:
             alerts.append("Low Oxygen (SpO2<92%)")
+
+        if self.motion_status == "POOR":
+            alerts.insert(0, "Motion detected. Please stay still.")
 
         if alerts:
             alert_str = " | ".join(alerts)
@@ -303,6 +308,26 @@ class VitalsService:
             X = np.array(self.data_buffer).T  # (3, N)
             L = X.shape[1]
             X_proc = np.zeros_like(X, dtype=float)
+
+            # Motion Artifact Detection Before Processing
+            motion_quality = self._detect_motion_artifacts(X)
+            
+            # If motion is severe, skip calculation and freeze last values
+            if motion_quality < 30:
+                self.motion_status = "POOR"
+                return {
+                    'bpm': self.bpm,
+                    'rpm': self.respiration_rate,
+                    'spo2': self.spo2,
+                    'spectrum': [],
+                    'signal_quality': 0, # Very poor
+                    'peaks': [],
+                    'hrv': self.hrv_sdnn,
+                }
+            elif motion_quality < 70:
+                self.motion_status = "MODERATE"
+            else:
+                self.motion_status = "GOOD"
 
             for i in range(3):
                 X_proc[i] = scipy.signal.detrend(X[i])
@@ -472,6 +497,42 @@ class VitalsService:
         if len(idx) > 0:
             return float(rr_f[idx[np.argmax(rr_fft[idx])]])
         return self.respiration_rate
+
+    def _detect_motion_artifacts(self, X: np.ndarray) -> float:
+        """
+        Detect motion artifacts based on signal characteristics.
+        Returns a quality score from 0-100 (100 = perfectly still, 0 = severe motion).
+        """
+        quality_score = 100.0
+        
+        # We look at the raw brightness (mean across all channels for each frame)
+        # Using a recent window (e.g., last 3 seconds if 30fps = 90 frames)
+        recent_frames = X[:, -90:] if X.shape[1] > 90 else X
+        
+        # Calculate frame-to-frame intensity differences (derivative)
+        diffs = np.diff(recent_frames, axis=1)
+        
+        # 1. Variance of the derivative (detects high-frequency jitter/movement)
+        diff_variances = np.var(diffs, axis=1)
+        mean_diff_var = np.mean(diff_variances)
+        
+        # 2. Sudden amplitude spikes (detects large shifts like head turning)
+        max_diffs = np.max(np.abs(diffs), axis=1)
+        mean_max_diff = np.mean(max_diffs)
+        
+        # Thresholds (need to be tuned empirically, these are starting values)
+        # Assuming typical signal values are in the 0-255 range
+        if mean_max_diff > 15: # Large sudden change
+            quality_score -= 50
+        elif mean_max_diff > 8:
+            quality_score -= 20
+            
+        if mean_diff_var > 5: # High variance / jitter
+            quality_score -= 40
+        elif mean_diff_var > 2:
+            quality_score -= 15
+            
+        return max(0.0, min(100.0, quality_score))
 
     def get_session_summary(self) -> Dict[str, Any]:
         """Return session summary for reports."""
