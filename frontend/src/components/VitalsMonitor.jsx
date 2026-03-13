@@ -8,6 +8,9 @@ const VitalsMonitor = () => {
     const wsRef = useRef(null);
     const detectorRef = useRef(null);
     const spectrumCanvasRef = useRef(null);
+    const lastPositionRef = useRef(null);
+    const overlayCanvasRef = useRef(null);
+    const lastSendTimeRef = useRef(0);
     
     const [vitals, setVitals] = useState({ 
         bpm: 0, 
@@ -69,6 +72,12 @@ const VitalsMonitor = () => {
         } else {
             setFaceDetected(false);
             setVitals(prev => ({ ...prev, status: 'searching' }));
+            // Clear overlay when face is lost
+            const overlayCanvas = overlayCanvasRef.current;
+            if (overlayCanvas) {
+                const oCtx = overlayCanvas.getContext('2d');
+                oCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            }
         }
     };
 
@@ -79,11 +88,63 @@ const VitalsMonitor = () => {
         const canvas = canvasRef.current;
         const boundingBox = detection.boundingBox;
         
-        // Forehead is roughly top 20% of the face box
-        const fw = boundingBox.width * video.videoWidth * 0.4;
-        const fh = boundingBox.height * video.videoHeight * 0.15;
+        // Forehead is roughly top portion of the face box (dynamic sizing)
+        const fw = boundingBox.width * video.videoWidth * 0.6;
+        const fh = boundingBox.height * video.videoHeight * 0.25;
         const fx = (boundingBox.xCenter * video.videoWidth) - (fw / 2);
-        const fy = (boundingBox.yCenter * video.videoHeight) - (boundingBox.height * video.videoHeight * 0.35);
+        const fy = (boundingBox.yCenter * video.videoHeight) - (boundingBox.height * video.videoHeight * 0.4);
+
+        // Draw face detection overlay
+        const overlayCanvas = overlayCanvasRef.current;
+        if (overlayCanvas) {
+            overlayCanvas.width = video.videoWidth;
+            overlayCanvas.height = video.videoHeight;
+            const oCtx = overlayCanvas.getContext('2d');
+            oCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+            // Face bounding box (green)
+            const faceX = (boundingBox.xCenter - boundingBox.width / 2) * video.videoWidth;
+            const faceY = (boundingBox.yCenter - boundingBox.height / 2) * video.videoHeight;
+            const faceW = boundingBox.width * video.videoWidth;
+            const faceH = boundingBox.height * video.videoHeight;
+            oCtx.strokeStyle = '#4ade80';
+            oCtx.lineWidth = 2;
+            oCtx.setLineDash([8, 4]);
+            oCtx.strokeRect(faceX, faceY, faceW, faceH);
+
+            // Corner accents on face box
+            const cornerLen = 14;
+            oCtx.setLineDash([]);
+            oCtx.lineWidth = 3;
+            oCtx.strokeStyle = '#4ade80';
+            // top-left
+            oCtx.beginPath(); oCtx.moveTo(faceX, faceY + cornerLen); oCtx.lineTo(faceX, faceY); oCtx.lineTo(faceX + cornerLen, faceY); oCtx.stroke();
+            // top-right
+            oCtx.beginPath(); oCtx.moveTo(faceX + faceW - cornerLen, faceY); oCtx.lineTo(faceX + faceW, faceY); oCtx.lineTo(faceX + faceW, faceY + cornerLen); oCtx.stroke();
+            // bottom-left
+            oCtx.beginPath(); oCtx.moveTo(faceX, faceY + faceH - cornerLen); oCtx.lineTo(faceX, faceY + faceH); oCtx.lineTo(faceX + cornerLen, faceY + faceH); oCtx.stroke();
+            // bottom-right
+            oCtx.beginPath(); oCtx.moveTo(faceX + faceW - cornerLen, faceY + faceH); oCtx.lineTo(faceX + faceW, faceY + faceH); oCtx.lineTo(faceX + faceW, faceY + faceH - cornerLen); oCtx.stroke();
+
+            // Forehead ROI rectangle (cyan)
+            oCtx.strokeStyle = '#22d3ee';
+            oCtx.lineWidth = 2;
+            oCtx.setLineDash([]);
+            oCtx.shadowColor = 'rgba(34, 211, 238, 0.5)';
+            oCtx.shadowBlur = 6;
+            oCtx.strokeRect(fx, fy, fw, fh);
+            oCtx.shadowBlur = 0;
+
+            // Label (counter-mirror so text reads correctly on flipped canvas)
+            oCtx.save();
+            oCtx.translate(fx + fw / 2, fy - 6);
+            oCtx.scale(-1, 1);
+            oCtx.fillStyle = 'rgba(34, 211, 238, 0.85)';
+            oCtx.font = 'bold 11px monospace';
+            oCtx.textAlign = 'center';
+            oCtx.fillText('FOREHEAD ROI', 0, 0);
+            oCtx.restore();
+        }
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         canvas.width = fw;
@@ -108,6 +169,31 @@ const VitalsMonitor = () => {
             const avgRed = redSum / numPixels;
             const avgGreen = greenSum / numPixels;
             const avgBlue = blueSum / numPixels;
+
+            // Exposure validation: reject bad exposure frames
+            if (avgGreen > 240 || avgGreen < 30) return;
+
+            // Skin plausibility check: reject if too dark (non-skin region)
+            if (avgRed < 50) return;
+
+            // Motion artifact rejection (tighter 3px threshold)
+            const cx = boundingBox.xCenter * video.videoWidth;
+            const cy = boundingBox.yCenter * video.videoHeight;
+            const lastPos = lastPositionRef.current;
+            if (lastPos) {
+                const dx = Math.abs(cx - lastPos.x);
+                const dy = Math.abs(cy - lastPos.y);
+                if (dx > 5 || dy > 5) {
+                    lastPositionRef.current = { x: cx, y: cy };
+                    return; // skip noisy frame
+                }
+            }
+            lastPositionRef.current = { x: cx, y: cy };
+
+            // Frame rate throttle: cap at 30fps for consistent sampling
+            const now = performance.now();
+            if (now - lastSendTimeRef.current < 33.3) return;
+            lastSendTimeRef.current = now;
 
             if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({
@@ -288,6 +374,7 @@ const VitalsMonitor = () => {
                         style={{ width: '100%', display: 'block', transform: 'scaleX(-1)' }} 
                     />
                     <canvas ref={canvasRef} style={{ display: 'none' }} />
+                    <canvas ref={overlayCanvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', transform: 'scaleX(-1)', pointerEvents: 'none', zIndex: 5 }} />
                     
                     {!faceDetected && isStreaming && (
                         <div style={{ 
