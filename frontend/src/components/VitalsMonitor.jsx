@@ -73,64 +73,87 @@ const VitalsMonitor = () => {
         const canvas = canvasRef.current;
         const bb = detection.boundingBox;
 
-        const fw = bb.width * video.videoWidth * 0.6;
-        const fh = bb.height * video.videoHeight * 0.25;
+        // ROI refinement: 45% of face width, 12% of face height
+        const fw = bb.width * video.videoWidth * 0.45;
+        const fh = bb.height * video.videoHeight * 0.12;
         const fx = (bb.xCenter * video.videoWidth) - (fw / 2);
-        const fy = (bb.yCenter * video.videoHeight) - (bb.height * video.videoHeight * 0.4);
+        // Position on forehead: ~40% up from center of face box
+        const fy = (bb.yCenter * video.videoHeight) - (bb.height * video.videoHeight * 0.42);
 
-        // Draw face detection overlay
+        const cx = bb.xCenter * video.videoWidth;
+        const cy = bb.yCenter * video.videoHeight;
+
+        // Draw HUD/ROI on overlay canvas
         const oc = overlayCanvasRef.current;
         if (oc) {
             oc.width = video.videoWidth; oc.height = video.videoHeight;
             const o = oc.getContext('2d');
             o.clearRect(0, 0, oc.width, oc.height);
+            
+            // Draw Face Boundary
             const fX = (bb.xCenter - bb.width / 2) * video.videoWidth;
             const fY = (bb.yCenter - bb.height / 2) * video.videoHeight;
             const fW = bb.width * video.videoWidth;
             const fH = bb.height * video.videoHeight;
-            o.strokeStyle = '#4ade80'; o.lineWidth = 2; o.setLineDash([8, 4]);
+            
+            o.strokeStyle = 'rgba(74, 222, 128, 0.5)'; o.lineWidth = 2; o.setLineDash([8, 4]);
             o.strokeRect(fX, fY, fW, fH);
-            const cl = 14; o.setLineDash([]); o.lineWidth = 3; o.strokeStyle = '#4ade80';
-            o.beginPath(); o.moveTo(fX, fY + cl); o.lineTo(fX, fY); o.lineTo(fX + cl, fY); o.stroke();
-            o.beginPath(); o.moveTo(fX + fW - cl, fY); o.lineTo(fX + fW, fY); o.lineTo(fX + fW, fY + cl); o.stroke();
-            o.beginPath(); o.moveTo(fX, fY + fH - cl); o.lineTo(fX, fY + fH); o.lineTo(fX + cl, fY + fH); o.stroke();
-            o.beginPath(); o.moveTo(fX + fW - cl, fY + fH); o.lineTo(fX + fW, fY + fH); o.lineTo(fX + fW, fY + fH - cl); o.stroke();
-            o.strokeStyle = '#22d3ee'; o.lineWidth = 2; o.setLineDash([]);
-            o.shadowColor = 'rgba(34,211,238,0.5)'; o.shadowBlur = 6;
+            
+            // Draw Forehead ROI Focus
+            o.setLineDash([]); o.strokeStyle = '#22d3ee'; o.lineWidth = 2;
+            o.shadowColor = 'rgba(34,211,238,0.5)'; o.shadowBlur = 8;
             o.strokeRect(fx, fy, fw, fh); o.shadowBlur = 0;
-            o.save(); o.translate(fx + fw / 2, fy - 6); o.scale(-1, 1);
-            o.fillStyle = 'rgba(34,211,238,0.85)'; o.font = 'bold 11px monospace'; o.textAlign = 'center';
-            o.fillText('FOREHEAD ROI', 0, 0); o.restore();
+            
+            o.save(); o.translate(fx + fw/2, fy - 8); o.scale(-1, 1);
+            o.fillStyle = '#22d3ee'; o.font = 'bold 10px Inter, monospace'; o.textAlign = 'center';
+            o.fillText('ROI LOCKED', 0, 0); o.restore();
         }
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = fw; canvas.height = fh;
+        canvas.width = Math.max(1, fw);
+        canvas.height = Math.max(1, fh);
 
         try {
             ctx.drawImage(video, fx, fy, fw, fh, 0, 0, fw, fh);
-            const imageData = ctx.getImageData(0, 0, fw, fh);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
+            
             let rS = 0, gS = 0, bS = 0;
-            for (let i = 0; i < data.length; i += 4) { rS += data[i]; gS += data[i + 1]; bS += data[i + 2]; }
-            const np = data.length / 4;
-            const aR = rS / np, aG = gS / np, aB = bS / np;
+            for (let i = 0; i < data.length; i += 4) {
+                rS += data[i]; gS += data[i + 1]; bS += data[i + 2];
+            }
+            const count = data.length / 4;
+            if (count === 0) return;
+            
+            const aR = rS / count;
+            const aG = gS / count;
+            const aB = bS / count;
 
-            if (aG > 240 || aG < 30) return;
-            if (aR < 50) return;
-
-            const cx = bb.xCenter * video.videoWidth, cy = bb.yCenter * video.videoHeight;
+            // Stability check: Ignore large movements
             const lp = lastPositionRef.current;
-            if (lp) { if (Math.abs(cx - lp.x) > 5 || Math.abs(cy - lp.y) > 5) { lastPositionRef.current = { x: cx, y: cy }; return; } }
+            if (lp) {
+                const dist = Math.sqrt((cx - lp.x)**2 + (cy - lp.y)**2);
+                if (dist > 8) { // Threshold for "stable" head
+                    lastPositionRef.current = { x: cx, y: cy };
+                    return;
+                }
+            }
             lastPositionRef.current = { x: cx, y: cy };
 
+            // Throttled send: ~30 FPS
             const now = performance.now();
-            if (now - lastSendTimeRef.current < 33.3) return;
+            if (now - lastSendTimeRef.current < 32) return;
             lastSendTimeRef.current = now;
 
             if (wsRef.current?.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ values: [aR, aG, aB], timestamp: Date.now() / 1000 }));
+                wsRef.current.send(JSON.stringify({
+                    values: [aR, aG, aB],
+                    timestamp: Date.now() / 1000
+                }));
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            console.error("ROI Processing Error:", e);
+        }
     };
 
     const startCamera = async () => {
