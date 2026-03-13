@@ -98,6 +98,72 @@ class DBService:
             raise
 
     @staticmethod
+    def create_patient_session(
+        supabase: Client,
+        session_id: str,
+        patient_id: str,
+        timestamp: str,
+        heart_rate: float,
+        respiration_rate: float,
+        spo2: float,
+        hrv: float,
+        stress_score: float,
+        ai_risk_level: str,
+    ):
+        data = {
+            "session_id": session_id,
+            "patient_id": patient_id,
+            "timestamp": timestamp,
+            "heart_rate": heart_rate,
+            "respiration_rate": respiration_rate,
+            "spo2": spo2,
+            "hrv": hrv,
+            "stress_score": stress_score,
+            "ai_risk_level": ai_risk_level,
+        }
+        try:
+            response = supabase.table("patient_sessions").insert(data).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            raise ValueError("Failed to insert patient session")
+        except Exception as e:
+            logger.error(f"Error creating patient session: {e}")
+            raise
+
+    @staticmethod
+    def list_patient_sessions(supabase: Client, patient_id: str, limit: int = 200):
+        try:
+            response = (
+                supabase.table("patient_sessions")
+                .select("session_id, patient_id, timestamp, heart_rate, respiration_rate, spo2, hrv, stress_score, ai_risk_level")
+                .eq("patient_id", patient_id)
+                .order("timestamp", desc=False)
+                .limit(limit)
+                .execute()
+            )
+            return response.data or []
+        except Exception as e:
+            logger.error(f"Error fetching patient sessions: {e}")
+            raise
+
+    @staticmethod
+    def get_patient_session_by_session_id(supabase: Client, session_id: str):
+        try:
+            response = (
+                supabase.table("patient_sessions")
+                .select("session_id, patient_id, timestamp")
+                .eq("session_id", session_id)
+                .limit(1)
+                .execute()
+            )
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching patient session by session id: {e}")
+            raise
+
+    @staticmethod
     def get_vitals_session(supabase: Client, session_id: str):
         try:
             response = (

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const VitalsMonitor = () => {
@@ -47,6 +47,10 @@ const VitalsMonitor = () => {
     const [cameraSwitching, setCameraSwitching] = useState(false);
     const [isPhoneCamera, setIsPhoneCamera] = useState(false);
     const [userAge, setUserAge] = useState(null);
+    const [trendDays, setTrendDays] = useState(7);
+    const [trendAnalysis, setTrendAnalysis] = useState(null);
+    const [trendLoading, setTrendLoading] = useState(false);
+    const [trendPatientId, setTrendPatientId] = useState('anonymous');
 
     const getApiBase = () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -568,6 +572,17 @@ const VitalsMonitor = () => {
         };
     }, []);
 
+    useEffect(() => {
+        if (!trendAnalysis) return;
+        fetchLongTermTrend(trendPatientId, trendDays);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trendDays]);
+
+    useEffect(() => {
+        fetchLongTermTrend('anonymous', trendDays);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const fetchAISummary = async () => {
         try {
             const base = getApiBase();
@@ -581,6 +596,25 @@ const VitalsMonitor = () => {
             }
         } catch (e) {
             console.error("Error fetching AI summary:", e);
+        }
+    };
+
+    const fetchLongTermTrend = async (patientId = trendPatientId, days = trendDays) => {
+        try {
+            setTrendLoading(true);
+            const base = getApiBase();
+            const query = new URLSearchParams({ patient_id: patientId, days: String(days) });
+            const res = await fetch(`${base}/api/vitals/long-term-trend?${query.toString()}`);
+            const data = await res.json();
+            if (!res.ok) {
+                setCompareMessage(data.error || 'Failed to fetch long-term trend.');
+                return;
+            }
+            setTrendAnalysis(data.analysis || null);
+        } catch (e) {
+            setCompareMessage('Could not fetch long-term trend.');
+        } finally {
+            setTrendLoading(false);
         }
     };
 
@@ -713,6 +747,12 @@ const VitalsMonitor = () => {
             }
             setSavedSessionId(data.session_id || '');
             setCompareMessage(`Session saved: ${data.session_id}`);
+            setTrendPatientId(data.patient_id || 'anonymous');
+            if (data.long_term_trend) {
+                setTrendAnalysis(data.long_term_trend);
+            } else {
+                fetchLongTermTrend(data.patient_id || 'anonymous');
+            }
         } catch (e) {
             setCompareMessage('Could not save session. Please retry.');
         } finally {
@@ -899,6 +939,53 @@ const VitalsMonitor = () => {
         if (direction === 'decreasing') return '#7c3aed';
         return '#64748b';
     };
+    const getLongTrendTheme = (status) => {
+        if (status === 'MEDICAL ATTENTION ADVISED') {
+            return { bg: '#fff1f2', border: '#fecdd3', tone: '#b91c1c', banner: '#ef4444' };
+        }
+        if (status === 'WATCH LIST') {
+            return { bg: '#fffbeb', border: '#fde68a', tone: '#a16207', banner: '#f59e0b' };
+        }
+        return { bg: '#ecfdf5', border: '#a7f3d0', tone: '#047857', banner: '#22c55e' };
+    };
+
+    const buildSparklinePoints = (values, width = 220, height = 58) => {
+        if (!values || values.length === 0) return '';
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const range = max - min || 1;
+        return values
+            .map((val, idx) => {
+                const x = values.length === 1 ? width / 2 : (idx / (values.length - 1)) * width;
+                const y = height - ((val - min) / range) * (height - 8) - 4;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            })
+            .join(' ');
+    };
+
+    const renderMiniGraph = (title, values, color, suffix = '') => {
+        if (!values || values.length === 0) {
+            return (
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.65rem' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', marginBottom: '0.35rem' }}>{title}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>No daily data yet</div>
+                </div>
+            );
+        }
+        const points = buildSparklinePoints(values);
+        const latest = values[values.length - 1];
+        return (
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.65rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>{title}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color }}>{`${latest}${suffix}`}</span>
+                </div>
+                <svg viewBox="0 0 220 58" width="100%" height="58" preserveAspectRatio="none">
+                    <polyline fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" points={points} />
+                </svg>
+            </div>
+        );
+    };
 
     const isCalibrating = vitals.calibration_pct < 100 && vitals.bpm === 0;
     const ageBand = getAgeBand(userAge);
@@ -918,6 +1005,12 @@ const VitalsMonitor = () => {
         respiration: 'stable',
         spo2: 'stable',
     };
+    const longTrend = trendAnalysis || { trend_status: 'STABLE', trend_indicator: 'Stable', daily_vitals: [] };
+    const longTrendTheme = getLongTrendTheme(longTrend.trend_status);
+    const dailySeries = longTrend.daily_vitals || [];
+    const dailyHr = dailySeries.map((d) => Number(d.avg_heart_rate || 0));
+    const dailyRr = dailySeries.map((d) => Number(d.avg_respiration || 0));
+    const dailySpo2 = dailySeries.map((d) => Number(d.avg_spo2 || 0));
 
     return (
         <div className="vitals-layout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(340px, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
@@ -1284,6 +1377,75 @@ const VitalsMonitor = () => {
                                     Calibrating ({Math.round(vitals.calibration_pct)}%)
                                 </div>
                             )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Long-Term Health Trend Analysis */}
+                <div className="neo-card" style={{
+                    background: longTrendTheme.bg,
+                    borderRadius: '16px',
+                    padding: '1rem',
+                    border: `2px solid ${longTrendTheme.border}`,
+                    boxShadow: '4px 4px 0px black',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '1rem' }}>
+                            <TrendingUp size={19} color={longTrendTheme.tone} /> HEALTH TREND ANALYSIS
+                        </h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <select
+                                value={trendDays}
+                                onChange={(e) => setTrendDays(Number(e.target.value))}
+                                style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.2rem 0.45rem', fontSize: '0.74rem' }}
+                            >
+                                <option value={7}>7 days</option>
+                                <option value={14}>14 days</option>
+                            </select>
+                            <button
+                                onClick={() => fetchLongTermTrend(trendPatientId, trendDays)}
+                                style={{ border: '1px solid #0f172a', borderRadius: '8px', padding: '0.25rem 0.55rem', background: '#fff', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}
+                            >
+                                REFRESH
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.55rem' }}>
+                        {renderMiniGraph('Heart Rate', dailyHr, '#dc2626', ' bpm')}
+                        {renderMiniGraph('Respiration', dailyRr, '#2563eb', ' rpm')}
+                        {renderMiniGraph('SpO2', dailySpo2, '#0ea5e9', ' %')}
+                    </div>
+
+                    <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '0.7rem' }}>
+                        <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 700, marginBottom: '0.2rem' }}>AI TREND STATUS</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: longTrendTheme.tone }}>{longTrend.trend_status || 'STABLE'}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#334155', marginTop: '0.2rem' }}>{longTrend.trend_indicator || 'Stable trend'}</div>
+                        {trendLoading && <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: '#64748b' }}>Analyzing daily history...</div>}
+                    </div>
+
+                    {longTrend.warning_required && (
+                        <div style={{
+                            background: '#fff',
+                            borderRadius: '10px',
+                            border: `1.5px solid ${longTrendTheme.banner}`,
+                            padding: '0.7rem',
+                            color: '#7f1d1d',
+                            fontWeight: 700,
+                            display: 'flex',
+                            gap: '0.5rem',
+                            alignItems: 'flex-start'
+                        }}>
+                            <AlertTriangle size={18} color={longTrendTheme.banner} style={{ marginTop: '0.1rem' }} />
+                            <div>
+                                <div>Long-term abnormal health trend detected. Medical checkup recommended.</div>
+                                {longTrend.ai_warning && (
+                                    <div style={{ marginTop: '0.35rem', fontSize: '0.74rem', fontWeight: 600, color: '#334155' }}>{longTrend.ai_warning}</div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
