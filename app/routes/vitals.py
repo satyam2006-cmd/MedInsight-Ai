@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response
 from ..services.vitals_service import VitalsService
 from ..services.report_service import generate_vitals_report
@@ -220,15 +220,18 @@ async def save_session(payload: SaveVitalsSessionRequest):
     if not service or not resolved_session_id:
         return JSONResponse(content={"error": "No active session"}, status_code=404)
 
+    patient_key = (payload.patient_id or "").strip()
+    if not patient_key:
+        return JSONResponse(content={"error": "patient_id is required to save session"}, status_code=400)
+
     try:
         supabase = get_supabase_client()
         summary = service.get_session_summary()
         samples = service.get_recent_samples()
-        patient_key = payload.patient_id or "anonymous"
         saved = db_service.create_vitals_session(
             supabase=supabase,
             session_id=resolved_session_id,
-            patient_id=payload.patient_id,
+            patient_id=patient_key,
             device_label=payload.device_label,
             condition_tag=payload.condition_tag,
             summary=summary,
@@ -262,7 +265,7 @@ async def save_session(payload: SaveVitalsSessionRequest):
 
 
 @router.get("/api/vitals/long-term-trend")
-async def get_long_term_trend(patient_id: str = "anonymous", days: int = 7):
+async def get_long_term_trend(patient_id: str = Query(..., min_length=1), days: int = 7):
     """Return daily aggregation and long-term trend analysis for a patient."""
     try:
         supabase = get_supabase_client()

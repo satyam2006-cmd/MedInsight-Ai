@@ -3,7 +3,11 @@
  * This file handles resolving environment variables and ensures consistency across the app.
  */
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const rawApiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : '');
+
+if (!rawApiUrl) {
+    throw new Error('Missing VITE_API_URL. Set it in your frontend environment file.');
+}
 
 // Remove trailing slash to avoid double slashes in fetch calls (e.g. /api//patients)
 export const API_BASE_URL = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;

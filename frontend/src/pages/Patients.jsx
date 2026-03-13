@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { UserPlus, Loader2, Phone, User, Activity, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
@@ -10,15 +10,34 @@ export default function PatientsPage() {
     const [patientId, setPatientId] = useState('');
     const [patientName, setPatientName] = useState('');
     const [patientNumber, setPatientNumber] = useState('');
-    const [language, setLanguage] = useState('English');
+    const [language, setLanguage] = useState('');
+    const [preferredLanguage, setPreferredLanguage] = useState('');
     const [report, setReport] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
     // Maintain a list of added patients
     const [patientsList, setPatientsList] = useState([]);
 
+    useEffect(() => {
+        const loadPreferredLanguage = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const preferred = user?.user_metadata?.preferred_language || user?.user_metadata?.language || '';
+                setPreferredLanguage(preferred);
+                if (preferred) setLanguage(preferred);
+            } catch (_) {
+                // Manual entry remains available.
+            }
+        };
+        loadPreferredLanguage();
+    }, []);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!language.trim()) {
+            alert('Set a report language or configure preferred language in profile.');
+            return;
+        }
         setIsLoading(true);
 
         try {
@@ -74,7 +93,7 @@ export default function PatientsPage() {
             setPatientId('');
             setPatientName('');
             setPatientNumber('');
-            setLanguage('English');
+            setLanguage(preferredLanguage || '');
             setReport(null);
             document.getElementById('report').value = '';
 
@@ -146,7 +165,7 @@ export default function PatientsPage() {
                             value={language}
                             onChange={(e) => setLanguage(e.target.value)}
                             required
-                            placeholder="e.g. Hindi, Spanish..."
+                            placeholder="Profile default or type language (e.g. Hindi, Spanish)"
                             className="neo-input"
                             style={{ width: '100%', padding: '0.6rem', border: '2px solid black', background: 'white' }}
                         />
