@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, Zap, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
 
 const VitalsMonitor = () => {
     const videoRef = useRef(null);
@@ -15,7 +15,7 @@ const VitalsMonitor = () => {
 
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
-        signal_quality: 0, motion_status: 'GOOD', health_score: 0, ews: 0, hrv: 0, spo2: 0,
+        signal_quality: 0, motion_status: 'GOOD', hrv: 0, spo2: 0,
         calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0, ai_summary: '',
     });
     const [error, setError] = useState(null);
@@ -353,8 +353,7 @@ const VitalsMonitor = () => {
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const getEWSLabel = (s) => s === 0 ? 'Low Risk' : s <= 4 ? 'Moderate' : 'High Risk';
-    const getEWSColor = (s) => s === 0 ? '#059669' : s <= 4 ? '#d97706' : '#dc2626';
+
     const getQualityColor = (q) => q > 60 ? '#059669' : q > 30 ? '#d97706' : '#dc2626';
 
     const isCalibrating = vitals.calibration_pct < 100 && vitals.bpm === 0;
@@ -545,31 +544,7 @@ const VitalsMonitor = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                {/* Health Score */}
-                                <div style={{ background: '#ecfdf5', padding: '1.25rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
-                                        <Zap size={20} color="#059669" /> HEALTH SCORE
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-                                        <span style={{ fontSize: '3rem', fontWeight: 800, color: '#059669' }}>{vitals.health_score || '--'}</span>
-                                        <span style={{ fontWeight: 700, color: '#666' }}>/100</span>
-                                    </div>
-                                </div>
 
-                                {/* EWS */}
-                                <div style={{ background: vitals.ews === 0 ? '#ecfdf5' : vitals.ews <= 4 ? '#fffbeb' : '#fef2f2', padding: '1.25rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666', fontWeight: 600, marginBottom: '1rem' }}>
-                                        <AlertCircle size={20} color={getEWSColor(vitals.ews)} /> EWS RISK
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-                                        <span style={{ fontSize: '3rem', fontWeight: 800, color: getEWSColor(vitals.ews) }}>{vitals.ews}</span>
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#666', marginTop: '0.3rem' }}>
-                                        {getEWSLabel(vitals.ews).toUpperCase()}
-                                    </div>
-                                </div>
-                            </div>
 
                             {/* Signal Quality */}
                             <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>

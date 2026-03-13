@@ -30,8 +30,7 @@ class VitalsService:
         self.signal_quality = 0.0
         self.motion_status = "GOOD" # Initialize motion status
         self.hrv_sdnn = 0.0
-        self.health_score = 0
-        self.ews_score = 0
+
         self.peak_indices = []
         self.calibration_pct = 0.0
         self.waveform = []  # last 200 green samples for frontend graph
@@ -171,9 +170,7 @@ class VitalsService:
                 # Compute HRV from peak intervals
                 self.hrv_sdnn = result.get('hrv', 0.0)
 
-                # Compute health score and EWS
-                self.health_score = self._compute_health_score()
-                self.ews_score = self._compute_ews()
+
 
                 # Emergency alerts
                 alert = self._check_alerts()
@@ -190,8 +187,7 @@ class VitalsService:
             "status": "tracking" if self.bpm > 0 else ("calibrating" if self.calibration_pct < 100 else "buffering"),
             "signal_quality": round(self.signal_quality, 1),
             "motion_status": self.motion_status,
-            "health_score": self.health_score,
-            "ews": self.ews_score,
+
             "hrv": round(self.hrv_sdnn, 1),
             "calibration_pct": round(self.calibration_pct, 1),
             "hr_min": round(self.hr_min, 1) if self.hr_min != float('inf') else 0,
@@ -230,77 +226,7 @@ class VitalsService:
             return alert_str
         return "Normal"
 
-    def _compute_health_score(self) -> int:
-        """Composite health score 0-100 based on HR, RR, HRV, signal quality."""
-        score = 100
 
-        # HR penalty
-        if self.bpm > 0:
-            if self.bpm < 50 or self.bpm > 120:
-                score -= 30
-            elif self.bpm < 55 or self.bpm > 110:
-                score -= 15
-            elif self.bpm < 60 or self.bpm > 100:
-                score -= 5
-
-        # RR penalty
-        if self.respiration_rate > 0:
-            if self.respiration_rate < 8 or self.respiration_rate > 24:
-                score -= 25
-            elif self.respiration_rate < 10 or self.respiration_rate > 20:
-                score -= 10
-
-        # SpO2 penalty
-        if self.spo2 > 0:
-            if self.spo2 < 92:
-                score -= 30
-            elif self.spo2 < 95:
-                score -= 10
-
-        # HRV bonus (higher is better, >50ms is good)
-        if self.hrv_sdnn > 50:
-            score += 5
-        elif self.hrv_sdnn < 20 and self.hrv_sdnn > 0:
-            score -= 10
-
-        # Signal quality factor
-        quality_factor = self.signal_quality / 100.0
-        score = int(score * max(0.5, quality_factor))
-
-        return max(0, min(100, score))
-
-    def _compute_ews(self) -> int:
-        """Early Warning Score — clinical risk assessment."""
-        ews = 0
-
-        # Heart rate scoring
-        if self.bpm > 0:
-            if self.bpm > 130 or self.bpm < 40:
-                ews += 3
-            elif self.bpm > 110 or self.bpm < 50:
-                ews += 2
-            elif self.bpm > 100 or self.bpm < 55:
-                ews += 1
-
-        # Respiration rate scoring
-        if self.respiration_rate > 0:
-            if self.respiration_rate > 25 or self.respiration_rate < 8:
-                ews += 3
-            elif self.respiration_rate > 21 or self.respiration_rate < 9:
-                ews += 2
-            elif self.respiration_rate > 20 or self.respiration_rate < 12:
-                ews += 1
-
-        # SpO2 scoring
-        if self.spo2 > 0:
-            if self.spo2 <= 91:
-                ews += 3
-            elif self.spo2 <= 93:
-                ews += 2
-            elif self.spo2 <= 95:
-                ews += 1
-
-        return ews
 
     # =====================================================
     # SIGNAL PROCESSING ENGINE (ACCURACY-FOCUSED REWRITE)
@@ -868,8 +794,7 @@ class VitalsService:
             "avg_rr": round(self.respiration_rate, 1),
             "avg_spo2": round(self.spo2, 1),
             "avg_signal_quality": round(self.signal_quality, 1),
-            "health_score": self.health_score,
-            "ews": self.ews_score,
+
             "hrv_sdnn": round(self.hrv_sdnn, 1),
             "alerts": self.alerts_history[-10:],
             "hr_trend": self.hr_readings,
