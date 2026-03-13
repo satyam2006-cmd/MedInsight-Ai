@@ -977,8 +977,8 @@ const VitalsMonitor = () => {
                 )}
 
                 {/* Main Vitals */}
-                <div className="neo-card" style={{ background: 'white', padding: '1.25rem', flex: 1 }}>
-                    <h3 style={{ margin: '0 0 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="neo-card" style={{ background: '#f3f4f6', padding: '1.25rem', flex: 1 }}>
+                    <h3 style={{ margin: '0 0 1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '2rem', letterSpacing: '-0.3px' }}>
                         <Activity size={24} color="var(--primary)" /> Biometric Analysis
                     </h3>
 
@@ -986,7 +986,7 @@ const VitalsMonitor = () => {
                         <>
                             <div className="vitals-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.8rem', marginBottom: '1rem' }}>
                                 {/* Heart Rate */}
-                                <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card" style={{ background: '#eef0f6' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <Heart size={16} color="#ff4d4d" fill={faceDetected ? "#ff4d4d" : "none"} className={faceDetected ? "animate-pulse" : ""} /> HEART RATE
                                     </div>
@@ -1000,7 +1000,7 @@ const VitalsMonitor = () => {
                                 </div>
 
                                 {/* Respiration */}
-                                <div style={{ background: '#fff9f5', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card" style={{ background: '#f3efea' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <Wind size={16} color="#3b82f6" /> RESPIRATION
                                     </div>
@@ -1011,7 +1011,7 @@ const VitalsMonitor = () => {
                                 </div>
 
                                 {/* SpO2 */}
-                                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card" style={{ background: '#eaf6ef' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
                                         <Droplets size={16} color="#0ea5e9" /> SpO₂ (EST.)
                                     </div>
@@ -1021,7 +1021,7 @@ const VitalsMonitor = () => {
                                     </div>
                                 </div>
 
-                                <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card" style={{ background: '#eef0f6' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <BarChart3 size={16} color="#6366f1" /> HRV
                                     </div>
@@ -1034,7 +1034,7 @@ const VitalsMonitor = () => {
                                     </div>
                                 </div>
 
-                                <div style={{ background: stressColors.bg, padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card" style={{ background: stressColors.bg }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <Activity size={16} color={stressColors.tone} /> STRESS LEVEL
                                     </div>
@@ -1047,7 +1047,7 @@ const VitalsMonitor = () => {
                                     </div>
                                 </div>
 
-                                <div style={{ background: riskColors.bg, padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card" style={{ background: riskColors.bg }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <Shield size={16} color={riskColors.tone} /> AI RISK
                                     </div>
@@ -1059,7 +1059,7 @@ const VitalsMonitor = () => {
                             </div>
 
                             <div className="vitals-trend-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-                                <div style={{ background: '#fffaf0', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card metric-card-wide" style={{ background: '#f3efea' }}>
                                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.45rem' }}>RESPIRATORY VARIABILITY</div>
                                     <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f766e', lineHeight: 1.1 }}>{vitals.respiratory_variability_status || 'Collecting data'}</div>
                                     <div style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: '#334155' }}>
@@ -1067,7 +1067,7 @@ const VitalsMonitor = () => {
                                     </div>
                                 </div>
 
-                                <div style={{ background: trendColors.bg, padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                <div className="metric-card metric-card-wide" style={{ background: trendColors.bg }}>
                                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.45rem' }}>VITAL TREND</div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
                                         <span style={{ fontSize: '1.8rem', color: trendColors.tone }}>{trendData.arrow || '->'}</span>
@@ -1085,7 +1085,7 @@ const VitalsMonitor = () => {
 
 
                             {/* Signal Quality */}
-                            <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            <div style={{ marginTop: '1rem', padding: '1rem', background: '#e8eaee', borderRadius: '16px', border: '1px solid #d4d7dd' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>SIGNAL QUALITY</span>
@@ -1262,6 +1262,21 @@ const VitalsMonitor = () => {
                 .vitals-metrics-grid > div,
                 .vitals-trend-grid > div {
                     min-width: 0;
+                }
+
+                .metric-card {
+                    padding: 1rem;
+                    border-radius: 22px;
+                    border: 3px solid #111827;
+                    box-shadow: 5px 5px 0px #000;
+                    min-height: 156px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+
+                .metric-card-wide {
+                    min-height: 174px;
                 }
 
                 @media (max-width: 1200px) {
