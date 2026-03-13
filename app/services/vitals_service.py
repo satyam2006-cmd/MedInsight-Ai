@@ -73,65 +73,68 @@ class VitalsService:
         return self.bpm, self.respiration_rate, self.fps, alert, spectrum
 
     def _calculate_vitals(self) -> Tuple[float, float, List[float]]:
+        """
+        Core engine calculation for heart rate (BPM) and respiration rate (RPM).
+        Uses JADE ICA to separate signal sources and spectral analysis to identify vitals.
+        """
         try:
-            # Convert buffer to numpy array (N, 3) where N is number of samples
-            X = np.array(self.data_buffer).T # Shape (3, N) for JADE
+            # 1. Prepare and Normalization
+            X = np.array(self.data_buffer).T # Shape (3, N)
             L = X.shape[1]
+            X_proc = np.zeros_like(X, dtype=float)
             
-            # 1. Normalize and Detrend
-            X_detrended = np.zeros_like(X, dtype=float)
             for i in range(3):
-                X_detrended[i] = scipy.signal.detrend(X[i])
-                X_detrended[i] = (X_detrended[i] - np.mean(X_detrended[i])) / (np.std(X_detrended[i]) + 1e-6)
+                # Detrend to remove slow drifts
+                X_proc[i] = scipy.signal.detrend(X[i])
+                # Z-score normalization for ICA stability
+                X_proc[i] = (X_proc[i] - np.mean(X_proc[i])) / (np.std(X_proc[i]) + 1e-6)
             
-            # 2. Run JADE ICA
-            # Ensure X_detrended is passed as an array, jadeR handles conversion to matrix
-            B = jadeR(X_detrended)
-            # ICA sources Y = B * X (convert to array for easier indexing)
-            ICA = np.asarray(np.dot(B, X_detrended)) # Shape (3, N)
+            # 2. Source Separation (Vitals Engine ICA)
+            B = jadeR(X_proc)
+            ICA = np.asarray(np.dot(B, X_proc)) # Shape (3, N)
             
-            # 3. Analyze each component to find the pulse
+            # 3. Spectral Analysis and Source Selection
             best_bpm = self.bpm
             best_rpm = self.respiration_rate
             best_spectrum = []
             
             component_scores = []
-            component_vitals = [] # List of (bpm, rpm, spectrum)
+            component_vitals = []
             
             for i in range(3):
-                # Flatten source to 1D array
                 source = ICA[i].flatten()
                 
-                # Apply windowing
+                # Apply Hamming window and FFT
                 windowed = np.hamming(L) * source
                 fft_data = np.abs(np.fft.rfft(windowed))
                 freqs = float(self.fps) / L * np.arange(L // 2 + 1)
                 freqs_bpm = 60.0 * freqs
                 
-                # Heart Rate range (45-180 BPM)
-                hr_idx = np.where((freqs_bpm >= 45) & (freqs_bpm <= 180))[0]
+                # Filter for Heart Rate (45-180 BPM)
+                hr_mask = (freqs_bpm >= 45) & (freqs_bpm <= 180)
+                hr_idx = np.where(hr_mask)[0]
+                
                 if len(hr_idx) > 0:
-                    # Magnitude of FFT components in heart rate range
                     hr_mags = fft_data[hr_idx]
-                    max_hr_val = np.max(hr_mags)
-                    total_power = np.sum(hr_mags)
-                    
-                    # Score based on peak prominence relative to total power in range
-                    score = max_hr_val / (total_power + 1e-6)
-                    
                     peak_idx = hr_idx[np.argmax(hr_mags)]
                     bpm_val = float(freqs_bpm[peak_idx])
                     
-                    # Also calculate RPM for this component
+                    # Score by peak-to-sum power ratio (prominence)
+                    max_p = np.max(hr_mags)
+                    sum_p = np.sum(hr_mags)
+                    score = max_p / (sum_p + 1e-6)
+                    
+                    # Respiration Rate (8-25 RPM)
                     freqs_rpm = 60.0 * freqs
-                    rr_idx = np.where((freqs_rpm >= 8) & (freqs_rpm <= 30))[0]
+                    rr_mask = (freqs_rpm >= 8) & (freqs_rpm <= 25)
+                    rr_idx = np.where(rr_mask)[0]
                     rpm_val = 0.0
                     if len(rr_idx) > 0:
                         rr_peak_idx = rr_idx[np.argmax(fft_data[rr_idx])]
                         rpm_val = float(freqs_rpm[rr_peak_idx])
                     
-                    # Store normalized spectrum for visualization
-                    norm_spectrum = (hr_mags / (max_hr_val + 1e-6)).tolist()
+                    # Normalize spectrum for telemetry/visualization
+                    norm_spectrum = (hr_mags / (max_p + 1e-6)).tolist()
                     
                     component_scores.append(score)
                     component_vitals.append((bpm_val, rpm_val, norm_spectrum))
@@ -139,7 +142,7 @@ class VitalsService:
                     component_scores.append(-1)
                     component_vitals.append((0, 0, []))
             
-            # Select component with highest prominence score
+            # Select the most likely pulse source
             best_idx = int(np.argmax(component_scores))
             if component_scores[best_idx] > 0:
                 best_bpm, best_rpm, best_spectrum = component_vitals[best_idx]
@@ -147,7 +150,5 @@ class VitalsService:
             return float(best_bpm), float(best_rpm), best_spectrum
             
         except Exception as e:
-            print(f"Error in ICA vitals calculation: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"Vitals Engine Error: {e}")
             return self.bpm, self.respiration_rate, []
