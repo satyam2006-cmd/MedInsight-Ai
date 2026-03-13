@@ -45,8 +45,32 @@ const VitalsMonitor = () => {
     };
 
     const pickPreferredCamera = (devices) => {
+        const getStressColors = (level) => {
+            if (level === 'HIGH') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
+            if (level === 'MODERATE') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
+            return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
+        };
+        const getRiskColors = (level) => {
+            if (level === 'CRITICAL') return { tone: '#dc2626', bg: '#fff1f2', accent: '#fecdd3' };
+            if (level === 'WARNING') return { tone: '#d97706', bg: '#fff7ed', accent: '#fed7aa' };
+            return { tone: '#059669', bg: '#ecfdf5', accent: '#a7f3d0' };
+        };
+        const getTrendColors = (direction) => {
+            if (direction === 'increasing') return { tone: '#2563eb', bg: '#eff6ff', accent: '#bfdbfe' };
+            if (direction === 'decreasing') return { tone: '#7c3aed', bg: '#f5f3ff', accent: '#ddd6fe' };
+            return { tone: '#475569', bg: '#f8fafc', accent: '#cbd5e1' };
+        };
+        const trendDotColor = (direction) => {
+            if (direction === 'increasing') return '#2563eb';
+            if (direction === 'decreasing') return '#7c3aed';
+            return '#64748b';
+        };
         if (!devices?.length) return '';
         const phoneHints = ['droidcam', 'iriun', 'epoccam', 'camo', 'phone', 'android', 'iphone', 'continuity'];
+        const stressColors = getStressColors(vitals.stress_level);
+        const riskColors = getRiskColors(vitals.ai_risk);
+        const trendColors = getTrendColors(vitals.vital_trend?.direction);
+        const trendData = vitals.vital_trend || { direction: 'stable', label: 'Stable', summary: 'Gathering baseline', heart_rate: 'stable', respiration: 'stable', spo2: 'stable', arrow: '->' };
         const preferred = devices.find((d) => phoneHints.some((h) => (d.label || '').toLowerCase().includes(h)));
         return preferred?.deviceId || devices[0].deviceId;
     };
@@ -850,6 +874,66 @@ const VitalsMonitor = () => {
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
                                         <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.spo2 || '--'}</span>
                                         <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>%</span>
+                                    </div>
+                                </div>
+
+                                <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                                        <BarChart3 size={16} color="#6366f1" /> HRV
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
+                                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1a1a1a' }}>{vitals.hrv || '--'}</span>
+                                        <span style={{ fontWeight: 700, color: '#666', fontSize: '0.7rem' }}>ms</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.7rem', color: '#6366f1', marginTop: '0.2rem', fontWeight: 600 }}>
+                                        {vitals.hrv_status || 'Collecting data'}
+                                    </div>
+                                </div>
+
+                                <div style={{ background: stressColors.bg, padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                                        <Activity size={16} color={stressColors.tone} /> STRESS LEVEL
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginBottom: '0.35rem' }}>
+                                        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: stressColors.tone }}>{vitals.stress_level || 'LOW'}</span>
+                                        <span style={{ fontWeight: 800, color: '#111827', fontSize: '1.9rem' }}>{Math.round(vitals.stress_score || 0)}%</span>
+                                    </div>
+                                    <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${Math.min(100, Math.max(0, vitals.stress_score || 0))}%`, height: '100%', background: stressColors.tone, transition: 'width 0.3s' }} />
+                                    </div>
+                                </div>
+
+                                <div style={{ background: riskColors.bg, padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                                        <Shield size={16} color={riskColors.tone} /> AI RISK
+                                    </div>
+                                    <div style={{ fontSize: '2rem', fontWeight: 800, color: riskColors.tone, lineHeight: 1.1 }}>{vitals.ai_risk || 'NORMAL'}</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.35rem' }}>
+                                        Classifier confidence {Math.round((vitals.ai_risk_confidence || 0) * 100)}%
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div style={{ background: '#fffaf0', padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.45rem' }}>RESPIRATORY VARIABILITY</div>
+                                    <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f766e', lineHeight: 1.1 }}>{vitals.respiratory_variability_status || 'Collecting data'}</div>
+                                    <div style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: '#334155' }}>
+                                        Interval spread {Math.round(vitals.respiratory_variability || 0)} ms
+                                    </div>
+                                </div>
+
+                                <div style={{ background: trendColors.bg, padding: '1rem', borderRadius: '16px', border: '2px solid black', boxShadow: '3px 3px 0px black' }}>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.45rem' }}>VITAL TREND</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                                        <span style={{ fontSize: '1.8rem', color: trendColors.tone }}>{trendData.arrow || '->'}</span>
+                                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>{trendData.label || 'Stable'}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.85rem', color: '#334155', marginBottom: '0.4rem' }}>{trendData.summary || 'Gathering baseline'}</div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '0.72rem', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '999px', padding: '0.15rem 0.45rem' }}><span style={{ color: trendDotColor(trendData.heart_rate), marginRight: '0.2rem' }}>●</span>HR</span>
+                                        <span style={{ fontSize: '0.72rem', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '999px', padding: '0.15rem 0.45rem' }}><span style={{ color: trendDotColor(trendData.respiration), marginRight: '0.2rem' }}>●</span>RR</span>
+                                        <span style={{ fontSize: '0.72rem', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '999px', padding: '0.15rem 0.45rem' }}><span style={{ color: trendDotColor(trendData.spo2), marginRight: '0.2rem' }}>●</span>SpO2</span>
                                     </div>
                                 </div>
                             </div>
