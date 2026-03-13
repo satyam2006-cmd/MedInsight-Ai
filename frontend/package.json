@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "@mediapipe/face_detection": "^0.4.1646425229",
     "@supabase/supabase-js": "^2.98.0",
     "@xenova/transformers": "^2.17.2",
     "clsx": "^2.1.0",
