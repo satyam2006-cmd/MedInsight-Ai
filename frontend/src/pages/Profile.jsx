@@ -154,19 +154,37 @@ const ProfilePage = () => {
     const isDataMissing = !userData.name || userData.name === "Hospital Name" || !userData.username || !userData.phone;
 
     return (
-        <div style={{ position: 'fixed', inset: 0, background: '#f8f9fa', padding: '2rem', overflowY: 'auto', zIndex: 30 }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '3rem' }}>
+        <div className="v2-shell" role="main" aria-label="Profile workspace">
+            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
+                <div>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
+                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Hospital Profile</h2>
+                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
+                        Manage identity details used in report branding and patient communication.
+                    </p>
+                </div>
+                <button type="button" className="neo-btn" onClick={() => navigate('/dash')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Secure Workspace
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Reports Layer
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Back to Mission Control
+                </button>
+            </aside>
+
+            <section className="v2-main" style={{ paddingBottom: '2rem' }}>
+                <div style={{ maxWidth: '900px', width: '100%' }}>
 
                 {isIncomplete && isDataMissing && (
-                    <div style={{
+                    <div className="panel-soft" style={{
                         background: '#fff3cd',
-                        border: '3px solid black',
                         padding: '1.5rem',
                         marginBottom: '2rem',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '1rem',
-                        boxShadow: '6px 6px 0px #856404'
+                        gap: '1rem'
                     }}>
                         <AlertTriangle size={36} color="#856404" />
                         <div>
@@ -189,14 +207,13 @@ const ProfilePage = () => {
                         color: isDataMissing ? '#666' : 'black',
                         padding: '0.6rem 1.2rem',
                         opacity: isDataMissing ? 0.7 : 1,
-                        cursor: isDataMissing ? 'not-allowed' : 'pointer',
-                        boxShadow: isDataMissing ? 'none' : '4px 4px 0px black'
+                        cursor: isDataMissing ? 'not-allowed' : 'pointer'
                     }}
                 >
                     <ArrowLeft size={18} /> {isDataMissing ? "Complete profile to continue" : "Back to Dashboard"}
                 </button>
 
-                <div className="neo-card" style={{ background: 'white', padding: '3rem', position: 'relative', overflow: 'hidden' }}>
+                <div className="neo-card panel-soft" style={{ background: 'white', padding: '3rem', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '8px', background: 'var(--primary, #5227FF)' }}></div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', marginBottom: '3rem' }}>
@@ -207,8 +224,8 @@ const ProfilePage = () => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            border: '4px solid black',
-                            boxShadow: '6px 6px 0px black'
+                            border: '1px solid rgba(32, 42, 48, 0.25)',
+                            borderRadius: '12px'
                         }}>
                             <Building size={64} color="#555" />
                         </div>
@@ -219,13 +236,8 @@ const ProfilePage = () => {
                                     <input
                                         value={editForm.name}
                                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                        style={{
-                                            fontSize: '1.5rem',
-                                            padding: '0.5rem',
-                                            border: '3px solid black',
-                                            fontWeight: 700,
-                                            width: '100%'
-                                        }}
+                                        className="input-v2"
+                                        style={{ fontSize: '1.5rem', padding: '0.5rem', fontWeight: 700, width: '100%' }}
                                     />
                                 </div>
                             ) : (
@@ -241,7 +253,7 @@ const ProfilePage = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ padding: '0.8rem', background: '#f0f0f0', border: '2px solid black' }}>
+                                <div className="icon-chip">
                                     <Mail size={20} />
                                 </div>
                                 <div style={{ flex: 1 }}>
@@ -251,14 +263,8 @@ const ProfilePage = () => {
                                             type="email"
                                             value={editForm.email}
                                             onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                            style={{
-                                                fontSize: '1.1rem',
-                                                padding: '0.3rem 0.5rem',
-                                                border: '2px solid black',
-                                                fontWeight: 600,
-                                                width: '100%',
-                                                marginTop: '0.2rem'
-                                            }}
+                                            className="input-v2"
+                                            style={{ fontSize: '1.1rem', fontWeight: 600, width: '100%', marginTop: '0.2rem' }}
                                         />
                                     ) : (
                                         <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{userData.email}</p>
@@ -267,7 +273,7 @@ const ProfilePage = () => {
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ padding: '0.8rem', background: '#f0f0f0', border: '2px solid black' }}>
+                                <div className="icon-chip">
                                     <User size={20} />
                                 </div>
                                 <div style={{ flex: 1 }}>
@@ -276,14 +282,8 @@ const ProfilePage = () => {
                                         <input
                                             value={editForm.username}
                                             onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                                            style={{
-                                                fontSize: '1.1rem',
-                                                padding: '0.3rem 0.5rem',
-                                                border: '2px solid black',
-                                                fontWeight: 600,
-                                                width: '100%',
-                                                marginTop: '0.2rem'
-                                            }}
+                                            className="input-v2"
+                                            style={{ fontSize: '1.1rem', fontWeight: 600, width: '100%', marginTop: '0.2rem' }}
                                         />
                                     ) : (
                                         <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{userData.username}</p>
@@ -294,7 +294,7 @@ const ProfilePage = () => {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ padding: '0.8rem', background: '#f0f0f0', border: '2px solid black' }}>
+                                <div className="icon-chip">
                                     <Phone size={20} />
                                 </div>
                                 <div style={{ flex: 1 }}>
@@ -305,25 +305,15 @@ const ProfilePage = () => {
                                                 value={editForm.countryCode}
                                                 onChange={(e) => setEditForm({ ...editForm, countryCode: e.target.value })}
                                                 placeholder="+91"
-                                                style={{
-                                                    fontSize: '1.1rem',
-                                                    padding: '0.3rem 0.5rem',
-                                                    border: '2px solid black',
-                                                    fontWeight: 600,
-                                                    width: '70px',
-                                                }}
+                                                className="input-v2"
+                                                style={{ fontSize: '1.1rem', fontWeight: 600, width: '70px' }}
                                             />
                                             <input
                                                 value={editForm.phone}
                                                 onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                                                 placeholder="00000 00000"
-                                                style={{
-                                                    fontSize: '1.1rem',
-                                                    padding: '0.3rem 0.5rem',
-                                                    border: '2px solid black',
-                                                    fontWeight: 600,
-                                                    flex: 1,
-                                                }}
+                                                className="input-v2"
+                                                style={{ fontSize: '1.1rem', fontWeight: 600, flex: 1 }}
                                             />
                                         </div>
                                     ) : (
@@ -333,7 +323,7 @@ const ProfilePage = () => {
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ padding: '0.8rem', background: '#f0f0f0', border: '2px solid black' }}>
+                                <div className="icon-chip">
                                     <Calendar size={20} />
                                 </div>
                                 <div>
@@ -343,7 +333,7 @@ const ProfilePage = () => {
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ padding: '0.8rem', background: '#f0f0f0', border: '2px solid black' }}>
+                                <div className="icon-chip">
                                     <User size={20} />
                                 </div>
                                 <div style={{ flex: 1 }}>
@@ -355,14 +345,8 @@ const ProfilePage = () => {
                                             max="100"
                                             value={editForm.age}
                                             onChange={(e) => setEditForm({ ...editForm, age: e.target.value })}
-                                            style={{
-                                                fontSize: '1.1rem',
-                                                padding: '0.3rem 0.5rem',
-                                                border: '2px solid black',
-                                                fontWeight: 600,
-                                                width: '120px',
-                                                marginTop: '0.2rem'
-                                            }}
+                                            className="input-v2"
+                                            style={{ fontSize: '1.1rem', fontWeight: 600, width: '120px', marginTop: '0.2rem' }}
                                         />
                                     ) : (
                                         <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{userData.age || "Not set"}</p>
@@ -424,7 +408,7 @@ const ProfilePage = () => {
                         )}
                     </div>
                 </div>
-            </div>
+                </div>
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @keyframes spin {
@@ -435,6 +419,7 @@ const ProfilePage = () => {
                     animation: spin 1s linear infinite;
                 }
             `}} />
+            </section>
         </div>
     );
 };

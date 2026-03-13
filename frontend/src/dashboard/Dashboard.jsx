@@ -1,134 +1,183 @@
 import React from 'react';
-import StaggeredMenu from '../components/StaggeredMenu';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Users, Settings, Bell, FileText, ArrowLeft, Heart } from 'lucide-react';
+import {
+    Activity,
+    ArrowRight,
+    Bell,
+    FileText,
+    HeartPulse,
+    LayoutPanelLeft,
+    ShieldPlus,
+    UserRound,
+    Users
+} from 'lucide-react';
 
-const Dashboard = ({ onBack }) => {
+const statTiles = [
+    {
+        label: 'Patient Capacity',
+        value: '1,248',
+        hint: 'Tracked in registry',
+        icon: Users,
+        tone: 'rgba(47, 93, 98, 0.12)'
+    },
+    {
+        label: 'AI Reports',
+        value: '342',
+        hint: 'Ready for review',
+        icon: FileText,
+        tone: 'rgba(200, 77, 47, 0.12)'
+    },
+    {
+        label: 'System Status',
+        value: 'Healthy',
+        hint: 'Inference and data nodes synced',
+        icon: Activity,
+        tone: 'rgba(20, 122, 85, 0.14)'
+    }
+];
+
+const workspaceActions = [
+    {
+        title: 'Vitals Monitoring Session',
+        description: 'Open the live capture lab and launch contactless patient checkups.',
+        route: '/vitals',
+        icon: HeartPulse
+    },
+    {
+        title: 'Patient Intake + Upload',
+        description: 'Register a patient with report documents and language preference.',
+        route: '/patients',
+        icon: ShieldPlus
+    },
+    {
+        title: 'Report Distribution',
+        description: 'Access all generated analyses and share summaries with patients.',
+        route: '/reports',
+        icon: Bell
+    }
+];
+
+const Dashboard = () => {
     const navigate = useNavigate();
-    const menuItems = [
-        { label: 'Hub', link: '/', ariaLabel: 'Go to Hub', hoverColor: '#a855f7' },
-        { label: 'Overview', link: '/dash', ariaLabel: 'Go to Overview', hoverColor: 'yellow' },
-        { label: 'Patients', link: '/patients', ariaLabel: 'Go to Patients', hoverColor: 'red' },
-        { label: 'Vitals', link: '/vitals', ariaLabel: 'Go to Vitals', hoverColor: 'var(--primary)' },
-        { label: 'Reports', link: '/reports', ariaLabel: 'Go to Reports', hoverColor: '#4d96ff' },
-        { label: 'Analyzer', link: '/analyzer', ariaLabel: 'Go to Analyzer', hoverColor: '#a855f7' },
-        { label: 'Profile', link: '/profile', ariaLabel: 'Go to Profile', hoverColor: 'green' }
-    ];
-
-    const socialItems = [
-        { label: 'Help', link: '#' },
-        { label: 'Support', link: '#' },
-        { label: 'Documentation', link: '#' }
-    ];
 
     return (
-        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', fontFamily: 'inherit', overflowY: 'auto', zIndex: 30 }}>
-            <StaggeredMenu
-                position="right"
-                items={menuItems}
-                socialItems={socialItems}
-                logoUrl=""
-                accentColor="#5227FF"
-                menuButtonColor="#333"
-                openMenuButtonColor="#000"
-                changeMenuColorOnOpen={true}
-                isFixed={true}
-                colors={['#B19EEF', '#5227FF']}
-            />
+        <div className="v2-shell" role="main" aria-label="Hospital secure workspace">
+            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1.25rem' }}>
+                <div>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Secure Mode</div>
+                    <h1 style={{ color: '#f8f3ea', marginTop: '0.8rem', fontSize: '1.9rem' }}>Hospital Workspace</h1>
+                    <p style={{ marginTop: '0.7rem', color: '#d6ded3' }}>
+                        One place to navigate critical modules and keep diagnostics, records, and reporting aligned.
+                    </p>
+                </div>
 
-            {/* Dashboard Main Content */}
-            <div style={{ padding: '3rem 2rem', maxWidth: '1200px', margin: '0 auto', zIndex: 1, position: 'relative' }}>
-                <button
-                    onClick={() => navigate('/')}
-                    className="neo-btn"
-                    style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black', padding: '0.5rem 1rem' }}
-                >
-                    <ArrowLeft size={18} /> Back to Hub
-                </button>
-                <header style={{ marginBottom: '2rem' }}>
-                    <h1 style={{ fontSize: '2.5rem', margin: '0', color: '#1a1a1a', letterSpacing: '-1px' }}>Hospital Dashboard</h1>
-                    <p style={{ color: '#666', marginTop: '0.5rem', fontSize: '1.1rem' }}>Welcome back. Here is your daily overview.</p>
+                <div className="neo-card" style={{ background: 'rgba(240, 244, 236, 0.08)', borderColor: '#d5e8e0' }}>
+                    <div className="kicker" style={{ color: '#d6e5df' }}>Quick Links</div>
+                    <div style={{ display: 'grid', gap: '0.55rem', marginTop: '0.8rem' }}>
+                        <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                            Mission Control <ArrowRight size={15} />
+                        </button>
+                        <button type="button" className="neo-btn" onClick={() => navigate('/analyzer')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                            Report Forge <ArrowRight size={15} />
+                        </button>
+                        <button type="button" className="neo-btn" onClick={() => navigate('/profile')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                            Hospital Profile <ArrowRight size={15} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="neo-card" style={{ background: 'rgba(240, 244, 236, 0.08)', borderColor: '#d5e8e0' }}>
+                    <div className="kicker" style={{ color: '#d6e5df' }}>Command</div>
+                    <div style={{ marginTop: '0.8rem', display: 'grid', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f8f3ea', fontWeight: 700 }}>
+                            <span>View</span>
+                            <span>Operations</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f8f3ea', fontWeight: 700 }}>
+                            <span>Mode</span>
+                            <span>Real-time</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <section className="v2-main">
+                <header className="neo-card staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div>
+                            <div className="kicker">Control Center</div>
+                            <h2 style={{ marginTop: '0.5rem', fontSize: 'clamp(1.8rem, 4vw, 2.9rem)' }}>Clinical Operations Radar</h2>
+                            <p style={{ maxWidth: 680, marginTop: '0.7rem' }}>
+                                Reorganized for flow-first decision making: intake, vitals acquisition, AI interpretation, and patient communication are now exposed as deliberate paths.
+                            </p>
+                        </div>
+                        <button type="button" className="neo-btn" onClick={() => navigate('/reports')}>
+                            Review Reports <ArrowRight size={16} />
+                        </button>
+                    </div>
                 </header>
 
-                {/* Stats Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
-                    <div className="neo-card" style={{ background: 'white', borderLeft: '8px solid var(--primary)', padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ color: '#666', margin: 0, fontWeight: 600 }}>Total Patients</p>
-                                <h2 style={{ fontSize: '2rem', margin: '0.5rem 0 0', color: '#000' }}>1,248</h2>
-                            </div>
-                            <Users size={32} color="var(--primary)" />
-                        </div>
-                    </div>
+                <section className="staggered-enter" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                    {statTiles.map((tile) => {
+                        const Icon = tile.icon;
+                        return (
+                            <article key={tile.label} className="neo-card" style={{ background: tile.tone, display: 'grid', gap: '0.65rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span className="kicker">{tile.label}</span>
+                                    <Icon size={20} />
+                                </div>
+                                <h3 style={{ fontSize: '1.8rem', margin: 0 }}>{tile.value}</h3>
+                                <p>{tile.hint}</p>
+                            </article>
+                        );
+                    })}
+                </section>
 
-                    <div className="neo-card" style={{ background: 'white', borderLeft: '8px solid var(--secondary)', padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ color: '#666', margin: 0, fontWeight: 600 }}>Active Reports</p>
-                                <h2 style={{ fontSize: '2rem', margin: '0.5rem 0 0', color: '#000' }}>342</h2>
-                            </div>
-                            <FileText size={32} color="var(--secondary)" />
+                <section className="staggered-enter" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                    <article className="neo-card" style={{ display: 'grid', gap: '0.9rem' }}>
+                        <div className="kicker">
+                            <LayoutPanelLeft size={14} /> Priority Workstreams
                         </div>
-                    </div>
+                        {workspaceActions.map((action) => {
+                            const Icon = action.icon;
+                            return (
+                                <button
+                                    key={action.title}
+                                    type="button"
+                                    className="neo-card"
+                                    onClick={() => navigate(action.route)}
+                                    style={{
+                                        textAlign: 'left',
+                                        display: 'grid',
+                                        gap: '0.4rem',
+                                        cursor: 'pointer',
+                                        padding: '1.1rem',
+                                        background: 'var(--bg-elevated)'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <h3 style={{ fontSize: '1rem', margin: 0 }}>{action.title}</h3>
+                                        <Icon size={18} />
+                                    </div>
+                                    <p>{action.description}</p>
+                                </button>
+                            );
+                        })}
+                    </article>
 
-                    <div className="neo-card" style={{ background: 'white', borderLeft: '8px solid var(--accent)', padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ color: '#666', margin: 0, fontWeight: 600 }}>System Status</p>
-                                <h2 style={{ fontSize: '2rem', margin: '0.5rem 0 0', color: '#000' }}>Healthy</h2>
-                            </div>
-                            <Activity size={32} color="var(--accent)" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Vitals & Recent Activity Section */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
-                    <div 
-                        onClick={() => navigate('/vitals')}
-                        className="neo-card" 
-                        style={{ 
-                            background: 'var(--primary)', 
-                            padding: '2rem', 
-                            cursor: 'pointer',
-                            color: 'white',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            transition: 'transform 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-4px, -4px)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(0, 0)'}
-                    >
-                        <Heart size={64} style={{ marginBottom: '1rem' }} fill="white" />
-                        <h2 style={{ fontSize: '2rem', margin: '0 0 0.5rem' }}>Vitals Monitor</h2>
-                        <p style={{ opacity: 0.9, fontWeight: 500 }}>Launch contactless health monitoring</p>
-                    </div>
-                    
-                    <div className="neo-card" style={{ background: 'white', padding: '2rem' }}>
-                        <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Bell size={24} /> Recent Activities
-                        </h3>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                            <li style={{ padding: '1rem 0', borderBottom: '2px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ fontWeight: 600 }}>Patient John Doe's blood report analyzed</span>
-                                <span style={{ color: '#666' }}>2 mins ago</span>
-                            </li>
-                            <li style={{ padding: '1rem 0', borderBottom: '2px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ fontWeight: 600 }}>New appointment booked for Dr. Smith</span>
-                                <span style={{ color: '#666' }}>1 hour ago</span>
-                            </li>
-                            <li style={{ padding: '1rem 0', display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ fontWeight: 600 }}>System backup completed successfully</span>
-                                <span style={{ color: '#666' }}>4 hours ago</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+                    <article className="neo-card" style={{ background: 'linear-gradient(150deg, #f4ece2, #ecf2e7)', display: 'grid', gap: '0.9rem' }}>
+                        <div className="kicker">Recommended Sequence</div>
+                        <h3 style={{ fontSize: '1.2rem', margin: 0 }}>Start with Profile Integrity</h3>
+                        <p>Keep hospital identity and language settings current to improve share accuracy and patient-facing clarity.</p>
+                        <button type="button" className="neo-btn" onClick={() => navigate('/profile')}>
+                            Open Profile <UserRound size={15} />
+                        </button>
+                        <button type="button" className="neo-btn" onClick={() => navigate('/vitals')} style={{ background: 'var(--secondary)' }}>
+                            Launch Vitals Session <HeartPulse size={15} />
+                        </button>
+                    </article>
+                </section>
+            </section>
         </div>
     );
 };

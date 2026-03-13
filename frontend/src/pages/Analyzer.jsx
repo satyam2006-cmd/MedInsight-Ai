@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Search, Languages, Loader2, AlertCircle, FileText, Volume2, VolumeX, Activity, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import StaggeredMenu from '../components/StaggeredMenu';
 import { extractText } from '../ocr-engine/services/hybridService.js';
 import { API_BASE_URL } from '../lib/config';
 import { supabase } from '../lib/supabaseClient';
@@ -192,30 +191,29 @@ const AnalyzerPage = () => {
         }
     };
 
-    const menuItems = [
-        { label: 'Hub', link: '/', ariaLabel: 'Go to Hub', hoverColor: '#a855f7' },
-        { label: 'Vitals', link: '/vitals', ariaLabel: 'Go to Vitals', hoverColor: '#ef4444' },
-        { label: 'Patients', link: '/patients', ariaLabel: 'Go to Patients', hoverColor: '#eab308' },
-        { label: 'Dashboard', link: '/dash', ariaLabel: 'Go to Dashboard', hoverColor: '#3b82f6' }
-    ];
-
     return (
-        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', fontFamily: 'inherit', overflowY: 'auto' }}>
-            <StaggeredMenu
-                position="right"
-                items={menuItems}
-                socialItems={[]}
-                logoUrl=""
-                accentColor="#5227FF"
-                menuButtonColor="#fff"
-                openMenuButtonColor="#000"
-                changeMenuColorOnOpen={true}
-                isFixed={true}
-                colors={['#f472b6', '#db2777']}
-            />
-            
-            <div className="container" style={{ maxWidth: '900px', margin: '0 auto', padding: '3rem 1rem' }}>
-                <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
+        <div className="v2-shell" role="main" aria-label="Document analysis workspace">
+            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
+                <div>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
+                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Report Forge</h2>
+                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
+                        Upload reports, run OCR, produce AI summaries, and convert output to patient language.
+                    </p>
+                </div>
+                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Back to Mission Control
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/vitals')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Vitals Deck
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Reports Layer
+                </button>
+            </aside>
+
+            <section className="v2-main">
+                <header className="neo-card staggered-enter" style={{ textAlign: 'center' }}>
                     <h1 style={{ fontSize: '3.5rem', letterSpacing: '-2px', marginTop: '0.5rem', color: '#1a1a1a' }}>
                         Document <span style={{ color: 'var(--accent)' }}>Analyzer</span>
                     </h1>
@@ -224,8 +222,8 @@ const AnalyzerPage = () => {
                     </p>
                 </header>
 
-                <main>
-                    <section className="neo-card vibrant-bg" style={{ marginBottom: '2rem' }}>
+                <main className="module-content">
+                    <section className="neo-card vibrant-bg">
                         <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Upload size={32} /> Upload & Analyze
                         </h2>
@@ -234,7 +232,7 @@ const AnalyzerPage = () => {
                         </p>
 
                         <div style={{
-                            border: '3px dashed black',
+                            border: '2px dashed rgba(32, 42, 48, 0.45)',
                             padding: '2rem',
                             background: 'white',
                             marginBottom: '1.5rem',
@@ -257,7 +255,7 @@ const AnalyzerPage = () => {
                         </div>
 
                         {(extracting || rawText) && (
-                            <section className="neo-card" style={{ marginBottom: '2rem', borderLeft: '10px solid var(--accent)' }}>
+                            <section className="neo-card panel-soft panel-accent" style={{ marginBottom: '2rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}>
                                         <Search size={32} /> {extracting ? 'Extracting Text...' : 'Extracted Text Preview'}
@@ -280,7 +278,8 @@ const AnalyzerPage = () => {
                                 ) : (
                                     <div style={{
                                         background: '#f0f0f0',
-                                        border: '3px solid black',
+                                        border: '1px solid rgba(32, 42, 48, 0.35)',
+                                        borderRadius: '10px',
                                         padding: '1rem',
                                         maxHeight: '300px',
                                         overflowY: 'auto',
@@ -304,7 +303,7 @@ const AnalyzerPage = () => {
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', color: 'white', fontWeight: 700, marginBottom: '0.5rem' }}>
+                                    <label className="field-label" style={{ color: 'white' }}>
                                         Translate medical summary to:
                                     </label>
                                     <input
@@ -312,8 +311,8 @@ const AnalyzerPage = () => {
                                         value={targetLanguage}
                                         onChange={(e) => setTargetLanguage(e.target.value)}
                                         placeholder="Enter language (e.g. Hindi, Spanish, Telugu)"
-                                        className="neo-input"
-                                        style={{ width: '100%', padding: '1rem', border: '3px solid black', borderRadius: 0, fontSize: '1.1rem', fontWeight: 700, background: 'white' }}
+                                        className="input-v2"
+                                        style={{ padding: '1rem', fontSize: '1.1rem', fontWeight: 700, background: 'white' }}
                                     />
                                 </div>
 
@@ -337,7 +336,7 @@ const AnalyzerPage = () => {
                     )}
 
                     {result && (
-                        <div className="neo-card" style={{ marginBottom: '2rem', borderLeft: '10px solid #5227FF', padding: '1.5rem' }}>
+                        <div className="neo-card panel-soft" style={{ marginBottom: '2rem', borderLeft: '6px solid var(--secondary)', padding: '1.5rem' }}>
                             {/* Header row */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                                 <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.4rem' }}>
@@ -396,7 +395,7 @@ const AnalyzerPage = () => {
                                     <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '380px', marginBottom: '1.2rem' }}>
                                         Run a real-time rPPG vitals scan and come back to see how camera-measured HR, SpO₂ and RR compare against the values in this document.
                                     </p>
-                                    <a href="/vitals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem', background: '#5227FF', color: 'white', border: '2px solid black', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none', boxShadow: '3px 3px 0px black' }}>
+                                    <a href="/vitals" className="neo-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem', background: 'var(--secondary)', color: 'white', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none' }}>
                                         <Activity size={16} /> Open Camera Vitals
                                     </a>
                                 </div>
@@ -406,17 +405,17 @@ const AnalyzerPage = () => {
 
                     {result && (
                         <div style={{ display: 'grid', gap: '2rem' }}>
-                            <div className="neo-card" style={{ borderLeft: '10px solid', borderColor: result.risk_level === 'High' ? 'var(--secondary)' : result.risk_level === 'Medium' ? 'var(--primary)' : 'var(--accent)' }}>
+                            <div className="neo-card panel-soft" style={{ borderLeft: '6px solid', borderColor: result.risk_level === 'High' ? 'var(--secondary)' : result.risk_level === 'Medium' ? 'var(--primary)' : 'var(--accent)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}><FileText size={32} /> Summary</h2>
-                                    <div className="badge" style={{ background: result.risk_level === 'High' ? 'var(--secondary)' : result.risk_level === 'Medium' ? 'var(--primary)' : 'var(--accent)', color: result.risk_level === 'High' ? 'white' : 'black', border: '2px solid black' }}>
+                                    <div className="badge" style={{ background: result.risk_level === 'High' ? 'var(--secondary)' : result.risk_level === 'Medium' ? 'var(--primary)' : 'var(--accent)', color: result.risk_level === 'High' ? 'white' : 'black' }}>
                                         Risk: {result.risk_level}
                                     </div>
                                 </div>
                                 <p style={{ fontSize: '1.2rem', fontWeight: 500 }}>{result.summary}</p>
                             </div>
 
-                            <div className="neo-card" style={{ borderLeft: '10px solid var(--black)' }}>
+                            <div className="neo-card panel-soft" style={{ borderLeft: '6px solid var(--black)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}><Languages size={32} /> {targetLanguage} Translation</h2>
                                     <button
@@ -440,7 +439,7 @@ const AnalyzerPage = () => {
                         </div>
                     )}
                 </main>
-            </div>
+            </section>
         </div>
     );
 };

@@ -1,175 +1,206 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, FileText, Activity, Users, ArrowRight } from 'lucide-react';
-import StaggeredMenu from '../components/StaggeredMenu';
+import {
+    Activity,
+    ArrowRight,
+    Command,
+    FileText,
+    HeartPulse,
+    ShieldCheck,
+    UserRound,
+    Users
+} from 'lucide-react';
+
+const moduleCards = [
+    {
+        id: 'vitals',
+        title: 'Vitals Deck',
+        subtitle: 'Contactless monitoring and live session capture.',
+        detail: 'Launch camera pipeline and monitor heart, respiration, and SpO2 flow in one panel.',
+        route: '/vitals',
+        tone: 'linear-gradient(145deg, #2f5d62 0%, #365159 45%, #20343a 100%)',
+        icon: HeartPulse,
+        metric: 'Live Signals'
+    },
+    {
+        id: 'analyzer',
+        title: 'Report Forge',
+        subtitle: 'OCR extraction and AI interpretation workspace.',
+        detail: 'Process uploaded documents, generate structured findings, and use target-language output.',
+        route: '/analyzer',
+        tone: 'linear-gradient(145deg, #c84d2f 0%, #9c3922 45%, #682f21 100%)',
+        icon: FileText,
+        metric: 'Insight Engine'
+    },
+    {
+        id: 'patients',
+        title: 'Patient Registry',
+        subtitle: 'Onboard records and connect reports to care context.',
+        detail: 'Create patient entries, attach report files, and jump directly to vitals from each row.',
+        route: '/patients',
+        tone: 'linear-gradient(145deg, #de9f34 0%, #b37f2b 52%, #7f571c 100%)',
+        icon: Users,
+        metric: 'Care Index'
+    }
+];
+
+const quickActions = [
+    { label: 'Hospital Dashboard', route: '/dash', icon: Activity },
+    { label: 'Patient Reports', route: '/reports', icon: ShieldCheck },
+    { label: 'Hospital Profile', route: '/profile', icon: UserRound },
+    { label: 'Sign-In Console', route: '/signins', icon: Command }
+];
 
 const Hub = () => {
     const navigate = useNavigate();
 
-    const menuItems = [
-        { label: 'Analyzer', link: '/analyzer', ariaLabel: 'Go to Analyzer', hoverColor: '#a855f7' },
-        { label: 'Vitals', link: '/vitals', ariaLabel: 'Go to Vitals', hoverColor: '#ef4444' },
-        { label: 'Patients', link: '/patients', ariaLabel: 'Go to Patients', hoverColor: '#eab308' },
-        { label: 'Hospital Dash', link: '/dash', ariaLabel: 'Go to Admin Dashboard', hoverColor: '#3b82f6' },
-        { label: 'Profile', link: '/profile', ariaLabel: 'Go to Profile', hoverColor: 'green' }
-    ];
-
     return (
-        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', fontFamily: 'inherit', overflowY: 'auto', zIndex: 10 }}>
-            <StaggeredMenu
-                position="right"
-                items={menuItems}
-                socialItems={[]}
-                logoUrl=""
-                accentColor="#1a1a1a"
-                menuButtonColor="#fff"
-                openMenuButtonColor="#fff"
-                changeMenuColorOnOpen={true}
-                isFixed={true}
-                colors={['#d8b4e2', '#1a1a1a']}
-            />
-            
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '4rem 2rem' }}>
-                <header style={{ marginBottom: '4rem', textAlign: 'center' }}>
-                    <h1 style={{ fontSize: '4rem', margin: '0 0 1rem', letterSpacing: '-2px', color: '#1a1a1a' }}>
-                        MEDINSIGHT <span style={{ color: 'var(--primary)' }}>HUB</span>
-                    </h1>
-                    <p style={{ fontSize: '1.2rem', color: '#4b5563', maxWidth: '600px', margin: '0 auto', fontWeight: 500 }}>
-                        Select a core module to launch the specialized AI interface.
+        <div className="v2-shell" role="main" aria-label="MedInsight mission control">
+            <aside className="v2-side staggered-enter" aria-label="Primary navigation and status" style={{ display: 'grid', gap: '1.25rem' }}>
+                <div>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Healthcare Ops Mesh</div>
+                    <h1 style={{ marginTop: '0.8rem', fontSize: '2.05rem', color: '#f6f4e9' }}>MedInsight Control Room</h1>
+                    <p style={{ color: '#d2d7cf', marginTop: '0.8rem' }}>
+                        A mission dashboard for hospital teams running document intelligence and real-time vitals in parallel.
                     </p>
+                </div>
+
+                <div className="neo-card" style={{ background: 'rgba(241, 246, 241, 0.09)', borderColor: '#d6ebe1', color: '#f6f4e9' }}>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Session Pulse</div>
+                    <div style={{ display: 'grid', gap: '0.7rem', marginTop: '0.8rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                            <span>Signal Node</span>
+                            <span style={{ color: '#98f5bf' }}>Online</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                            <span>AI Queue</span>
+                            <span>Ready</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                            <span>Registry</span>
+                            <span>Synced</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                    {quickActions.map((action) => {
+                        const Icon = action.icon;
+                        return (
+                            <button
+                                key={action.label}
+                                type="button"
+                                onClick={() => navigate(action.route)}
+                                className="neo-btn"
+                                style={{
+                                    width: '100%',
+                                    justifyContent: 'space-between',
+                                    background: 'rgba(232, 239, 233, 0.14)',
+                                    borderColor: '#c8e3d7',
+                                    color: '#f8f4ea'
+                                }}
+                            >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Icon size={15} /> {action.label}
+                                </span>
+                                <ArrowRight size={16} />
+                            </button>
+                        );
+                    })}
+                </div>
+            </aside>
+
+            <section className="v2-main">
+                <header className="neo-card staggered-enter" style={{ display: 'grid', gap: '1.1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div>
+                            <div className="kicker">Command Palette</div>
+                            <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', marginTop: '0.4rem' }}>Orchestrate Patient Intelligence</h2>
+                            <p style={{ maxWidth: 620, marginTop: '0.8rem' }}>
+                                Route from ingestion to analysis and bedside action. Every module remains available, now grouped by clinical workflow rather than scattered navigation.
+                            </p>
+                        </div>
+                        <button type="button" className="neo-btn" onClick={() => navigate('/dash')}>
+                            Enter Secure Workspace <ArrowRight size={18} />
+                        </button>
+                    </div>
+
+                    <div
+                        className="neo-card"
+                        style={{
+                            background: 'var(--bg-panel)',
+                            borderStyle: 'dashed',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.8rem',
+                            flexWrap: 'wrap'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
+                            <Command size={16} />
+                            <span>Power Shortcut</span>
+                        </div>
+                        <div style={{ color: 'var(--text-muted)' }}>Use semantic module jumps from one command bar.</div>
+                        <div className="badge">Ctrl + K</div>
+                    </div>
                 </header>
 
-                <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
-                    gap: '2rem',
-                    marginBottom: '4rem'
-                }}>
-                    
-                    {/* Vitals AI Card */}
-                    <div 
-                        className="neo-card"
-                        onClick={() => navigate('/vitals')}
-                        style={{
-                            background: '#fef2f2', 
-                            padding: '3rem 2rem', 
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            border: '4px solid black',
-                            boxShadow: '8px 8px 0px black',
-                            transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translate(-4px, -4px)';
-                            e.currentTarget.style.boxShadow = '12px 12px 0px black';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translate(0, 0)';
-                            e.currentTarget.style.boxShadow = '8px 8px 0px black';
-                        }}
-                    >
-                        <div style={{ 
-                            background: '#ef4444', 
-                            padding: '1.5rem', 
-                            borderRadius: '50%', 
-                            border: '3px solid black',
-                            marginBottom: '1.5rem',
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center'
-                        }}>
-                            <Heart size={48} color="white" fill="white" className="animate-pulse" />
-                        </div>
-                        <h2 style={{ fontSize: '2.5rem', margin: '0 0 1rem', color: '#1a1a1a' }}>Vitals Tracker</h2>
-                        <p style={{ fontSize: '1.1rem', color: '#4b5563', margin: '0 0 2rem', fontWeight: 500 }}>
-                            Real-time rPPG contactless physiological monitoring for instant cardiovascular assessment.
-                        </p>
-                        <button className="neo-btn" style={{ background: '#1a1a1a', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', width: '100%', justifyContent: 'center' }}>
-                            Launch AI Camera <ArrowRight size={20} />
-                        </button>
-                    </div>
-
-                    {/* Document Analyzer Card */}
-                    <div 
-                        className="neo-card"
-                        onClick={() => navigate('/analyzer')}
-                        style={{
-                            background: '#f0fdf4', 
-                            padding: '3rem 2rem', 
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            border: '4px solid black',
-                            boxShadow: '8px 8px 0px black',
-                            transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translate(-4px, -4px)';
-                            e.currentTarget.style.boxShadow = '12px 12px 0px black';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translate(0, 0)';
-                            e.currentTarget.style.boxShadow = '8px 8px 0px black';
-                        }}
-                    >
-                        <div style={{ 
-                            background: '#22c55e', 
-                            padding: '1.5rem', 
-                            borderRadius: '50%', 
-                            border: '3px solid black',
-                            marginBottom: '1.5rem',
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center'
-                        }}>
-                            <FileText size={48} color="white" />
-                        </div>
-                        <h2 style={{ fontSize: '2.5rem', margin: '0 0 1rem', color: '#1a1a1a' }}>Document Eng.</h2>
-                        <p style={{ fontSize: '1.1rem', color: '#4b5563', margin: '0 0 2rem', fontWeight: 500 }}>
-                            Upload legacy reports for immediate OCR extraction, AI risk analysis, and translation.
-                        </p>
-                        <button className="neo-btn" style={{ background: '#1a1a1a', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', width: '100%', justifyContent: 'center' }}>
-                            Open Analyzer <ArrowRight size={20} />
-                        </button>
-                    </div>
-
+                <div className="staggered-enter" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.2rem' }}>
+                    {moduleCards.map((card) => {
+                        const Icon = card.icon;
+                        return (
+                            <article
+                                key={card.id}
+                                className="neo-card"
+                                style={{
+                                    background: card.tone,
+                                    color: '#f8f3ea',
+                                    display: 'grid',
+                                    gap: '1rem',
+                                    minHeight: 250,
+                                    borderColor: 'rgba(235, 229, 210, 0.8)'
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span className="badge" style={{ background: 'rgba(255,255,255,0.12)', color: '#f8f3ea', borderColor: 'rgba(255,255,255,0.5)' }}>
+                                        {card.metric}
+                                    </span>
+                                    <Icon size={26} />
+                                </div>
+                                <div>
+                                    <h3 style={{ fontSize: '1.55rem', marginBottom: '0.5rem' }}>{card.title}</h3>
+                                    <p style={{ color: 'rgba(246, 241, 230, 0.95)', fontWeight: 600 }}>{card.subtitle}</p>
+                                    <p style={{ marginTop: '0.7rem', color: 'rgba(246, 241, 230, 0.88)' }}>{card.detail}</p>
+                                </div>
+                                <div>
+                                    <button
+                                        type="button"
+                                        className="neo-btn"
+                                        onClick={() => navigate(card.route)}
+                                        style={{ background: '#f8f4e9', color: '#1b242a', borderColor: '#f8f4e9', width: '100%' }}
+                                    >
+                                        Open {card.title} <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })}
                 </div>
 
-                {/* System Mini Stat Footer */}
-                <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <div className="neo-card" onClick={() => navigate('/dash')} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'white', padding: '1rem 2rem', cursor: 'pointer', border: '3px solid black' }}>
-                        <Activity color="var(--primary)" size={32} />
-                        <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>System Status</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1a1a1a' }}>All Nodes Operational</div>
-                        </div>
+                <section className="neo-card staggered-enter" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center' }}>
+                    <div>
+                        <div className="kicker">Workflow Path</div>
+                        <h3 style={{ marginTop: '0.45rem', fontSize: '1.3rem' }}>Capture | Analyze | Share | Follow-up</h3>
+                        <p style={{ marginTop: '0.55rem' }}>
+                            Module architecture now follows clinical sequence: acquire vitals, process records, register patients, then distribute translated summaries.
+                        </p>
                     </div>
-
-                    <div className="neo-card" onClick={() => navigate('/patients')} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#eff6ff', padding: '1rem 2rem', cursor: 'pointer', border: '3px solid black' }}>
-                        <Users color="#3b82f6" size={32} />
-                        <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Currently Active</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1a1a1a' }}>24 Registered Patients</div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-            <style dangerouslySetInnerHTML={{ __html: `
-                @keyframes pulse {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.1); }
-                    100% { transform: scale(1); }
-                }
-                .animate-pulse {
-                    animation: pulse 1s infinite cubic-bezier(0.4, 0, 0.6, 1);
-                }
-            `}} />
+                    <button type="button" className="neo-btn" onClick={() => navigate('/reports')}>
+                        Open Reports Layer <ArrowRight size={16} />
+                    </button>
+                </section>
+            </section>
         </div>
     );
 };

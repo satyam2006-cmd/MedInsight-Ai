@@ -1,6 +1,5 @@
 import React from 'react';
-import StaggeredMenu from '../components/StaggeredMenu';
-import { ArrowLeft, Activity, UserCheck, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Activity, UserCheck } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import VitalsMonitor from '../components/VitalsMonitor';
 
@@ -9,37 +8,29 @@ const VitalsPage = () => {
     const [searchParams] = useSearchParams();
     const patientIdFromUrl = searchParams.get('patient') || '';
 
-    const menuItems = [
-        { label: 'Hub', link: '/', ariaLabel: 'Go to Hub', hoverColor: '#a855f7' },
-        { label: 'Overview', link: '/dash', ariaLabel: 'Go to Overview', hoverColor: 'yellow' },
-        { label: 'Patients', link: '/patients', ariaLabel: 'Go to Patients', hoverColor: 'red' },
-        { label: 'Reports', link: '/reports', ariaLabel: 'Go to Reports', hoverColor: '#4d96ff' },
-        { label: 'Analyzer', link: '/analyzer', ariaLabel: 'Go to Analyzer', hoverColor: '#a855f7' },
-        { label: 'Profile', link: '/profile', ariaLabel: 'Go to Profile', hoverColor: 'green' }
-    ];
-
-    const socialItems = [
-        { label: 'Help', link: '#' },
-        { label: 'Support', link: '#' },
-        { label: 'Documentation', link: '#' }
-    ];
-
     return (
-        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', fontFamily: 'inherit', overflowY: 'auto', zIndex: 30 }}>
-            <StaggeredMenu
-                position="right"
-                items={menuItems}
-                socialItems={socialItems}
-                logoUrl=""
-                accentColor="#5227FF"
-                menuButtonColor="#fff"
-                openMenuButtonColor="#000"
-                changeMenuColorOnOpen={true}
-                isFixed={true}
-                colors={['#B19EEF', '#5227FF']}
-            />
+        <div className="v2-shell" role="main" aria-label="Vitals monitoring workspace">
+            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
+                <div>
+                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
+                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Vitals Deck</h2>
+                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
+                        Contactless physiological monitoring with patient-linked capture sessions.
+                    </p>
+                </div>
+                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Back to Mission Control
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/patients')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Patient Registry
+                </button>
+                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
+                    Open Reports Layer
+                </button>
+            </aside>
 
-            <div style={{ padding: '3rem 2rem', maxWidth: '1400px', margin: '0 auto', zIndex: 1, position: 'relative' }}>
+            <section className="v2-main">
+            <div style={{ maxWidth: '1400px', margin: '0 auto', zIndex: 1, position: 'relative' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                     <button
                         onClick={() => navigate('/')}
@@ -80,8 +71,8 @@ const VitalsPage = () => {
                         <div style={{ 
                             background: 'var(--primary)', 
                             padding: '1rem', 
-                            border: '4px solid black', 
-                            boxShadow: '6px 6px 0px black' 
+                            border: '1px solid rgba(32, 42, 48, 0.35)', 
+                            borderRadius: '12px'
                         }}>
                             <Activity size={40} color="white" strokeWidth={3} />
                         </div>
@@ -95,7 +86,7 @@ const VitalsPage = () => {
                 <div style={{ width: '100%' }}>
                     <VitalsMonitor initialPatientId={patientIdFromUrl} />
                     
-                    <section className="neo-card" style={{ marginTop: '2rem', background: '#f8f9ff', padding: '1.5rem', borderLeft: '10px solid var(--primary)' }}>
+                    <section className="neo-card panel-soft" style={{ marginTop: '2rem', background: '#f8f9ff', padding: '1.5rem', borderLeft: '6px solid var(--primary)' }}>
                         <h4 style={{ margin: '0 0 1rem' }}>How it works</h4>
                         <p style={{ margin: 0, color: '#444', lineHeight: '1.6' }}>
                             Our AI-powered system uses <strong>Remote Photoplethysmography (rPPG)</strong> to detect micro-changes 
@@ -110,6 +101,7 @@ const VitalsPage = () => {
                     </section>
                 </div>
             </div>
+            </section>
         </div>
     );
 };
