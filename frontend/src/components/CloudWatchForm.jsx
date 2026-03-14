@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 export default function CloudWatchForm() {
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(false);
+    const [accountType, setAccountType] = useState("hospital");
     const [hospitalName, setHospitalName] = useState("");
     const [email, setEmail] = useState("");
     const [username, setUsername] = useState("");
@@ -44,6 +45,14 @@ export default function CloudWatchForm() {
             setAuthError("Email and Password are required.");
             return;
         }
+        if (!isLogin && !username) {
+            setAuthError("Username is required.");
+            return;
+        }
+        if (!isLogin && accountType === "hospital" && !hospitalName) {
+            setAuthError("Hospital name is required for hospital registration.");
+            return;
+        }
         setIsLoading(true);
         setAuthError("");
 
@@ -56,12 +65,15 @@ export default function CloudWatchForm() {
             });
             error = response.error;
         } else {
+            const profileName = accountType === "hospital" ? hospitalName : username;
             const response = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
-                        hospital_name: hospitalName,
+                        account_type: accountType,
+                        hospital_name: accountType === "hospital" ? hospitalName : "",
+                        full_name: accountType === "user" ? profileName : "",
                         admin_username: username,
                         age: age ? Number(age) : null,
                     }
@@ -149,7 +161,7 @@ export default function CloudWatchForm() {
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
                     <h2 style={{ textAlign: 'center', fontSize: '1.8rem', margin: 0 }}>
-                        {isLogin ? "Hospital Login" : "Register Hospital"}
+                        {isLogin ? "Login" : (accountType === "hospital" ? "Register Hospital" : "Register User")}
                     </h2>
 
                     {authError && (
@@ -161,6 +173,39 @@ export default function CloudWatchForm() {
                     {!isLogin && (
                         <>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ fontWeight: 700, fontSize: '0.9rem' }}>Account Type</label>
+                                <div style={{ display: 'flex', gap: '0.6rem' }}>
+                                    <button
+                                        type="button"
+                                        className="neo-btn"
+                                        onClick={() => setAccountType("hospital")}
+                                        style={{
+                                            flex: 1,
+                                            justifyContent: 'center',
+                                            background: accountType === "hospital" ? 'var(--primary)' : 'white',
+                                            color: 'black'
+                                        }}
+                                    >
+                                        Hospital
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="neo-btn"
+                                        onClick={() => setAccountType("user")}
+                                        style={{
+                                            flex: 1,
+                                            justifyContent: 'center',
+                                            background: accountType === "user" ? 'var(--primary)' : 'white',
+                                            color: 'black'
+                                        }}
+                                    >
+                                        User
+                                    </button>
+                                </div>
+                            </div>
+
+                            {accountType === "hospital" && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <label style={{ fontWeight: 700, fontSize: '0.9rem' }}>Hospital Name</label>
                                 <input
                                     className="neo-input"
@@ -170,8 +215,9 @@ export default function CloudWatchForm() {
                                     style={{ width: '100%', padding: '0.8rem', border: '3px solid black', fontWeight: 600 }}
                                 />
                             </div>
+                            )}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <label style={{ fontWeight: 700, fontSize: '0.9rem' }}>Admin Username</label>
+                                <label style={{ fontWeight: 700, fontSize: '0.9rem' }}>{accountType === "hospital" ? "Admin Username" : "Username"}</label>
                                 <input
                                     className="neo-input"
                                     value={username}

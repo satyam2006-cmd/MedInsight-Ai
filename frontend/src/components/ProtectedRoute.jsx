@@ -11,9 +11,18 @@ const ProtectedRoute = ({ children }) => {
     useEffect(() => {
         const checkUser = async () => {
             try {
-                const { data: { user }, error } = await supabase.auth.getUser();
-                if (error) throw error;
-                setUser(user);
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                if (sessionError) throw sessionError;
+
+                // Use persisted session as the source of truth during page reload.
+                setUser(session?.user ?? null);
+
+                if (session?.access_token) {
+                    const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
+                    if (!userError && freshUser) {
+                        setUser(freshUser);
+                    }
+                }
             } catch (err) {
                 console.error("Auth check failed:", err);
                 setUser(null);
@@ -45,7 +54,10 @@ const ProtectedRoute = ({ children }) => {
     }
 
     const metadata = user.user_metadata || {};
-    const isProfileIncomplete = !metadata.hospital_name || !metadata.admin_username || !metadata.phone;
+    const accountType = metadata.account_type === 'user' ? 'user' : 'hospital';
+    const isHospitalProfileIncomplete = !metadata.hospital_name || !metadata.admin_username || !metadata.phone;
+    const isUserProfileIncomplete = !metadata.admin_username;
+    const isProfileIncomplete = accountType === 'hospital' ? isHospitalProfileIncomplete : isUserProfileIncomplete;
 
     // Allow access to Profile page regardless, but check completion for others
     const isProfilePage = location.pathname === '/profile';
