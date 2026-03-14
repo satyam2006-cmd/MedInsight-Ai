@@ -2,6 +2,7 @@ import numpy as np
 import scipy.signal
 from scipy.signal import butter, filtfilt, welch, find_peaks
 import time
+import os
 from collections import deque
 from typing import List, Tuple, Optional, Dict, Any
 from app.services.jade_service import jadeR
@@ -75,6 +76,15 @@ class VitalsService:
             "spo2": {"slope": 1.0, "intercept": 0.0},
         }
         self.quality_reason = "Warm-up"
+        self.demo_hr_mode = str(os.getenv("DEMO_HEART_RATE_MODE", "false")).strip().lower() in ("1", "true", "yes", "on")
+        raw_demo_rr = os.getenv("DEMO_RESPIRATION_MODE")
+        if raw_demo_rr is None:
+            self.demo_rr_mode = self.demo_hr_mode
+        else:
+            self.demo_rr_mode = str(raw_demo_rr).strip().lower() in ("1", "true", "yes", "on")
+        self.demo_hr_value = 74.0
+        self.demo_rr_value = 15.5
+        self.demo_rng = np.random.default_rng()
 
     def set_live_calibration(self, metric: str, slope: float, intercept: float):
         if metric not in self.live_calibration:
@@ -193,6 +203,32 @@ class VitalsService:
             "peaks": self.peak_indices[-20:],
             "session_time": round(session_elapsed, 0),
         }
+
+    def _demo_heart_rate(self) -> float:
+        """Demo-only HR shaping: mostly 68-80 BPM, always constrained to 60-100 BPM."""
+        # Gentle random walk around 74 with mean-reversion.
+        drift = float(self.demo_rng.normal(0.0, 1.4))
+        self.demo_hr_value = 0.86 * self.demo_hr_value + 0.14 * 74.0 + drift
+
+        # Most of the time keep inside 68-80, occasionally allow 60-100.
+        if float(self.demo_rng.random()) < 0.85:
+            self.demo_hr_value = float(np.clip(self.demo_hr_value, 68.0, 80.0))
+        else:
+            self.demo_hr_value = float(np.clip(self.demo_hr_value, 60.0, 100.0))
+
+        return float(np.clip(self.demo_hr_value, 60.0, 100.0))
+
+    def _demo_respiration_rate(self) -> float:
+        """Demo-only RR shaping: mostly 13-18 RPM, always constrained to 10-24 RPM."""
+        drift = float(self.demo_rng.normal(0.0, 0.4))
+        self.demo_rr_value = 0.84 * self.demo_rr_value + 0.16 * 15.5 + drift
+
+        if float(self.demo_rng.random()) < 0.87:
+            self.demo_rr_value = float(np.clip(self.demo_rr_value, 13.0, 18.0))
+        else:
+            self.demo_rr_value = float(np.clip(self.demo_rr_value, 10.0, 24.0))
+
+        return float(np.clip(self.demo_rr_value, 10.0, 24.0))
 
     def process_signal(self, values: List[float], timestamp: float) -> Dict[str, Any]:
         """
@@ -376,11 +412,22 @@ class VitalsService:
                 self.stress_score, self.stress_level = self._calculate_stress_score()
                 self.risk_level, self.risk_confidence = self._predict_risk_level()
                 self.vital_trend = self._compute_vital_trend_indicator()
-
-
-
                 # Emergency alerts
                 alert = self._check_alerts()
+
+        if self.demo_hr_mode or self.demo_rr_mode:
+            mode_parts = []
+            if self.demo_hr_mode:
+                self.bpm = self._demo_heart_rate()
+                self.smooth_bpm = self.bpm
+                mode_parts.append("heart rate")
+            if self.demo_rr_mode:
+                self.respiration_rate = self._demo_respiration_rate()
+                self.smooth_rpm = self.respiration_rate
+                mode_parts.append("respiration")
+            self.signal_quality = max(self.signal_quality, 92.0)
+            self.quality_reason = "Demo mode: simulated " + " and ".join(mode_parts)
+            alert = self._check_alerts()
 
         # Build response
         session_elapsed = current_time - self.session_start
@@ -649,6 +696,103 @@ class VitalsService:
         except Exception:
             return signal
 
+    def _temporal_hr_weight(self, bpm: float) -> float:
+        """Bias HR candidate scoring toward plausible transitions from recent state."""
+        prior = self.bpm if self.bpm > 0 else self.smooth_bpm
+        if prior <= 0:
+            return 1.0
+        delta = abs(float(bpm) - float(prior))
+        return float(np.exp(-0.5 * (delta / 14.0) ** 2))
+
+    def _robust_fuse_hr_candidates(self, candidates: List[Tuple[float, float, list, str]]) -> Tuple[float, float, list, float, bool]:
+        """Fuse multi-method HR candidates using weighted median and inlier voting."""
+        if not candidates:
+            return float(self.bpm), 0.0, [], 999.0, False
+
+        scored = []
+        for bpm, conf, spec, name in candidates:
+            method_rel = max(0.05, float(self.method_reliability.get(name, 0.5)))
+            temporal = self._temporal_hr_weight(bpm)
+            score = max(1e-6, float(conf) * method_rel * (0.45 + 0.55 * temporal))
+            scored.append((float(bpm), float(conf), spec, name, score))
+
+        scored.sort(key=lambda item: item[0])
+        total_w = sum(item[4] for item in scored)
+        running = 0.0
+        weighted_median = scored[0][0]
+        for bpm, _, _, _, w in scored:
+            running += w
+            if running >= 0.5 * total_w:
+                weighted_median = bpm
+                break
+
+        prior_exists = (self.bpm > 0) or (self.smooth_bpm > 0)
+        inlier_gate = 10.0 if prior_exists else 14.0
+        inliers = [item for item in scored if abs(item[0] - weighted_median) <= inlier_gate]
+        if not inliers:
+            inliers = [max(scored, key=lambda item: item[4])]
+
+        inlier_w = sum(item[4] for item in inliers)
+        fused_bpm = sum(item[0] * item[4] for item in inliers) / (inlier_w + 1e-8)
+        best_item = max(inliers, key=lambda item: item[4])
+        best_conf = best_item[1]
+        best_spec = best_item[2]
+        spread = max(item[0] for item in inliers) - min(item[0] for item in inliers)
+
+        if len(inliers) > 1:
+            support = min(1.0, len(inliers) / 3.0)
+            best_conf = float(np.clip(best_conf + 0.12 * support, 0.0, 1.0))
+
+        consensus_ok = len(inliers) >= 2 or (len(scored) == 1 and best_conf > 0.12)
+        return float(fused_bpm), float(best_conf), best_spec, float(spread), bool(consensus_ok)
+
+    def _estimate_bpm_from_peaks(self, signal: np.ndarray, fps: float, seed_bpm: float = 0.0) -> Tuple[float, float, List[int]]:
+        """Estimate BPM from beat intervals with MAD-based outlier rejection."""
+        if signal is None or len(signal) < 120 or fps < 5:
+            return 0.0, 0.0, []
+
+        try:
+            sig = np.asarray(signal, dtype=float)
+            sig = sig - np.mean(sig)
+
+            nyq = fps / 2.0
+            low = max(0.001, min(0.8 / nyq, 0.99))
+            high = max(low + 0.01, min(2.6 / nyq, 0.99))
+            b, a = butter(3, [low, high], btype='band')
+            pulse = filtfilt(b, a, sig)
+
+            if seed_bpm > 0:
+                expected = max(1.0, fps * 60.0 / seed_bpm)
+                min_dist = int(max(1.0, expected * 0.55))
+            else:
+                min_dist = int(max(1.0, fps * 0.35))
+
+            prominence = max(0.08 * np.std(pulse), 0.01)
+            peaks, props = find_peaks(pulse, distance=min_dist, prominence=prominence)
+            if len(peaks) < 3:
+                return 0.0, 0.0, peaks.tolist()
+
+            rr_ms = np.diff(peaks) / fps * 1000.0
+            med = np.median(rr_ms)
+            mad = np.median(np.abs(rr_ms - med)) + 1e-6
+            good = (np.abs(rr_ms - med) <= (3.5 * 1.4826 * mad)) & (rr_ms >= 330.0) & (rr_ms <= 1500.0)
+            rr_good = rr_ms[good]
+
+            if len(rr_good) < 2:
+                return 0.0, 0.0, peaks.tolist()
+
+            bpm = 60000.0 / float(np.median(rr_good))
+            if bpm < 40.0 or bpm > 180.0:
+                return 0.0, 0.0, peaks.tolist()
+
+            rr_cv = float(np.std(rr_good) / (np.mean(rr_good) + 1e-8))
+            prom_mean = float(np.mean(props.get("prominences", [0.0])))
+            prom_norm = float(np.clip(prom_mean / (np.std(pulse) + 1e-8), 0.0, 2.0))
+            confidence = float(np.clip((1.0 - min(1.0, rr_cv / 0.18)) * 0.7 + min(1.0, prom_norm / 0.9) * 0.3, 0.0, 1.0))
+            return float(bpm), confidence, peaks.tolist()
+        except Exception:
+            return 0.0, 0.0, []
+
     def _calculate_vitals(self) -> Dict[str, Any]:
         """Core engine: ICA + POS + CHROM triple fusion with accuracy improvements."""
         try:
@@ -763,54 +907,16 @@ class VitalsService:
             best_conf = 0.0
             best_source = None
 
-            if len(valid) >= 2:
-                # ACCURACY FIX: If multiple methods agree (within 8 BPM), use weighted average
-                bpms = [v[0] for v in valid]
-                confs = [v[1] * max(0.1, self.method_reliability.get(v[3], 0.5)) for v in valid]
-                
-                # Check agreement between methods
-                bpm_range = max(bpms) - min(bpms)
-                if bpm_range < 10:
-                    # Methods agree — weighted average by confidence
-                    total_conf = sum(confs)
-                    best_bpm = sum(b * c for b, c in zip(bpms, confs)) / (total_conf + 1e-8)
-                    best_conf = max(confs)
-                    # Use spectrum from most confident method
-                    best_idx = int(np.argmax(confs))
-                    best_spec = valid[best_idx][2]
-                else:
-                    # Methods disagree — trust the most confident one
-                    best_idx = int(np.argmax(confs))
-                    best_bpm = valid[best_idx][0]
-                    best_conf = valid[best_idx][1]
-                    best_spec = valid[best_idx][2]
-            elif len(valid) == 1:
-                best_bpm = valid[0][0]
-                best_conf = valid[0][1]
-                best_spec = valid[0][2]
-
+            spread = 999.0
             is_reliable = True
-            if len(valid) < 2:
-                is_reliable = False
-                quality_reasons.append("Insufficient method agreement")
-
-            # Uncertainty grows with method disagreement and low confidence.
             if valid:
-                spread = max([v[0] for v in valid]) - min([v[0] for v in valid])
-                conf_term = max(0.0, 1.0 - min(1.0, best_conf))
-                motion_penalty = 2.5 * max(0.0, min(1.0, self.motion_score / 8.0))
-                hr_uncertainty = 0.35 * spread + 8.0 * conf_term + motion_penalty
-                if spread > 18:
+                best_bpm, best_conf, best_spec, spread, consensus_ok = self._robust_fuse_hr_candidates(valid)
+                if not consensus_ok:
                     is_reliable = False
-                    quality_reasons.append("High method spread")
+                    quality_reasons.append("Weak candidate consensus")
             else:
-                hr_uncertainty = 12.0
                 is_reliable = False
                 quality_reasons.append("No valid HR candidate")
-
-            if best_conf < 0.04:
-                is_reliable = False
-                quality_reasons.append("Low spectral confidence")
 
             # Determine best source signal for peak detection
             all_sources = []
@@ -831,6 +937,42 @@ class VitalsService:
             
             if all_sources:
                 best_source = max(all_sources, key=lambda x: x[1])[0]
+
+            # Cross-check with beat interval estimate to reject spectral lock-on errors.
+            peak_bpm = 0.0
+            peak_conf = 0.0
+            if best_source is not None:
+                peak_bpm, peak_conf, _ = self._estimate_bpm_from_peaks(best_source, fps, seed_bpm=best_bpm)
+                if peak_conf > 0.18 and 40.0 <= peak_bpm <= 180.0:
+                    if best_bpm <= 0:
+                        best_bpm = peak_bpm
+                        best_conf = max(best_conf, peak_conf * 0.85)
+                    else:
+                        delta = abs(peak_bpm - best_bpm)
+                        if delta <= 8.0:
+                            best_bpm = 0.68 * best_bpm + 0.32 * peak_bpm
+                            best_conf = min(1.0, best_conf + 0.10 * peak_conf)
+                        elif delta > 16.0:
+                            is_reliable = False
+                            quality_reasons.append("Spectrum/peak mismatch")
+                        elif peak_conf > (best_conf + 0.15):
+                            best_bpm = 0.55 * best_bpm + 0.45 * peak_bpm
+                            best_conf = max(best_conf, peak_conf * 0.9)
+
+            # Uncertainty rises with candidate spread, low confidence, and peak mismatch.
+            conf_term = max(0.0, 1.0 - min(1.0, best_conf))
+            motion_penalty = 2.5 * max(0.0, min(1.0, self.motion_score / 8.0))
+            peak_delta = abs(peak_bpm - best_bpm) if peak_bpm > 0 else 10.0
+            hr_uncertainty = 0.28 * min(spread, 40.0) + 7.2 * conf_term + 0.16 * min(peak_delta, 25.0) + motion_penalty
+            if spread > 20:
+                is_reliable = False
+                quality_reasons.append("High method spread")
+            if peak_bpm > 0 and peak_delta > 18:
+                is_reliable = False
+                quality_reasons.append("Unstable beat intervals")
+            if best_conf < 0.04 and peak_conf < 0.22:
+                is_reliable = False
+                quality_reasons.append("Low spectral confidence")
 
             # === ACCURACY FIX: Multi-metric Signal Quality (0-100) ===
             sig_quality = self._compute_signal_quality(best_conf, X, valid)
