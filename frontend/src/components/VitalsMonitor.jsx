@@ -53,6 +53,12 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const [trendLoading, setTrendLoading] = useState(false);
     const [trendPatientId, setTrendPatientId] = useState('');
 
+    // Patient info modal
+    const [showPatientModal, setShowPatientModal] = useState(false);
+    const [pendingAction, setPendingAction] = useState(null); // 'summary' | 'pdf'
+    const [patientForm, setPatientForm] = useState({ patientId: '', name: '', contact: '', language: 'English' });
+    const [patientFormError, setPatientFormError] = useState('');
+
     const getApiBase = () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         return isLocal ? 'http://localhost:8000' : '';
@@ -579,10 +585,16 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [trendDays]);
 
-    const fetchAISummary = async () => {
+    const fetchAISummary = async (patientInfo) => {
         try {
             const base = getApiBase();
-            const suffix = vitals.session_id ? `?session_id=${encodeURIComponent(vitals.session_id)}` : '';
+            const params = new URLSearchParams();
+            if (vitals.session_id) params.set('session_id', vitals.session_id);
+            if (patientInfo?.patientId) params.set('patient_id', patientInfo.patientId);
+            if (patientInfo?.name) params.set('patient_name', patientInfo.name);
+            if (patientInfo?.contact) params.set('patient_contact', patientInfo.contact);
+            if (patientInfo?.language) params.set('language', patientInfo.language);
+            const suffix = params.toString() ? `?${params.toString()}` : '';
             const res = await fetch(`${base}/api/vitals/session${suffix}`);
             if (res.ok) {
                 const data = await res.json();
@@ -592,6 +604,32 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
             }
         } catch (e) {
             console.error("Error fetching AI summary:", e);
+        }
+    };
+
+    const openPatientModal = (action) => {
+        setPendingAction(action);
+        setPatientForm({ patientId: patientInputId || '', name: '', contact: '', language: 'English' });
+        setPatientFormError('');
+        setShowPatientModal(true);
+    };
+
+    const handlePatientFormSubmit = () => {
+        if (!patientForm.patientId.trim()) { setPatientFormError('Patient ID is required.'); return; }
+        if (!patientForm.name.trim()) { setPatientFormError('Patient name is required.'); return; }
+        if (!patientForm.contact.trim()) { setPatientFormError('Contact number is required.'); return; }
+        setShowPatientModal(false);
+        if (pendingAction === 'summary') {
+            fetchAISummary(patientForm);
+        } else if (pendingAction === 'pdf') {
+            const base = getApiBase();
+            const params = new URLSearchParams();
+            if (vitals.session_id) params.set('session_id', vitals.session_id);
+            params.set('patient_id', patientForm.patientId);
+            params.set('patient_name', patientForm.name);
+            params.set('patient_contact', patientForm.contact);
+            params.set('language', patientForm.language);
+            window.open(`${base}/api/vitals/report?${params.toString()}`, '_blank');
         }
     };
 
@@ -723,9 +761,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
 
     // Helpers
     const downloadReport = () => {
-        const base = getApiBase();
-        const suffix = vitals.session_id ? `?session_id=${encodeURIComponent(vitals.session_id)}` : '';
-        window.open(`${base}/api/vitals/report${suffix}`, '_blank');
+        openPatientModal('pdf');
     };
 
     const saveSession = async () => {
@@ -1510,7 +1546,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                             <Activity size={22} color="var(--primary)" /> AI HEALTH REPORT
                         </h3>
                         <button 
-                            onClick={fetchAISummary}
+                            onClick={() => openPatientModal('summary')}
                             disabled={vitals.bpm === 0}
                             style={{ 
                                 padding: '0.4rem 0.8rem', 
@@ -1570,6 +1606,161 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                     <Download size={18} /> Download Session PDF Report
                 </button>
             </div>
+
+            {/* Patient Info Modal */}
+            {showPatientModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    background: 'rgba(0,0,0,0.55)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem'
+                }}>
+                    <div className="neo-card" style={{
+                        background: '#ffffff',
+                        border: '3px solid #111827',
+                        boxShadow: '8px 8px 0px #111827',
+                        borderRadius: '4px',
+                        padding: '2rem',
+                        width: '100%',
+                        maxWidth: '480px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1.25rem'
+                    }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '0.3rem' }}>
+                                    {pendingAction === 'summary' ? 'AI Health Summary' : 'Download PDF Report'}
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#111827', letterSpacing: '-0.5px' }}>
+                                    Patient Details
+                                </h3>
+                            </div>
+                            <button onClick={() => setShowPatientModal(false)} style={{
+                                background: 'none', border: '2px solid #111827', borderRadius: '4px',
+                                width: '32px', height: '32px', cursor: 'pointer', fontWeight: 900,
+                                fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                boxShadow: '2px 2px 0px #111827', flexShrink: 0
+                            }}>✕</button>
+                        </div>
+
+                        {/* Error */}
+                        {patientFormError && (
+                            <div style={{
+                                background: '#fff1f2', border: '2px solid #e11d48',
+                                borderRadius: '4px', padding: '0.6rem 0.8rem',
+                                fontSize: '0.82rem', fontWeight: 600, color: '#be123c',
+                                boxShadow: '2px 2px 0px #e11d48'
+                            }}>
+                                {patientFormError}
+                            </div>
+                        )}
+
+                        {/* Field: Patient ID */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Patient ID *</label>
+                            <input
+                                value={patientForm.patientId}
+                                onChange={e => setPatientForm(p => ({ ...p, patientId: e.target.value }))}
+                                placeholder="e.g. PT-001"
+                                style={{
+                                    padding: '0.7rem 0.9rem',
+                                    border: '2px solid #111827',
+                                    borderRadius: '4px',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600,
+                                    outline: 'none',
+                                    boxShadow: '3px 3px 0px #111827'
+                                }}
+                            />
+                        </div>
+
+                        {/* Field: Name */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Patient Name *</label>
+                            <input
+                                value={patientForm.name}
+                                onChange={e => setPatientForm(p => ({ ...p, name: e.target.value }))}
+                                placeholder="Full name"
+                                style={{
+                                    padding: '0.7rem 0.9rem',
+                                    border: '2px solid #111827',
+                                    borderRadius: '4px',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600,
+                                    outline: 'none',
+                                    boxShadow: '3px 3px 0px #111827'
+                                }}
+                            />
+                        </div>
+
+                        {/* Field: Contact */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact Number *</label>
+                            <input
+                                value={patientForm.contact}
+                                onChange={e => setPatientForm(p => ({ ...p, contact: e.target.value }))}
+                                placeholder="e.g. +91 98765 43210"
+                                style={{
+                                    padding: '0.7rem 0.9rem',
+                                    border: '2px solid #111827',
+                                    borderRadius: '4px',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600,
+                                    outline: 'none',
+                                    boxShadow: '3px 3px 0px #111827'
+                                }}
+                            />
+                        </div>
+
+                        {/* Field: Language */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Preferred Report Language</label>
+                            <input
+                                value={patientForm.language}
+                                onChange={e => setPatientForm(p => ({ ...p, language: e.target.value }))}
+                                placeholder="e.g. English, Hindi, Telugu..."
+                                style={{
+                                    padding: '0.7rem 0.9rem',
+                                    border: '2px solid #111827',
+                                    borderRadius: '4px',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600,
+                                    outline: 'none',
+                                    boxShadow: '3px 3px 0px #111827'
+                                }}
+                            />
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
+                            <button
+                                onClick={() => setShowPatientModal(false)}
+                                style={{
+                                    flex: 1, padding: '0.8rem',
+                                    background: '#ffffff', color: '#111827',
+                                    border: '2px solid #111827', borderRadius: '4px',
+                                    fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                                    boxShadow: '3px 3px 0px #111827', textTransform: 'uppercase', letterSpacing: '0.5px'
+                                }}
+                            >Cancel</button>
+                            <button
+                                onClick={handlePatientFormSubmit}
+                                style={{
+                                    flex: 2, padding: '0.8rem',
+                                    background: '#111827', color: '#ffffff',
+                                    border: '2px solid #111827', borderRadius: '4px',
+                                    fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                                    boxShadow: '3px 3px 0px #64748b', textTransform: 'uppercase', letterSpacing: '0.5px'
+                                }}
+                            >
+                                {pendingAction === 'summary' ? 'Generate Summary' : 'Download PDF'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
