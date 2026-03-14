@@ -81,10 +81,10 @@ export default function CloudWatchForm() {
             });
             error = response.error;
 
-            // Note: If email confirmations are enabled in Supabase, 
-            // the user won't get a session immediately.
+            // If email confirmations are enabled in Supabase, we won't get a session immediately.
+            // Since you've now disabled it, this block will be skipped and you'll be redirected instantly.
             if (!error && !response.data.session) {
-                setAuthError("Registration successful! Please check your email to confirm your account before logging in.");
+                setAuthError("Account created! Please verify your email if confirmation is enabled, otherwise you can now log in.");
                 setIsLoading(false);
                 return;
             }

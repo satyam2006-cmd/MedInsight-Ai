@@ -24,7 +24,8 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const [vitals, setVitals] = useState({
         bpm: 0, respiration: 0, fps: 0, status: 'initializing', alert: 'Normal',
         signal_quality: 0, motion_status: 'GOOD', hrv: 0, spo2: 0,
-        calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0, ai_summary: '',
+        calibration_pct: 0, hr_min: 0, hr_max: 0, session_time: 0, 
+        ai_summary: '', ai_summary_translated: '', ai_risk_level: '',
         confidence: 0, hr_uncertainty: 0, rr_uncertainty: 0, spo2_uncertainty: 0,
         quality_reason: 'Warm-up',
         session_id: '',
@@ -58,6 +59,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const [pendingAction, setPendingAction] = useState(null); // 'summary' | 'pdf'
     const [patientForm, setPatientForm] = useState({ patientId: '', name: '', contact: '', language: 'English' });
     const [patientFormError, setPatientFormError] = useState('');
+    const [speaking, setSpeaking] = useState(false);
 
     const getApiBase = () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -587,6 +589,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
 
     const fetchAISummary = async (patientInfo) => {
         try {
+            setVitals(prev => ({ ...prev, ai_summary: 'Analyzing...' }));
             const base = getApiBase();
             const params = new URLSearchParams();
             if (vitals.session_id) params.set('session_id', vitals.session_id);
@@ -594,17 +597,59 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
             if (patientInfo?.name) params.set('patient_name', patientInfo.name);
             if (patientInfo?.contact) params.set('patient_contact', patientInfo.contact);
             if (patientInfo?.language) params.set('language', patientInfo.language);
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+            
             const suffix = params.toString() ? `?${params.toString()}` : '';
-            const res = await fetch(`${base}/api/vitals/session${suffix}`);
+            const res = await fetch(`${base}/api/vitals/session${suffix}`, { headers });
+            
             if (res.ok) {
                 const data = await res.json();
-                if (data.ai_summary) {
-                    setVitals(prev => ({ ...prev, ai_summary: data.ai_summary }));
+                setVitals(prev => ({ 
+                    ...prev, 
+                    ai_summary: data.summary || '',
+                    ai_summary_translated: data.hindi_translation || '',
+                    ai_risk_level: data.risk_level || ''
+                }));
+                if (data.archived) {
+                    setCompareMessage('Vitals session successfully archived as a Report.');
                 }
             }
         } catch (e) {
             console.error("Error fetching AI summary:", e);
+            setVitals(prev => ({ ...prev, ai_summary: 'Error generating summary.' }));
         }
+    };
+
+    const handleSpeech = () => {
+        if (!vitals.ai_summary_translated && !vitals.ai_summary) return;
+        
+        if (speaking) {
+            window.speechSynthesis.cancel();
+            setSpeaking(false);
+            return;
+        }
+
+        const textToSpeak = vitals.ai_summary_translated || vitals.ai_summary;
+        const msg = new SpeechSynthesisUtterance(textToSpeak);
+        
+        // Pick best voice for target language if possible
+        const voices = window.speechSynthesis.getVoices();
+        const targetLang = patientForm.language?.toLowerCase() || 'english';
+        
+        let selectedVoice = voices.find(v => v.lang.toLowerCase().includes(targetLang));
+        if (!selectedVoice) selectedVoice = voices.find(v => v.lang.includes('en-US')) || voices[0];
+        
+        if (selectedVoice) msg.voice = selectedVoice;
+        msg.rate = 0.95;
+        msg.pitch = 1.0;
+
+        msg.onstart = () => setSpeaking(true);
+        msg.onend = () => setSpeaking(false);
+        msg.onerror = () => setSpeaking(false);
+
+        window.speechSynthesis.speak(msg);
     };
 
     const openPatientModal = (action) => {
@@ -1602,15 +1647,36 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                         padding: '1.25rem', 
                         borderRadius: '12px', 
                         border: '1px solid #e2e8f0',
-                        minHeight: '120px',
-                        maxHeight: '300px',
+                        minHeight: '160px',
+                        maxHeight: '400px',
                         overflowY: 'auto',
                         fontSize: '0.95rem',
                         lineHeight: '1.6',
                         color: '#1e293b'
                     }}>
-                        {vitals.ai_summary ? (
+                        {(vitals.ai_summary || vitals.ai_summary_translated) ? (
                             <div className="ai-content">
+                                {vitals.ai_summary_translated && (
+                                    <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Translated Summary ({patientForm.language})</span>
+                                            <button 
+                                                onClick={handleSpeech}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: '0.4rem', border: 'none', background: speaking ? '#ef4444' : '#1e293b',
+                                                    color: 'white', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer'
+                                                }}
+                                            >
+                                                {speaking ? 'Stop Audio' : 'Listen to Summary'}
+                                            </button>
+                                        </div>
+                                        {vitals.ai_summary_translated.split('\n').map((line, i) => (
+                                            <p key={i} style={{ margin: '0 0 0.5rem' }}>{line}</p>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Clinical Summary (English)</div>
                                 {vitals.ai_summary.split('\n').map((line, i) => {
                                     if (line.startsWith('##')) {
                                         return <h4 key={i} style={{ margin: '1rem 0 0.5rem', color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{line.replace('##', '').trim()}</h4>;

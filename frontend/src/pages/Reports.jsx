@@ -84,10 +84,19 @@ export default function ReportsPage() {
                         </div>
                     )}
 
-                    {parsed.translation && (
+                    {(parsed.hindi_translation || parsed.summary_translated || parsed.translation) && (
                         <div style={{ marginBottom: '1rem' }}>
-                            <strong style={{ display: 'block', marginBottom: '0.3rem' }}>Target Language Translation:</strong>
-                            <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{parsed.translation}</p>
+                            <strong style={{ display: 'block', marginBottom: '0.3rem' }}>Translation ({parsed.target_language || 'Target Language'}):</strong>
+                            <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{parsed.hindi_translation || parsed.summary_translated || parsed.translation}</p>
+                        </div>
+                    )}
+
+                    {parsed.vitals_snapshot && (
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed #ddd' }}>
+                            <div style={{ fontSize: '0.8rem' }}><strong>HR:</strong> {parsed.vitals_snapshot.hr} BPM</div>
+                            <div style={{ fontSize: '0.8rem' }}><strong>SpO2:</strong> {parsed.vitals_snapshot.spo2}%</div>
+                            <div style={{ fontSize: '0.8rem' }}><strong>RR:</strong> {parsed.vitals_snapshot.rr} RPM</div>
+                            <div style={{ fontSize: '0.8rem' }}><strong>HRV:</strong> {parsed.vitals_snapshot.hrv}ms</div>
                         </div>
                     )}
 
