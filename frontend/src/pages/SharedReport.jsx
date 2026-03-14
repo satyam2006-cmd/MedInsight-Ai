@@ -199,7 +199,7 @@ export default function SharedReport() {
                                 Clinical Summary ({targetLang})
                             </h3>
                             <button
-                                onClick={() => speak(analysis.hindi_translation, targetLang)}
+                                onClick={() => speak(analysis.hindi_translation || analysis.summary_translated || analysis.summary, targetLang)}
                                 className="neo-btn"
                                 disabled={audioLoading}
                                 style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}
@@ -209,7 +209,7 @@ export default function SharedReport() {
                             </button>
                         </div>
                         <div style={{ fontSize: '1.3rem', fontWeight: 600, lineHeight: '1.8' }}>
-                            {analysis.hindi_translation.trim().split(/\s+/).map((word, i) => (
+                            {(analysis.hindi_translation || analysis.summary_translated || analysis.summary || "").trim().split(/\s+/).map((word, i) => (
                                 <span
                                     key={i}
                                     style={{

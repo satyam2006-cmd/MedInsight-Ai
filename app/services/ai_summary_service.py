@@ -20,14 +20,20 @@ class AISummaryService:
             self.model_id = settings.GEMINI_MODEL
             logger.info(f"AISummaryService initialized with {self.model_id}")
 
-    async def generate_summary(self, session_data: Dict[str, Any]) -> str:
-        """Generates a clinical summary from the session vitals."""
+    async def generate_summary(self, session_data: Dict[str, Any], target_language: str = "English") -> Dict[str, Any]:
+        """Generates a structured clinical summary from the session vitals in JSON format."""
         if not self.client:
-            return "AI summary generation currently unavailable (API key missing)."
+            return {
+                "summary": "AI summary generation currently unavailable (API key missing).",
+                "hindi_translation": "AI summary generation currently unavailable (API key missing).",
+                "risk_level": "Unknown"
+            }
             
         try:
             prompt = f"""
-            You are an expert AI clinical assistant. Based on the following vital signs recorded during a remote monitoring session, generate a concise, medical-style interpretation and recommendation.
+            You are an expert AI clinical assistant. Based on the following vital signs recorded during a remote monitoring session, generate a structured medical interpretation.
+            
+            Target Translation Language: {target_language}
 
             Recorded Vitals:
             - Average Heart Rate: {session_data.get('avg_hr', '--')} BPM (Normal: 60-100)
@@ -37,29 +43,50 @@ class AISummaryService:
             - Average SpO2: {session_data.get('avg_spo2', '--')}% (Normal: >95%)
             - HRV (SDNN): {session_data.get('hrv_sdnn', '--')} ms (Normal: >50ms indicates good variability)
             - Signal Quality: {session_data.get('avg_signal_quality', '--')}%
-            - Alerts triggered during session: {', '.join([a[1] for a in session_data.get('alerts', [])]) if session_data.get('alerts') else 'None'}
+            - High-level Alerts: {', '.join([a[1] for a in session_data.get('alerts', [])]) if session_data.get('alerts') else 'None'}
             - Session Duration: {session_data.get('session_duration_sec', 0) / 60:.1f} minutes
 
             Requirements:
-            1. Provide an 'overall patient condition' statement.
-            2. Note any possible abnormalities clearly. If all values are normal, state that.
-            3. Provide a recommended monitoring advice/action.
-            4. Keep the tone professional, objective, and easy to read.
-            5. Do NOT provide a definitive diagnosis, use phrases like "indicates", "suggests", or "appears".
-            6. Format the output with clear headings: "## AI Health Summary" followed by the evaluation paragraphs, and a "Recommendation:" section at the end.
+            1. Analyze for abnormalities (Bradycardia, Tachycardia, Tachypnea, Hypoxia, etc.).
+            2. Classify 'risk_level' as one of exactly: "Low", "Moderate", "High".
+            3. Provide 'summary_en': A concise clinical summary in English (Professional medical tone).
+            4. Provide 'summary_target': The EXACT SAME summary translated into {target_language}.
+            5. If target language is "English", both summaries should be in English.
+            
+            Return ONLY a valid JSON object with these keys:
+            {{
+              "summary": "...",
+              "hindi_translation": "...",
+              "risk_level": "Low/Moderate/High"
+            }}
             """
 
-            logger.info("Requesting AI health summary from Gemini.")
+            logger.info(f"Requesting structured AI health summary in {target_language}.")
             response = await self._generate_content_with_retry(
                 contents=prompt,
-                config=types.GenerateContentConfig()
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             
-            return response.text
+            try:
+                return json.loads(response.text)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON from AI response: {response.text}")
+                # Fallback if AI didn't return perfect JSON
+                return {
+                    "summary": response.text[:500],
+                    "hindi_translation": response.text[:500],
+                    "risk_level": "Moderate"
+                }
 
         except Exception as e:
             logger.error(f"Failed to generate AI health summary: {e}")
-            return "Error generating AI health summary. Please review vitals manually."
+            return {
+                "summary": "Error generating AI health summary.",
+                "hindi_translation": "Error generating AI health summary.",
+                "risk_level": "Unknown"
+            }
 
     async def _generate_content_with_retry(self, contents, config, max_retries=3):
         for i in range(max_retries):

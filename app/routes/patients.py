@@ -64,10 +64,19 @@ async def create_patient_and_report(
         # 3.1. Fetch User Metadata for branding injection
         try:
             if user:
+                # Determine profile name based on account type or available data
+                account_type = user.user_metadata.get("account_type", "hospital")
+                h_name = user.user_metadata.get("hospital_name", "")
+                f_name = user.user_metadata.get("full_name", "")
+                u_name = user.user_metadata.get("admin_username", "")
+                
+                # Logical fallback: Hospital Name -> Full Name -> Username
+                branding_name = h_name or f_name or u_name or "Medical Professional"
+                
                 phone = f"{user.user_metadata.get('country_code', '')} {user.user_metadata.get('phone', '')}".strip() if user.user_metadata else ""
                 hospital_info = {
-                    "hospital_name": user.user_metadata.get("hospital_name", "") if user.user_metadata else "",
-                    "admin_name": user.user_metadata.get("admin_username", "") if user.user_metadata else "",
+                    "hospital_name": branding_name,
+                    "admin_name": u_name,
                     "email": user.email or "",
                     "phone": phone
                 }
@@ -103,9 +112,29 @@ async def get_patients(authorization: str = Header(...)):
     """
     try:
         supabase = get_supabase_client(authorization)
-        # Fetch patients with their reports
+        
+        # 1. Fetch caller's account type to handle privacy rules
+        user_type = "hospital"
+        try:
+            auth_res = supabase.auth.get_user()
+            if auth_res and auth_res.user:
+                user_type = auth_res.user.user_metadata.get("account_type", "hospital")
+        except Exception: pass
+
+        # 2. Fetch patients with their reports
         response = supabase.table("patients").select("*, reports(*)").execute()
-        return response.data
+        patients = response.data or []
+        
+        # 3. Privacy Filter: Hospitals should NOT see vitals-sourced reports
+        if user_type == "hospital":
+            for p in patients:
+                if "reports" in p:
+                    p["reports"] = [
+                        r for r in p["reports"] 
+                        if not (r.get("analysis") and isinstance(r["analysis"], dict) and r["analysis"].get("source") == "vitals_live")
+                    ]
+        
+        return patients
     except Exception as e:
         logger.error(f"Error fetching patients: {e}")
         raise HTTPException(status_code=500, detail=str(e))

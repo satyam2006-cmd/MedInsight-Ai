@@ -15,6 +15,9 @@ import json
 import time
 import uuid
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -157,25 +160,97 @@ async def vitals_websocket(websocket: WebSocket):
         await websocket.close()
 
 @router.get("/api/vitals/session")
-async def get_session(session_id: str = None):
-    """Return current session summary."""
+async def get_session(
+    session_id: str = None,
+    language: str = "English",
+    patient_id: str = None,
+    patient_name: str = None,
+    patient_contact: str = None,
+    authorization: str = Header(None)
+):
+    """Return local session summary with AI analysis and automated archiving."""
     service, resolved_session_id = _resolve_service(session_id)
     if service:
         summary = service.get_session_summary()
-        # Ensure we only generate a summary if we don't have one cached or we want a fresh one
-        # For simplicity, generate it on demand here if enough data exists
-        if summary.get('avg_hr', 0) > 0 and 'ai_summary' not in summary:
-            ai_text = await ai_summary_service.generate_summary(summary)
-            summary['ai_summary'] = ai_text
-            # Optionally cache it back in the service to avoid regenerating every time
-            service.ai_summary_cache = ai_text
-        elif hasattr(service, 'ai_summary_cache'):
-            summary['ai_summary'] = service.ai_summary_cache
+        
+        # Ensure we have a valid summary if enough data exists
+        if summary.get('avg_hr', 0) > 0:
+            # Generate structured AI insights (English + Translation + Risk)
+            ai_data = await ai_summary_service.generate_summary(summary, target_language=language)
+            summary.update(ai_data) # Inject summary_en, summary_target, risk_level
+            
+            # If patient info is provided, archive this as a permanent "Report"
+            if patient_id and patient_name:
+                try:
+                    supabase = get_supabase_client(authorization) if authorization else get_supabase_client()
+                    
+                    # 1. Resolve or Create Patient
+                    patient_record = None
+                    by_custom = supabase.table("patients").select("id").eq("patient_custom_id", patient_id).limit(1).execute()
+                    if by_custom.data:
+                        patient_record = by_custom.data[0]
+                    else:
+                        patient_record = db_service.create_patient(
+                            supabase=supabase,
+                            name=patient_name,
+                            number=patient_contact or "",
+                            custom_id=patient_id
+                        )
+                    
+                    # 2. Extract Branding Info
+                    user = None
+                    try:
+                        auth_response = supabase.auth.get_user()
+                        user = auth_response.user if auth_response and auth_response.user else None
+                    except Exception: pass
+                    
+                    hospital_info = None
+                    if user and user.user_metadata:
+                        hospital_info = {
+                            "hospital_name": user.user_metadata.get("hospital_name", ""),
+                            "admin_name": user.user_metadata.get("admin_username", ""),
+                            "email": user.email or "",
+                        }
+
+                    # 3. Create Report Record (archived in English as requested)
+                    report_text = (
+                        f"AI-Analyzed Vitals Session\n"
+                        f"Patient: {patient_name} ({patient_id})\n"
+                        f"Average HR: {summary.get('avg_hr')} BPM\n"
+                        f"Average SpO2: {summary.get('avg_spo2')}%"
+                    )
+                    
+                    analysis_data = {
+                        "summary": ai_data.get("summary"),
+                        "hindi_translation": ai_data.get("hindi_translation"),
+                        "risk_level": ai_data.get("risk_level"),
+                        "target_language": language or "English",
+                        "source": "vitals_live",
+                        "vitals_snapshot": {
+                            "hr": summary.get("avg_hr"),
+                            "spo2": summary.get("avg_spo2"),
+                            "rr": summary.get("avg_rr"),
+                            "hrv": summary.get("hrv_sdnn")
+                        }
+                    }
+                    if hospital_info:
+                        analysis_data["hospital_details"] = hospital_info
+
+                    db_service.create_report(
+                        supabase=supabase,
+                        patient_id=patient_record.get("id"),
+                        extracted_text=report_text,
+                        analysis=analysis_data
+                    )
+                    summary["archived"] = True
+                except Exception as e:
+                    logger.error(f"Failed to auto-archive vitals to reports: {e}")
+                    summary["archived"] = False
+
         summary["session_id"] = resolved_session_id
         return summary
 
     return JSONResponse(content={"error": "No active session"}, status_code=404)
-
 @router.get("/api/vitals/report")
 async def get_report(
     session_id: str = None,
