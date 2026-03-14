@@ -1,206 +1,194 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    Activity,
-    ArrowRight,
-    Command,
-    FileText,
-    HeartPulse,
-    ShieldCheck,
-    UserRound,
-    Users
-} from 'lucide-react';
+import GlobalSidebar from '../components/GlobalSidebar';
+import { ArrowRight } from 'lucide-react';
 
 const moduleCards = [
     {
         id: 'vitals',
-        title: 'Vitals Deck',
+        title: 'VITALS DECK',
         subtitle: 'Contactless monitoring and live session capture.',
         detail: 'Launch camera pipeline and monitor heart, respiration, and SpO2 flow in one panel.',
         route: '/vitals',
-        tone: 'linear-gradient(145deg, #2f5d62 0%, #365159 45%, #20343a 100%)',
-        icon: HeartPulse,
-        metric: 'Live Signals'
+        tone: 'linear-gradient(135deg, #375361 0%, #2f4551 100%)', // accurately matched slate/teal
+        metric: 'LIVE SIGNALS',
+        image: '/assets/heart3d.png'
     },
     {
         id: 'analyzer',
-        title: 'Report Forge',
+        title: 'REPORT FORGE',
         subtitle: 'OCR extraction and AI interpretation workspace.',
         detail: 'Process uploaded documents, generate structured findings, and use target-language output.',
         route: '/analyzer',
-        tone: 'linear-gradient(145deg, #c84d2f 0%, #9c3922 45%, #682f21 100%)',
-        icon: FileText,
-        metric: 'Insight Engine'
+        tone: 'linear-gradient(135deg, #be4f33 0%, #a23a20 100%)', // accurately matched rust orange
+        metric: 'INSIGHT ENGINE',
+        image: '/assets/liver3d.png'
     },
     {
         id: 'patients',
-        title: 'Patient Registry',
+        title: 'PATIENT REGISTRY',
         subtitle: 'Onboard records and connect reports to care context.',
         detail: 'Create patient entries, attach report files, and jump directly to vitals from each row.',
         route: '/patients',
-        tone: 'linear-gradient(145deg, #de9f34 0%, #b37f2b 52%, #7f571c 100%)',
-        icon: Users,
-        metric: 'Care Index'
+        tone: 'linear-gradient(135deg, #d39a31 0%, #bb821d 100%)', // accurately matched mustard gold
+        metric: 'CARE INDEX',
+        image: '/assets/cells3d.png'
     }
-];
-
-const quickActions = [
-    { label: 'Hospital Dashboard', route: '/dash', icon: Activity },
-    { label: 'Patient Reports', route: '/reports', icon: ShieldCheck },
-    { label: 'Hospital Profile', route: '/profile', icon: UserRound },
-    { label: 'Sign-In Console', route: '/signins', icon: Command }
 ];
 
 const Hub = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="v2-shell" role="main" aria-label="MedInsight mission control">
-            <aside className="v2-side staggered-enter" aria-label="Primary navigation and status" style={{ display: 'grid', gap: '1.25rem' }}>
-                <div>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Healthcare Ops Mesh</div>
-                    <h1 style={{ marginTop: '0.8rem', fontSize: '2.05rem', color: '#f6f4e9' }}>MedInsight Control Room</h1>
-                    <p style={{ color: '#d2d7cf', marginTop: '0.8rem' }}>
-                        A mission dashboard for hospital teams running document intelligence and real-time vitals in parallel.
-                    </p>
-                </div>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <GlobalSidebar />
 
-                <div className="neo-card" style={{ background: 'rgba(241, 246, 241, 0.09)', borderColor: '#d6ebe1', color: '#f6f4e9' }}>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Session Pulse</div>
-                    <div style={{ display: 'grid', gap: '0.7rem', marginTop: '0.8rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-                            <span>Signal Node</span>
-                            <span style={{ color: '#98f5bf' }}>Online</span>
+            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+                <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+                    
+                    {/* Header Section */}
+                    <header className="staggered-enter hero-unboxed" style={{ marginBottom: '2rem' }}>
+                        <div style={{ 
+                            fontSize: '0.85rem', 
+                            fontWeight: 700, 
+                            color: 'var(--primary)', 
+                            textTransform: 'uppercase', 
+                            letterSpacing: '1.5px',
+                            marginBottom: '1rem' 
+                        }}>
+                            Clinical Workspace
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-                            <span>AI Queue</span>
-                            <span>Ready</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-                            <span>Registry</span>
-                            <span>Synced</span>
-                        </div>
-                    </div>
-                </div>
+                        <h2 style={{ 
+                            fontSize: '4.8rem', 
+                            fontWeight: 400, 
+                            color: '#1e293b', 
+                            letterSpacing: '-3px', 
+                            lineHeight: 1,
+                            marginBottom: '1.5rem'
+                        }}>
+                            Fluid communication <br /> between <span style={{ color: 'var(--primary)', fontWeight: 600 }}>patients</span> and <span style={{ color: '#0ea5e9', fontWeight: 600 }}>care teams</span>
+                        </h2>
+                        <p style={{ 
+                            fontSize: '1.3rem', 
+                            color: '#64748b', 
+                            maxWidth: '750px', 
+                            lineHeight: 1.6,
+                            marginBottom: '3rem'
+                        }}>
+                            From real-time vitals ingestion to deep AI analysis. Our unboxed interface
+                            removes barriers, placing patient data at the center of your clinical workflow.
+                        </p>
+                    </header>
 
-                <div style={{ display: 'grid', gap: '0.6rem' }}>
-                    {quickActions.map((action) => {
-                        const Icon = action.icon;
-                        return (
-                            <button
-                                key={action.label}
-                                type="button"
-                                onClick={() => navigate(action.route)}
-                                className="neo-btn"
-                                style={{
-                                    width: '100%',
-                                    justifyContent: 'space-between',
-                                    background: 'rgba(232, 239, 233, 0.14)',
-                                    borderColor: '#c8e3d7',
-                                    color: '#f8f4ea'
-                                }}
-                            >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Icon size={15} /> {action.label}
-                                </span>
-                                <ArrowRight size={16} />
-                            </button>
-                        );
-                    })}
-                </div>
-            </aside>
-
-            <section className="v2-main">
-                <header className="neo-card staggered-enter" style={{ display: 'grid', gap: '1.1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem', flexWrap: 'wrap' }}>
-                        <div>
-                            <div className="kicker">Command Palette</div>
-                            <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', marginTop: '0.4rem' }}>Orchestrate Patient Intelligence</h2>
-                            <p style={{ maxWidth: 620, marginTop: '0.8rem' }}>
-                                Route from ingestion to analysis and bedside action. Every module remains available, now grouped by clinical workflow rather than scattered navigation.
-                            </p>
-                        </div>
-                        <button type="button" className="neo-btn" onClick={() => navigate('/dash')}>
-                            Enter Secure Workspace <ArrowRight size={18} />
-                        </button>
-                    </div>
-
-                    <div
-                        className="neo-card"
-                        style={{
-                            background: 'var(--bg-panel)',
-                            borderStyle: 'dashed',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '0.8rem',
-                            flexWrap: 'wrap'
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
-                            <Command size={16} />
-                            <span>Power Shortcut</span>
-                        </div>
-                        <div style={{ color: 'var(--text-muted)' }}>Use semantic module jumps from one command bar.</div>
-                        <div className="badge">Ctrl + K</div>
-                    </div>
-                </header>
-
-                <div className="staggered-enter" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.2rem' }}>
-                    {moduleCards.map((card) => {
-                        const Icon = card.icon;
-                        return (
+                    {/* Module Cards Grid */}
+                    <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: '2.5rem' 
+                    }}>
+                        {moduleCards.map((card) => (
                             <article
                                 key={card.id}
-                                className="neo-card"
+                                className="brutal-border"
                                 style={{
                                     background: card.tone,
-                                    color: '#f8f3ea',
-                                    display: 'grid',
-                                    gap: '1rem',
-                                    minHeight: 250,
-                                    borderColor: 'rgba(235, 229, 210, 0.8)'
+                                    color: '#fff',
+                                    borderRadius: '16px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    overflow: 'hidden',
+                                    position: 'relative',
+                                    transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                                    cursor: 'pointer'
                                 }}
+                                onClick={() => navigate(card.route)}
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span className="badge" style={{ background: 'rgba(255,255,255,0.12)', color: '#f8f3ea', borderColor: 'rgba(255,255,255,0.5)' }}>
-                                        {card.metric}
-                                    </span>
-                                    <Icon size={26} />
+                                {/* Top Half - Two Columns */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', flex: 1 }}>
+                                    
+                                    {/* Left Content Area */}
+                                    <div style={{ padding: '2.5rem 2rem 1.5rem 2.5rem', display: 'flex', flexDirection: 'column' }}>
+                                        <div style={{ 
+                                            display: 'inline-block', 
+                                            padding: '0.4rem 0.8rem', 
+                                            border: '2px solid #000', 
+                                            background: '#fff',
+                                            color: '#000',
+                                            borderRadius: '4px', 
+                                            fontSize: '0.7rem', 
+                                            fontWeight: 800, 
+                                            letterSpacing: '0.5px',
+                                            alignSelf: 'flex-start',
+                                            marginBottom: '2.5rem',
+                                            boxShadow: '2px 2px 0px #000'
+                                        }}>
+                                            {card.metric}
+                                        </div>
+                                        <h3 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>
+                                            {card.title}
+                                        </h3>
+                                        <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'rgba(255,255,255,0.95)', marginBottom: '1rem', lineHeight: 1.4 }}>
+                                            {card.subtitle}
+                                        </p>
+                                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
+                                            {card.detail}
+                                        </p>
+                                    </div>
+
+                                    {/* Right Image Area */}
+                                    <div style={{ 
+                                        position: 'relative', 
+                                        background: 'rgba(255,255,255,0.1)', 
+                                        borderLeft: '4px solid #000',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <img 
+                                            src={card.image} 
+                                            alt={card.title} 
+                                            style={{ 
+                                                width: '130%', 
+                                                height: 'auto', 
+                                                objectFit: 'contain',
+                                                filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.4))',
+                                                transform: 'scale(1.1) translateX(10px)',
+                                                position: 'relative',
+                                                zIndex: 1
+                                            }} 
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 style={{ fontSize: '1.55rem', marginBottom: '0.5rem' }}>{card.title}</h3>
-                                    <p style={{ color: 'rgba(246, 241, 230, 0.95)', fontWeight: 600 }}>{card.subtitle}</p>
-                                    <p style={{ marginTop: '0.7rem', color: 'rgba(246, 241, 230, 0.88)' }}>{card.detail}</p>
-                                </div>
-                                <div>
-                                    <button
-                                        type="button"
-                                        className="neo-btn"
-                                        onClick={() => navigate(card.route)}
-                                        style={{ background: '#f8f4e9', color: '#1b242a', borderColor: '#f8f4e9', width: '100%' }}
+
+                                {/* Bottom Action Strip */}
+                                <div style={{ padding: '0 2.5rem 2.5rem 2.5rem', marginTop: 'auto' }}>
+                                    <div
+                                        style={{
+                                            background: '#000',
+                                            color: '#fff',
+                                            fontWeight: 800,
+                                            fontSize: '0.8rem',
+                                            padding: '0.8rem 1.5rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '1px',
+                                            width: 'fit-content',
+                                            border: '2px solid #fff',
+                                            boxShadow: '4px 4px 0px #fff'
+                                        }}
                                     >
-                                        Open {card.title} <ArrowRight size={16} />
-                                    </button>
+                                        OPEN MODULE <ArrowRight size={16} />
+                                    </div>
                                 </div>
                             </article>
-                        );
-                    })}
-                </div>
-
-                <section className="neo-card staggered-enter" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center' }}>
-                    <div>
-                        <div className="kicker">Workflow Path</div>
-                        <h3 style={{ marginTop: '0.45rem', fontSize: '1.3rem' }}>Capture | Analyze | Share | Follow-up</h3>
-                        <p style={{ marginTop: '0.55rem' }}>
-                            Module architecture now follows clinical sequence: acquire vitals, process records, register patients, then distribute translated summaries.
-                        </p>
+                        ))}
                     </div>
-                    <button type="button" className="neo-btn" onClick={() => navigate('/reports')}>
-                        Open Reports Layer <ArrowRight size={16} />
-                    </button>
-                </section>
-            </section>
+
+                </div>
+            </main>
         </div>
     );
 };

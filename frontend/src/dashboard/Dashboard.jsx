@@ -11,6 +11,7 @@ import {
     UserRound,
     Users
 } from 'lucide-react';
+import GlobalSidebar from '../components/GlobalSidebar';
 
 const statTiles = [
     {
@@ -61,53 +62,25 @@ const Dashboard = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="v2-shell" role="main" aria-label="Hospital secure workspace">
-            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1.25rem' }}>
-                <div>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Secure Mode</div>
-                    <h1 style={{ color: '#f8f3ea', marginTop: '0.8rem', fontSize: '1.9rem' }}>Hospital Workspace</h1>
-                    <p style={{ marginTop: '0.7rem', color: '#d6ded3' }}>
-                        One place to navigate critical modules and keep diagnostics, records, and reporting aligned.
-                    </p>
-                </div>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <GlobalSidebar />
 
-                <div className="neo-card" style={{ background: 'rgba(240, 244, 236, 0.08)', borderColor: '#d5e8e0' }}>
-                    <div className="kicker" style={{ color: '#d6e5df' }}>Quick Links</div>
-                    <div style={{ display: 'grid', gap: '0.55rem', marginTop: '0.8rem' }}>
-                        <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                            Mission Control <ArrowRight size={15} />
-                        </button>
-                        <button type="button" className="neo-btn" onClick={() => navigate('/analyzer')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                            Report Forge <ArrowRight size={15} />
-                        </button>
-                        <button type="button" className="neo-btn" onClick={() => navigate('/profile')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                            Hospital Profile <ArrowRight size={15} />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="neo-card" style={{ background: 'rgba(240, 244, 236, 0.08)', borderColor: '#d5e8e0' }}>
-                    <div className="kicker" style={{ color: '#d6e5df' }}>Command</div>
-                    <div style={{ marginTop: '0.8rem', display: 'grid', gap: '0.4rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f8f3ea', fontWeight: 700 }}>
-                            <span>View</span>
-                            <span>Operations</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f8f3ea', fontWeight: 700 }}>
-                            <span>Mode</span>
-                            <span>Real-time</span>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
-            <section className="v2-main">
+            <main style={{ flex: 1, marginLeft: '80px', padding: '3rem', position: 'relative' }}>
+                <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'grid', gap: '2rem' }}>
                 <header className="neo-card staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                        <div>
-                            <div className="kicker">Control Center</div>
-                            <h2 style={{ marginTop: '0.5rem', fontSize: 'clamp(1.8rem, 4vw, 2.9rem)' }}>Clinical Operations Radar</h2>
-                            <p style={{ maxWidth: 680, marginTop: '0.7rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <div className="kicker" style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>Control Center</div>
+                            <h2 style={{ 
+                                marginTop: '0.5rem', 
+                                fontSize: 'clamp(2.2rem, 4vw, 3.2rem)',
+                                fontFamily: 'var(--font-display)',
+                                fontWeight: 400,
+                                letterSpacing: '-1px'
+                            }}>
+                                Clinical <span style={{ color: '#0ea5e9', fontWeight: 600 }}>Operations</span> Radar
+                            </h2>
+                            <p style={{ marginTop: '0.8rem', fontSize: '1.05rem', color: '#555', maxWidth: '600px' }}>
                                 Reorganized for flow-first decision making: intake, vitals acquisition, AI interpretation, and patient communication are now exposed as deliberate paths.
                             </p>
                         </div>
@@ -177,7 +150,8 @@ const Dashboard = () => {
                         </button>
                     </article>
                 </section>
-            </section>
+                </div>
+            </main>
         </div>
     );
 };

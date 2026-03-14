@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { FileText, Loader2, AlertCircle, RefreshCw, Volume2, MessageSquare, Trash2 } from 'lucide-react';
+import { Trash2, Share2, FileText, ChevronDown, ChevronUp, ExternalLink, Brain, LayoutGrid, ArrowLeft, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/config';
 import { openWhatsApp, generateShareMessage } from '../lib/whatsapp';
+import GlobalSidebar from '../components/GlobalSidebar';
 
 export default function ReportsPage() {
+    const navigate = useNavigate();
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -162,30 +165,67 @@ export default function ReportsPage() {
     };
 
     return (
-        <div className="v2-shell" role="main" aria-label="Reports workspace">
-            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
-                <div>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
-                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Reports Layer</h2>
-                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
-                        Review AI outputs, share with patients, and manage report lifecycle from one feed.
-                    </p>
-                </div>
-                <button type="button" className="neo-btn" onClick={() => window.location.href = '/'} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Back to Mission Control
-                </button>
-                <button type="button" className="neo-btn" onClick={() => window.location.href = '/patients'} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Patient Registry
-                </button>
-                <button type="button" className="neo-btn" onClick={() => window.location.href = '/analyzer'} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Report Forge
-                </button>
-            </aside>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <GlobalSidebar />
 
-            <section className="v2-main">
-                <header className="neo-card staggered-enter">
-                    <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>Patient AI Reports</h1>
-                    <p>Longitudinal report feed with sharing and deletion controls.</p>
+            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+                <button
+                    onClick={() => navigate('/')}
+                    className="staggered-enter"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.6rem 1.4rem',
+                        background: '#fff',
+                        color: '#1e293b',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        marginBottom: '2rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderRadius: '99px',
+                        border: '1.5px solid #1e293b',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.transform = 'translateX(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = '#fff';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                >
+                    <ArrowLeft size={16} />
+                    BACK TO HUB
+                </button>
+                <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+                        <div style={{ 
+                            width: '64px', 
+                            height: '64px', 
+                            background: 'rgba(200, 77, 47, 0.1)', 
+                            borderRadius: '16px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: 'var(--primary)'
+                        }}>
+                            <FileText size={32} />
+                        </div>
+                        <div>
+                            <h1 style={{ fontSize: '3.8rem', fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
+                                Insight <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Feed</span>
+                            </h1>
+                            <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
+                                Longitudinal AI report history and clinical documentation.
+                            </p>
+                        </div>
+                    </div>
                 </header>
 
             {loading && <p style={{ fontSize: '1.2rem', color: '#666' }}>Loading patient records...</p>}
@@ -204,16 +244,26 @@ export default function ReportsPage() {
             )}
 
             {!loading && patients.map((patient) => (
-                <div key={patient.id} className="neo-card panel-soft" style={{ padding: '1.5rem', marginBottom: '1.5rem', background: 'white' }}>
-
-                    {/* Header Row */}
+                <div key={patient.id} className="staggered-enter neo-card brutal-border" style={{ marginBottom: '3rem', background: 'white' }}>
                     <div
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                        style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'end', 
+                            cursor: 'pointer',
+                            padding: '0.5rem 0',
+                            borderBottom: '1px solid rgba(0,0,0,0.06)',
+                            marginBottom: '1.5rem'
+                        }}
                         onClick={() => setExpandedPatientId(expandedPatientId === patient.id ? null : patient.id)}
                     >
                         <div>
-                            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>{patient.patient_name}</h3>
-                            <p style={{ margin: 0, color: '#666' }}>ID: {patient.patient_custom_id || patient.patient_number} | Visited: {new Date(patient.created_at).toLocaleDateString()}</p>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Patient Record</span>
+                            <h3 style={{ margin: '0.2rem 0', fontSize: '2.2rem', color: '#1e293b', fontWeight: 500 }}>{patient.patient_name}</h3>
+                            <div style={{ display: 'flex', gap: '1.5rem', color: '#64748b', fontSize: '0.95rem' }}>
+                                <span>ID: <strong style={{color: '#1e293b'}}>{patient.patient_custom_id || patient.patient_number}</strong></span>
+                                <span>Total Reports: <strong style={{color: '#1e293b'}}>{patient.reports?.length || 0}</strong></span>
+                            </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <button
@@ -327,7 +377,8 @@ export default function ReportsPage() {
                     )}
                 </div>
             ))}
-            </section>
+                </div>
+            </main>
         </div>
     );
 }

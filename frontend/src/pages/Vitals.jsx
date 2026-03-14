@@ -1,7 +1,8 @@
 import React from 'react';
-import { ArrowLeft, Activity, UserCheck } from 'lucide-react';
+import { ArrowLeft, Activity, UserCheck, LayoutGrid } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import VitalsMonitor from '../components/VitalsMonitor';
+import GlobalSidebar from '../components/GlobalSidebar';
 
 const VitalsPage = () => {
     const navigate = useNavigate();
@@ -9,42 +10,66 @@ const VitalsPage = () => {
     const patientIdFromUrl = searchParams.get('patient') || '';
 
     return (
-        <div className="v2-shell" role="main" aria-label="Vitals monitoring workspace">
-            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
-                <div>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
-                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Vitals Deck</h2>
-                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
-                        Contactless physiological monitoring with patient-linked capture sessions.
-                    </p>
-                </div>
-                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Back to Mission Control
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/patients')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Patient Registry
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Reports Layer
-                </button>
-            </aside>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <GlobalSidebar />
 
-            <section className="v2-main">
+            <main style={{ flex: 1, marginLeft: '80px', padding: '3rem', position: 'relative' }}>
+                <button
+                    onClick={() => navigate('/')}
+                    className="staggered-enter"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.6rem 1.4rem',
+                        background: '#fff',
+                        color: '#1e293b',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        marginBottom: '2rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderRadius: '99px',
+                        border: '1.5px solid #1e293b',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.transform = 'translateX(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = '#fff';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                >
+                    <ArrowLeft size={16} />
+                    BACK TO HUB
+                </button>
             <div style={{ maxWidth: '1400px', margin: '0 auto', zIndex: 1, position: 'relative' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="neo-btn"
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: 'black', padding: '0.5rem 1rem' }}
-                    >
-                        <ArrowLeft size={18} /> Back to Hub
-                    </button>
                     {patientIdFromUrl && (
                         <button
                             onClick={() => navigate('/patients')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#eef2ff', border: '2px solid #5227FF', color: '#3730a3', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
+                            className="staggered-enter"
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.6rem', 
+                                padding: '0.6rem 1.4rem', 
+                                background: '#eef2ff', 
+                                border: '1.5px solid #5227FF', 
+                                color: '#3730a3', 
+                                fontWeight: 700, 
+                                cursor: 'pointer', 
+                                fontSize: '0.8rem',
+                                borderRadius: '99px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                            }}
                         >
-                            <ArrowLeft size={15} /> Back to Patients
+                            <ArrowLeft size={16} /> BACK TO PATIENTS
                         </button>
                     )}
                 </div>
@@ -66,7 +91,7 @@ const VitalsPage = () => {
                     </div>
                 )}
 
-                <header style={{ marginBottom: '3rem' }}>
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '3rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
                         <div style={{ 
                             background: 'var(--primary)', 
@@ -83,10 +108,12 @@ const VitalsPage = () => {
                     </div>
                 </header>
 
-                <div style={{ width: '100%' }}>
-                    <VitalsMonitor initialPatientId={patientIdFromUrl} />
+                <div className="module-content" style={{ width: '100%', display: 'grid', gap: '2rem' }}>
+                    <div className="neo-card brutal-border" style={{ background: 'white', padding: '2rem' }}>
+                        <VitalsMonitor initialPatientId={patientIdFromUrl} />
+                    </div>
                     
-                    <section className="neo-card panel-soft" style={{ marginTop: '2rem', background: '#f8f9ff', padding: '1.5rem', borderLeft: '6px solid var(--primary)' }}>
+                    <section className="neo-card brutal-border panel-soft" style={{ marginTop: '2rem', background: '#f8f9ff', padding: '1.5rem', borderLeft: '6px solid var(--primary)' }}>
                         <h4 style={{ margin: '0 0 1rem' }}>How it works</h4>
                         <p style={{ margin: 0, color: '#444', lineHeight: '1.6' }}>
                             Our AI-powered system uses <strong>Remote Photoplethysmography (rPPG)</strong> to detect micro-changes 
@@ -101,7 +128,7 @@ const VitalsPage = () => {
                     </section>
                 </div>
             </div>
-            </section>
+            </main>
         </div>
     );
 };

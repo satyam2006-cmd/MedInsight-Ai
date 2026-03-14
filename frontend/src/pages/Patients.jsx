@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { UserPlus, Loader2, Phone, User, Activity, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
 import { useNavigate } from 'react-router-dom';
+import GlobalSidebar from '../components/GlobalSidebar';
 
 
 export default function PatientsPage() {
@@ -107,99 +108,152 @@ export default function PatientsPage() {
 
 
     return (
-        <div className="v2-shell" role="main" aria-label="Patient registry workspace">
-            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
-                <div>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
-                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Patient Registry</h2>
-                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
-                        Add records, attach reports, and route patients directly to contactless vitals.
-                    </p>
-                </div>
-                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Back to Mission Control
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/analyzer')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Report Forge
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Reports Layer
-                </button>
-            </aside>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <GlobalSidebar />
 
-            <section className="v2-main">
-                <header className="neo-card staggered-enter">
-                    <h1 style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>Patient Records</h1>
-                    <p>Register patients, add target language, and upload clinical documents for AI processing.</p>
+            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+                <button
+                    onClick={() => navigate('/')}
+                    className="staggered-enter"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.6rem 1.4rem',
+                        background: '#fff',
+                        color: '#1e293b',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        marginBottom: '2rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderRadius: '99px',
+                        border: '1.5px solid #1e293b',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.transform = 'translateX(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = '#fff';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                >
+                    <ArrowLeft size={16} />
+                    BACK TO HUB
+                </button>
+                <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+                        <div style={{ 
+                            width: '64px', 
+                            height: '64px', 
+                            background: 'rgba(200, 77, 47, 0.1)', 
+                            borderRadius: '16px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: 'var(--primary)'
+                        }}>
+                            <UserPlus size={32} />
+                        </div>
+                        <div>
+                            <h1 style={{ fontSize: '3.8rem', fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
+                                Patient <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Registry</span>
+                            </h1>
+                            <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
+                                Register patients and process clinical documentation seamlessly.
+                            </p>
+                        </div>
+                    </div>
                 </header>
 
-                <div className="module-content" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', display: 'grid', alignItems: 'start' }}>
+                <div className="module-content" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '4rem', alignItems: 'start' }}>
                 {/* Left Side: Form */}
-                <form onSubmit={handleSubmit} className="neo-card panel-soft" style={{ padding: '2rem' }}>
-                    <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem' }}>Add New Patient</h3>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="patientId" className="field-label">Patient ID</label>
-                        <input
-                            id="patientId"
-                            type="text"
-                            value={patientId}
-                            onChange={(e) => setPatientId(e.target.value)}
-                            required
-                            className="input-v2"
-                        />
+                <form onSubmit={handleSubmit} className="staggered-enter" style={{ display: 'grid', gap: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#1e293b', fontWeight: 500 }}>Register New Patient</h3>
+                    <div className="neo-card brutal-border" style={{ padding: '2.5rem', display: 'grid', gap: '1.2rem' }}>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            <label htmlFor="patientId" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Patient ID</label>
+                            <input
+                                id="patientId"
+                                type="text"
+                                value={patientId}
+                                onChange={(e) => setPatientId(e.target.value)}
+                                required
+                                className="input-v2"
+                                style={{ padding: '0.9rem 1.2rem', borderRadius: '12px' }}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            <label htmlFor="patientName" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Full Name</label>
+                            <input
+                                id="patientName"
+                                type="text"
+                                value={patientName}
+                                onChange={(e) => setPatientName(e.target.value)}
+                                required
+                                className="input-v2"
+                                style={{ padding: '0.9rem 1.2rem', borderRadius: '12px' }}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            <label htmlFor="patientNumber" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Contact Number</label>
+                            <input
+                                id="patientNumber"
+                                type="tel"
+                                value={patientNumber}
+                                onChange={(e) => setPatientNumber(e.target.value)}
+                                required
+                                className="input-v2"
+                                style={{ padding: '0.9rem 1.2rem', borderRadius: '12px' }}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            <label htmlFor="language" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Preferred Report Language</label>
+                            <input
+                                id="language"
+                                type="text"
+                                value={language}
+                                onChange={(e) => setLanguage(e.target.value)}
+                                required
+                                placeholder="Hindi, Telugu, Spanish..."
+                                className="input-v2"
+                                style={{ padding: '0.9rem 1.2rem', borderRadius: '12px' }}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            <label htmlFor="report" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Initial Clinical Document</label>
+                            <input
+                                id="report"
+                                type="file"
+                                accept=".jpg,.jpeg,.pdf,.docx"
+                                onChange={(e) => setReport(e.target.files[0])}
+                                required
+                                className="input-v2"
+                                style={{ padding: '0.9rem 1.2rem', borderRadius: '12px' }}
+                            />
+                        </div>
+                        <button type="submit" disabled={isLoading} className="neo-btn" style={{ 
+                            background: '#1e293b', 
+                            color: 'white', 
+                            padding: '1.2rem', 
+                            width: '100%', 
+                            fontSize: '1.1rem', 
+                            borderRadius: '16px',
+                            marginTop: '1rem',
+                            textTransform: 'none'
+                        }}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : 'Register & Analyze'}
+                        </button>
                     </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="patientName" className="field-label">Patient Name</label>
-                        <input
-                            id="patientName"
-                            type="text"
-                            value={patientName}
-                            onChange={(e) => setPatientName(e.target.value)}
-                            required
-                            className="input-v2"
-                        />
-                    </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="patientNumber" className="field-label">Contact Number</label>
-                        <input
-                            id="patientNumber"
-                            type="tel"
-                            value={patientNumber}
-                            onChange={(e) => setPatientNumber(e.target.value)}
-                            required
-                            className="input-v2"
-                        />
-                    </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="language" className="field-label">Report Target Language</label>
-                        <input
-                            id="language"
-                            type="text"
-                            value={language}
-                            onChange={(e) => setLanguage(e.target.value)}
-                            required
-                            placeholder="Profile default or type language (e.g. Hindi, Spanish)"
-                            className="input-v2"
-                        />
-                    </div>
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label htmlFor="report" className="field-label">Report Document</label>
-                        <input
-                            id="report"
-                            type="file"
-                            accept=".jpg,.jpeg,.pdf,.docx"
-                            onChange={(e) => setReport(e.target.files[0])}
-                            required
-                            className="input-v2"
-                        />
-                    </div>
-                    <button type="submit" disabled={isLoading} className="neo-btn" style={{ background: 'var(--primary)', color: 'white', padding: '0.8rem 1.2rem', width: '100%', fontSize: '1.1rem', opacity: isLoading ? 0.7 : 1 }}>
-                        {isLoading ? 'Analyzing Document...' : 'Save Patient'}
-                    </button>
                 </form>
 
                 {/* Right Side: Table */}
-                <div className="neo-card panel-soft" style={{ padding: '2rem', background: 'white' }}>
+                <div className="neo-card brutal-border panel-soft" style={{ padding: '2rem', background: 'white' }}>
                     <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         Recent Entries
                         <span style={{ fontSize: '1rem', background: 'var(--accent)', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
@@ -258,7 +312,8 @@ export default function PatientsPage() {
                     </div>
                 </div>
                 </div>
-            </section>
+                </div>
+            </main>
         </div>
     );
 }
