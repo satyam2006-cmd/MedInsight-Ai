@@ -84,6 +84,14 @@ class VitalsService:
             self.demo_rr_mode = str(raw_demo_rr).strip().lower() in ("1", "true", "yes", "on")
         self.demo_hr_value = 74.0
         self.demo_rr_value = 15.5
+        self.demo_hr_last_rounded = None
+        self.demo_rr_last_rounded = None
+        self.demo_tick = 0
+        self.demo_warmup_sec = float(os.getenv("DEMO_WARMUP_SEC", "12"))
+        self.demo_update_interval_sec = float(os.getenv("DEMO_UPDATE_INTERVAL_SEC", "4.0"))
+        self.demo_hr_step_max = float(os.getenv("DEMO_HR_STEP_MAX", "1.2"))
+        self.demo_rr_step_max = float(os.getenv("DEMO_RR_STEP_MAX", "0.5"))
+        self.demo_last_update_ts = 0.0
         self.demo_rng = np.random.default_rng()
 
     def set_live_calibration(self, metric: str, slope: float, intercept: float):
@@ -206,9 +214,11 @@ class VitalsService:
 
     def _demo_heart_rate(self) -> float:
         """Demo-only HR shaping: mostly 68-80 BPM, always constrained to 60-100 BPM."""
-        # Gentle random walk around 74 with mean-reversion.
-        drift = float(self.demo_rng.normal(0.0, 1.4))
-        self.demo_hr_value = 0.86 * self.demo_hr_value + 0.14 * 74.0 + drift
+        self.demo_tick += 1
+        # Gentle random walk + slow oscillation so UI does not appear frozen.
+        drift = float(self.demo_rng.normal(0.0, 1.2))
+        wobble = 0.9 * np.sin(self.demo_tick / 4.5)
+        self.demo_hr_value = 0.84 * self.demo_hr_value + 0.16 * 74.0 + drift + wobble
 
         # Most of the time keep inside 68-80, occasionally allow 60-100.
         if float(self.demo_rng.random()) < 0.85:
@@ -216,19 +226,34 @@ class VitalsService:
         else:
             self.demo_hr_value = float(np.clip(self.demo_hr_value, 60.0, 100.0))
 
-        return float(np.clip(self.demo_hr_value, 60.0, 100.0))
+        # Force visible movement at 0.1 precision when clamping causes plateaus.
+        rounded = round(float(self.demo_hr_value), 1)
+        if self.demo_hr_last_rounded is not None and rounded == self.demo_hr_last_rounded:
+            nudge = 0.1 if (self.demo_tick % 2 == 0) else -0.1
+            self.demo_hr_value = float(np.clip(self.demo_hr_value + nudge, 60.0, 100.0))
+            rounded = round(float(self.demo_hr_value), 1)
+        self.demo_hr_last_rounded = rounded
+        return rounded
 
     def _demo_respiration_rate(self) -> float:
         """Demo-only RR shaping: mostly 13-18 RPM, always constrained to 10-24 RPM."""
-        drift = float(self.demo_rng.normal(0.0, 0.4))
-        self.demo_rr_value = 0.84 * self.demo_rr_value + 0.16 * 15.5 + drift
+        self.demo_tick += 1
+        drift = float(self.demo_rng.normal(0.0, 0.35))
+        wobble = 0.45 * np.sin(self.demo_tick / 5.5)
+        self.demo_rr_value = 0.82 * self.demo_rr_value + 0.18 * 15.5 + drift + wobble
 
         if float(self.demo_rng.random()) < 0.87:
             self.demo_rr_value = float(np.clip(self.demo_rr_value, 13.0, 18.0))
         else:
             self.demo_rr_value = float(np.clip(self.demo_rr_value, 10.0, 24.0))
 
-        return float(np.clip(self.demo_rr_value, 10.0, 24.0))
+        rounded = round(float(self.demo_rr_value), 1)
+        if self.demo_rr_last_rounded is not None and rounded == self.demo_rr_last_rounded:
+            nudge = 0.1 if (self.demo_tick % 2 == 0) else -0.1
+            self.demo_rr_value = float(np.clip(self.demo_rr_value + nudge, 10.0, 24.0))
+            rounded = round(float(self.demo_rr_value), 1)
+        self.demo_rr_last_rounded = rounded
+        return rounded
 
     def process_signal(self, values: List[float], timestamp: float) -> Dict[str, Any]:
         """
@@ -416,17 +441,45 @@ class VitalsService:
                 alert = self._check_alerts()
 
         if self.demo_hr_mode or self.demo_rr_mode:
-            mode_parts = []
-            if self.demo_hr_mode:
-                self.bpm = self._demo_heart_rate()
-                self.smooth_bpm = self.bpm
-                mode_parts.append("heart rate")
-            if self.demo_rr_mode:
-                self.respiration_rate = self._demo_respiration_rate()
-                self.smooth_rpm = self.respiration_rate
-                mode_parts.append("respiration")
-            self.signal_quality = max(self.signal_quality, 92.0)
-            self.quality_reason = "Demo mode: simulated " + " and ".join(mode_parts)
+            session_elapsed = current_time - self.session_start
+            warmup_ready = session_elapsed >= self.demo_warmup_sec and L >= 180
+
+            if not warmup_ready:
+                if self.demo_hr_mode:
+                    self.bpm = 0.0
+                    self.smooth_bpm = 0.0
+                if self.demo_rr_mode:
+                    self.respiration_rate = 0.0
+                    self.smooth_rpm = 0.0
+                self.quality_reason = "Demo mode: analyzing footage"
+            else:
+                if (current_time - self.demo_last_update_ts) >= self.demo_update_interval_sec:
+                    if self.demo_hr_mode:
+                        target_hr = self._demo_heart_rate()
+                        if self.bpm > 0:
+                            delta_hr = float(target_hr - self.bpm)
+                            step_hr = float(np.clip(delta_hr, -self.demo_hr_step_max, self.demo_hr_step_max))
+                            self.bpm = float(np.clip(self.bpm + step_hr, 60.0, 100.0))
+                        else:
+                            self.bpm = target_hr
+                        self.smooth_bpm = self.bpm
+                    if self.demo_rr_mode:
+                        target_rr = self._demo_respiration_rate()
+                        if self.respiration_rate > 0:
+                            delta_rr = float(target_rr - self.respiration_rate)
+                            step_rr = float(np.clip(delta_rr, -self.demo_rr_step_max, self.demo_rr_step_max))
+                            self.respiration_rate = float(np.clip(self.respiration_rate + step_rr, 10.0, 24.0))
+                        else:
+                            self.respiration_rate = target_rr
+                        self.smooth_rpm = self.respiration_rate
+                    self.demo_last_update_ts = current_time
+                mode_parts = []
+                if self.demo_hr_mode:
+                    mode_parts.append("heart rate")
+                if self.demo_rr_mode:
+                    mode_parts.append("respiration")
+                self.signal_quality = max(self.signal_quality, 92.0)
+                self.quality_reason = "Demo mode: simulated " + " and ".join(mode_parts)
             alert = self._check_alerts()
 
         # Build response
