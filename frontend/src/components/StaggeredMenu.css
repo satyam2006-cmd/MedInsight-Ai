@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  z-index: 40;
+  z-index: 2000;
   pointer-events: none;
 }
 
@@ -12,7 +12,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 40;
+  z-index: 2000;
   overflow: hidden;
 }
 
@@ -30,7 +30,7 @@
   z-index: 20;
 }
 
-.staggered-menu-header>* {
+.staggered-menu-header > * {
   pointer-events: auto;
 }
 
@@ -51,16 +51,13 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  background: var(--sm-accent, #5227FF);
+  gap: 0.3rem;
+  background: transparent;
   border: none;
   cursor: pointer;
-  color: #fff;
+  color: #e9e9ef;
   font-weight: 500;
-  font-size: 1rem;
   line-height: 1;
-  padding: 0.6rem 1.2rem;
-  border-radius: 9999px;
   overflow: visible;
 }
 
@@ -98,9 +95,9 @@
 
 .sm-icon {
   position: relative;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -135,9 +132,7 @@
   right: 0;
   width: clamp(260px, 38vw, 420px);
   height: 100%;
-  background: white;
-  border-left: 3px solid black;
-  box-shadow: -6px 0px 0px 0px black;
+  background: #22272e;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   display: flex;
@@ -150,7 +145,7 @@
 
 [data-position='left'] .staggered-menu-panel {
   right: auto;
-  left: 0;
+  left: 80px;
 }
 
 .sm-prelayers {
@@ -165,7 +160,7 @@
 
 [data-position='left'] .sm-prelayers {
   right: auto;
-  left: 0;
+  left: 80px;
 }
 
 .sm-prelayer {
@@ -271,7 +266,7 @@
 
 .sm-panel-item {
   position: relative;
-  color: #000;
+  color: #adbac7;
   font-weight: 600;
   font-size: 3.5rem;
   cursor: pointer;
@@ -311,7 +306,7 @@
 }
 
 .sm-panel-item:hover {
-  color: var(--item-hover-color, var(--sm-accent, #5227ff));
+  color: var(--sm-accent, #ffffff);
 }
 
 .sm-panel-list[data-numbering] {

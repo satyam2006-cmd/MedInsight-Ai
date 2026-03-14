@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Search, Languages, Loader2, AlertCircle, FileText, Volume2, VolumeX, Activity, Heart } from 'lucide-react';
+import { Upload, Languages, Loader2, Search, Brain, History, AlertCircle, FileText, CheckCircle, Activity, Download, FileSearch, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { extractText } from '../ocr-engine/services/hybridService.js';
 import { API_BASE_URL } from '../lib/config';
 import { supabase } from '../lib/supabaseClient';
+import GlobalSidebar from '../components/GlobalSidebar';
+
 
 const AnalyzerPage = () => {
     const navigate = useNavigate();
@@ -15,8 +17,6 @@ const AnalyzerPage = () => {
     const [rawText, setRawText] = useState('');
     const [extracting, setExtracting] = useState(false);
     const [speaking, setSpeaking] = useState(false);
-    const [audio, setAudio] = useState(null);
-    const [audioLoading, setAudioLoading] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
     const [cameraVitals, setCameraVitals] = useState(null);
 
@@ -41,90 +41,45 @@ const AnalyzerPage = () => {
         'russian': 'ru-RU', 'arabic': 'ar-SA', 'portuguese': 'pt-PT', 'italian': 'it-IT'
     };
 
-    const speak = async (text, lang) => {
-        if (speaking && audio) {
-            audio.pause();
+    const speak = (text, langCode) => {
+        if (speaking) {
+            window.speechSynthesis.cancel();
             setSpeaking(false);
-            setHighlightIndex(-1);
             return;
         }
 
-        if (audioLoading) return;
         if (!text) return;
 
-        try {
-            setAudioLoading(true);
-            const url = `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
-            const newAudio = new Audio(url);
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Voice selection logic
+        const voices = window.speechSynthesis.getVoices();
+        // Try to find a voice that matches the langCode (e.g., 'hi-IN')
+        // Prioritize "Google" or "Natural" voices if available
+        let bestVoice = voices.find(v => v.lang === langCode && (v.name.includes('Google') || v.name.includes('Natural')));
+        if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
+        if (!bestVoice) bestVoice = voices.find(v => v.default);
 
-            newAudio.oncanplaythrough = async () => {
-                setAudioLoading(false);
-                try {
-                    await newAudio.play();
-                    setSpeaking(true);
-                } catch (playErr) {
-                    console.error('Play error:', playErr);
-                    setSpeaking(false);
-                }
-            };
-
-            const handleTimeUpdate = () => {
-                const duration = newAudio.duration;
-                if (duration && duration !== Infinity && !isNaN(duration)) {
-                    const progress = newAudio.currentTime / duration;
-                    const words = text.trim().split(/\s+/);
-                    const totalChars = text.trim().length;
-                    const targetChar = progress * totalChars;
-
-                    let currentChars = 0;
-                    let foundIndex = -1;
-
-                    for (let i = 0; i < words.length; i++) {
-                        const wordLength = words[i].length;
-                        if (targetChar >= currentChars && targetChar <= (currentChars + wordLength + 1)) {
-                            foundIndex = i;
-                            break;
-                        }
-                        currentChars += wordLength + 1;
-                    }
-
-                    if (foundIndex !== -1) {
-                        setHighlightIndex(foundIndex);
-                    }
-                }
-            };
-
-            newAudio.addEventListener('timeupdate', handleTimeUpdate);
-
-            newAudio.onended = () => {
-                setSpeaking(false);
-                setAudio(null);
-                setHighlightIndex(-1);
-                newAudio.removeEventListener('timeupdate', handleTimeUpdate);
-            };
-
-            newAudio.onerror = (e) => {
-                console.error('Audio Playback Error:', e);
-                setSpeaking(false);
-                setAudioLoading(false);
-                setAudio(null);
-                setHighlightIndex(-1);
-                newAudio.removeEventListener('timeupdate', handleTimeUpdate);
-            };
-
-            setAudio(newAudio);
-        } catch (err) {
-            console.error('TTS Error:', err);
-            setSpeaking(false);
-            setAudioLoading(false);
+        if (bestVoice) {
+            utterance.voice = bestVoice;
         }
+        
+        utterance.lang = langCode;
+        utterance.rate = 0.95; // Slightly slower for clinical clarity
+        utterance.pitch = 1.0;
+
+        utterance.onstart = () => setSpeaking(true);
+        utterance.onend = () => setSpeaking(false);
+        utterance.onerror = () => setSpeaking(false);
+
+        window.speechSynthesis.speak(utterance);
     };
 
     useEffect(() => {
         return () => {
-            if (audio) audio.pause();
+            window.speechSynthesis.cancel();
         };
-    }, [audio]);
+    }, []);
 
     const handleFileChange = async (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -192,254 +147,264 @@ const AnalyzerPage = () => {
     };
 
     return (
-        <div className="v2-shell" role="main" aria-label="Document analysis workspace">
-            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
-                <div>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
-                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Report Forge</h2>
-                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
-                        Upload reports, run OCR, produce AI summaries, and convert output to patient language.
-                    </p>
-                </div>
-                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Back to Mission Control
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/vitals')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Vitals Deck
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Reports Layer
-                </button>
-            </aside>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <GlobalSidebar />
 
-            <section className="v2-main">
-                <header className="neo-card staggered-enter" style={{ textAlign: 'center' }}>
-                    <h1 style={{ fontSize: '3.5rem', letterSpacing: '-2px', marginTop: '0.5rem', color: '#1a1a1a' }}>
-                        Document <span style={{ color: 'var(--accent)' }}>Analyzer</span>
-                    </h1>
-                    <p className="badge" style={{ background: '#f8fafc', color: '#475569', border: '2px solid black' }}>
-                        AI-Powered Medical Report Translation & Simplification
-                    </p>
+            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+                <button
+                    onClick={() => navigate('/')}
+                    className="staggered-enter"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.6rem 1.4rem',
+                        background: '#fff',
+                        color: '#1e293b',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        marginBottom: '2rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderRadius: '99px',
+                        border: '1.5px solid #1e293b',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.transform = 'translateX(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = '#fff';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                >
+                    <ArrowLeft size={16} />
+                    BACK TO HUB
+                </button>
+
+                <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+                        <div style={{ 
+                            width: '64px', 
+                            height: '64px', 
+                            background: 'rgba(200, 77, 47, 0.1)', 
+                            borderRadius: '16px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: 'var(--primary)'
+                        }}>
+                            <FileSearch size={32} />
+                        </div>
+                        <div>
+                            <h1 style={{ fontSize: '3.8rem', fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
+                                Document <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Analyzer</span>
+                            </h1>
+                            <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
+                                AI-Powered Medical Report Translation & Simplification
+                            </p>
+                        </div>
+                    </div>
                 </header>
 
-                <main className="module-content">
-                    <section className="neo-card vibrant-bg">
-                        <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Upload size={32} /> Upload & Analyze
-                        </h2>
-                        <p style={{ marginBottom: '1.5rem', fontWeight: 600 }}>
-                            Upload your medical document and select your preferred language for analysis.
-                        </p>
-
-                        <div style={{
-                            border: '2px dashed rgba(32, 42, 48, 0.45)',
-                            padding: '2rem',
-                            background: 'white',
-                            marginBottom: '1.5rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '1rem'
-                        }}>
-                            <input
-                                type="file"
-                                accept=".jpg,.jpeg,.png,.pdf"
-                                onChange={handleFileChange}
-                                id="file-upload"
-                                style={{ display: 'none' }}
-                            />
-                            <label htmlFor="file-upload" className="neo-btn" style={{ background: 'var(--accent)', color: 'white', cursor: 'pointer' }}>
-                                {file ? 'Change File' : 'Select Report'}
-                            </label>
-                            {file && <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{file.name}</span>}
-                        </div>
-
-                        {(extracting || rawText) && (
-                            <section className="neo-card panel-soft panel-accent" style={{ marginBottom: '2rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}>
-                                        <Search size={32} /> {extracting ? 'Extracting Text...' : 'Extracted Text Preview'}
-                                    </h2>
-                                    {!extracting && rawText && (
-                                        <button
-                                            className="neo-btn"
-                                            onClick={() => navigator.clipboard.writeText(rawText)}
-                                            style={{ padding: '0.4rem 1rem', fontSize: '0.9rem' }}
-                                        >
-                                            Copy Text
-                                        </button>
-                                    )}
-                                </div>
-                                {extracting ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem' }}>
-                                        <Loader2 className="animate-spin" />
-                                        <span style={{ fontWeight: 600 }}>Reading your document locally...</span>
-                                    </div>
-                                ) : (
-                                    <div style={{
-                                        background: '#f0f0f0',
-                                        border: '1px solid rgba(32, 42, 48, 0.35)',
-                                        borderRadius: '10px',
-                                        padding: '1rem',
-                                        maxHeight: '300px',
-                                        overflowY: 'auto',
-                                        fontFamily: 'monospace',
-                                        fontSize: '1rem',
-                                        color: '#1a1a1a',
-                                        whiteSpace: 'pre-wrap',
-                                        boxShadow: 'inset 4px 4px 0px rgba(0,0,0,0.1)'
-                                    }}>
-                                        {rawText || 'No clear text could be extracted.'}
-                                    </div>
-                                )}
-                            </section>
-                        )}
-
-                        {!result && (
-                            <section className="neo-card secondary-bg" style={{ marginBottom: '2rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                                    <Languages size={40} color="white" />
-                                    <h2 style={{ color: 'white', marginBottom: 0 }}>Select Translation</h2>
-                                </div>
-
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                    <label className="field-label" style={{ color: 'white' }}>
-                                        Translate medical summary to:
-                                    </label>
+                <div className="module-content" style={{ display: 'grid', gap: '3rem' }}>
+                    <section className="staggered-enter" style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3rem', alignItems: 'flex-start' }}>
+                            {/* Left Side: Upload */}
+                            <div className="neo-card brutal-border" style={{ flex: '1', minWidth: '350px', background: 'white' }}>
+                                <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#1e293b', fontWeight: 500 }}>1. Provide Document</h3>
+                                <div style={{
+                                    border: '2px dashed rgba(0,0,0,0.1)',
+                                    borderRadius: '24px',
+                                    padding: '3rem 2rem',
+                                    background: 'rgba(255,255,255,0.5)',
+                                    textAlign: 'center',
+                                    transition: 'all 0.3s ease'
+                                }}>
                                     <input
-                                        type="text"
-                                        value={targetLanguage}
-                                        onChange={(e) => setTargetLanguage(e.target.value)}
-                                        placeholder="Enter language (e.g. Hindi, Spanish, Telugu)"
-                                        className="input-v2"
-                                        style={{ padding: '1rem', fontSize: '1.1rem', fontWeight: 700, background: 'white' }}
+                                        type="file"
+                                        accept=".jpg,.jpeg,.png,.pdf"
+                                        onChange={handleFileChange}
+                                        id="file-upload"
+                                        style={{ display: 'none' }}
                                     />
+                                    <label htmlFor="file-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Upload size={28} color="var(--primary)" />
+                                        </div>
+                                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '1.1rem' }}>
+                                            {file ? file.name : 'Click to upload medical document'}
+                                        </span>
+                                        <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Supports JPG, PNG, PDF</span>
+                                    </label>
                                 </div>
-
-                                <button
-                                    className="neo-btn"
-                                    onClick={handleAnalyze}
-                                    disabled={!file || loading || extracting}
-                                    style={{ width: '100%', justifyContent: 'center', fontSize: '1.2rem', background: 'black', color: 'white' }}
-                                >
-                                    {loading ? <Loader2 className="animate-spin" /> : 'Analyze Now'}
-                                </button>
-                            </section>
-                        )}
-                    </section>
-
-                    {error && (
-                        <div className="neo-card secondary-bg" style={{ marginBottom: '2rem', color: 'white' }}>
-                            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><AlertCircle size={32} /> Analysis Failed</h2>
-                            <p style={{ fontWeight: 700 }}>{error}</p>
-                        </div>
-                    )}
-
-                    {result && (
-                        <div className="neo-card panel-soft" style={{ marginBottom: '2rem', borderLeft: '6px solid var(--secondary)', padding: '1.5rem' }}>
-                            {/* Header row */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.4rem' }}>
-                                    <Activity size={26} color="#5227FF" />
-                                    Camera &amp; Document Cross-Check
-                                </h2>
-                                {cameraVitals && (
-                                    <span style={{ fontSize: '0.75rem', background: '#f0fdf4', color: '#16a34a', padding: '0.3rem 0.8rem', border: '1px solid #bbf7d0', borderRadius: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                        <span style={{ width: 7, height: 7, background: '#22c55e', borderRadius: '50%', display: 'inline-block' }} /> Session loaded
-                                    </span>
-                                )}
                             </div>
 
-                            {cameraVitals ? (
-                                <>
-                                    <p style={{ fontSize: '0.88rem', color: '#555', marginBottom: '1.2rem', marginTop: 0 }}>
-                                        Comparing your most recent camera session against vitals found in the document.
-                                    </p>
-
-                                    {/* Camera vitals tiles */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.9rem', marginBottom: '1.2rem' }}>
-                                        {[
-                                            { label: 'HEART RATE', value: cameraVitals.avg_hr, unit: 'BPM', bg: '#f0f9ff', border: '#bae6fd', labelColor: '#0369a1', valColor: '#0c4a6e' },
-                                            { label: 'SpO₂', value: cameraVitals.avg_spo2, unit: '%', bg: '#f0fdf4', border: '#bbf7d0', labelColor: '#15803d', valColor: '#14532d' },
-                                            { label: 'RESP RATE', value: cameraVitals.avg_rr, unit: 'br/min', bg: '#fff7ed', border: '#fed7aa', labelColor: '#c2410c', valColor: '#7c2d12' },
-                                        ].map(({ label, value, unit, bg, border, labelColor, valColor }) => (
-                                            <div key={label} style={{ background: bg, border: `2px solid ${border}`, borderRadius: '12px', padding: '1rem', textAlign: 'center' }}>
-                                                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: labelColor, marginBottom: '0.35rem', letterSpacing: '0.5px' }}>{label}</div>
-                                                <div style={{ fontSize: '2rem', fontWeight: 900, color: valColor, lineHeight: 1 }}>{value || '--'}</div>
-                                                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.3rem' }}>{unit}</div>
-                                            </div>
-                                        ))}
+                            {/* Right Side: Language & Analyze */}
+                            <div className="neo-card brutal-border" style={{ flex: '1', minWidth: '350px', background: 'white' }}>
+                                <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#1e293b', fontWeight: 500 }}>2. Analysis Target</h3>
+                                <div style={{ display: 'grid', gap: '1.5rem' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.95rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '0.75rem' }}>
+                                            Translate medical summary to:
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={targetLanguage}
+                                            onChange={(e) => setTargetLanguage(e.target.value)}
+                                            placeholder="e.g. Hindi, Spanish, Telugu"
+                                            style={{ 
+                                                width: '100%', 
+                                                padding: '1.1rem 1.5rem', 
+                                                borderRadius: '16px', 
+                                                border: '1px solid #e2e8f0',
+                                                fontSize: '1.1rem',
+                                                outline: 'none',
+                                                background: 'white',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                            }}
+                                        />
                                     </div>
-
-                                    {/* Document vital signs found */}
-                                    {result.medical_entities?.vital_signs?.length > 0 ? (
-                                        <div style={{ background: '#f8faff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.9rem' }}>
-                                            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#475569', marginBottom: '0.5rem', letterSpacing: '0.4px' }}>VITALS FOUND IN DOCUMENT</div>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                                {result.medical_entities.vital_signs.map((vs, i) => (
-                                                    <span key={i} style={{ background: '#e0e7ff', color: '#3730a3', padding: '0.25rem 0.65rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>{vs}</span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '0.8rem', fontSize: '0.83rem', color: '#92400e' }}>
-                                            ⚠️ No explicit vital sign values were extracted from this document, but the camera session data above is available for clinical reference.
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
-                                /* No camera session — CTA */
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '1.5rem 1rem', background: '#f8faff', borderRadius: '10px', border: '1px dashed #c7d2fe' }}>
-                                    <Heart size={36} color="#a5b4fc" style={{ marginBottom: '0.75rem' }} />
-                                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#3730a3', marginBottom: '0.3rem' }}>No active camera session found</div>
-                                    <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '380px', marginBottom: '1.2rem' }}>
-                                        Run a real-time rPPG vitals scan and come back to see how camera-measured HR, SpO₂ and RR compare against the values in this document.
-                                    </p>
-                                    <a href="/vitals" className="neo-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem', background: 'var(--secondary)', color: 'white', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none' }}>
-                                        <Activity size={16} /> Open Camera Vitals
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {result && (
-                        <div style={{ display: 'grid', gap: '2rem' }}>
-                            <div className="neo-card panel-soft" style={{ borderLeft: '6px solid', borderColor: result.risk_level === 'High' ? 'var(--secondary)' : result.risk_level === 'Medium' ? 'var(--primary)' : 'var(--accent)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}><FileText size={32} /> Summary</h2>
-                                    <div className="badge" style={{ background: result.risk_level === 'High' ? 'var(--secondary)' : result.risk_level === 'Medium' ? 'var(--primary)' : 'var(--accent)', color: result.risk_level === 'High' ? 'white' : 'black' }}>
-                                        Risk: {result.risk_level}
-                                    </div>
-                                </div>
-                                <p style={{ fontSize: '1.2rem', fontWeight: 500 }}>{result.summary}</p>
-                            </div>
-
-                            <div className="neo-card panel-soft" style={{ borderLeft: '6px solid var(--black)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}><Languages size={32} /> {targetLanguage} Translation</h2>
                                     <button
-                                        onClick={() => speak(result.hindi_translation, targetLanguage)}
                                         className="neo-btn"
-                                        disabled={audioLoading}
-                                        style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.9rem' }}
+                                        onClick={handleAnalyze}
+                                        disabled={!file || loading || extracting}
+                                        style={{ 
+                                            width: '100%', 
+                                            padding: '1.3rem', 
+                                            borderRadius: '18px',
+                                            background: '#1e293b', 
+                                            color: 'white',
+                                            fontSize: '1.15rem',
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                                        }}
                                     >
-                                        {audioLoading ? <Loader2 size={18} className="animate-spin" /> : speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                                        {audioLoading ? '...Loading' : speaking ? 'Stop' : 'Listen'}
+                                        {loading ? <Loader2 className="animate-spin" /> : 'Execute Analysis'}
                                     </button>
                                 </div>
-                                <div style={{ fontSize: '1.2rem', fontWeight: 500, lineHeight: '1.8' }}>
-                                    {result.hindi_translation.trim().split(/\s+/).map((word, i) => (
-                                        <span key={i} className={highlightIndex === i ? 'word-highlight' : ''} style={{ display: 'inline-block', marginRight: '0.4rem', padding: '0 2px', transition: 'background-color 0.1s ease' }}>
-                                            {word}
-                                        </span>
-                                    ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* 3. Results Section */}
+                    {rawText && (
+                        <div className="neo-card brutal-border staggered-enter" style={{ background: '#f8fafc', padding: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1rem' }}>
+                                <FileSearch size={20} color="#64748b" />
+                                <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '0.9rem', color: '#64748b', letterSpacing: '1px' }}>Extracted Clinical Data</h4>
+                            </div>
+                            <div style={{ 
+                                maxHeight: '200px', 
+                                overflowY: 'auto', 
+                                padding: '1rem', 
+                                background: 'white', 
+                                borderRadius: '12px', 
+                                border: '1px solid #e2e8f0',
+                                fontSize: '0.9rem',
+                                color: '#334155',
+                                fontFamily: 'monospace',
+                                whiteSpace: 'pre-wrap'
+                            }}>
+                                {rawText}
+                            </div>
+                        </div>
+                    )}
+
+                    {result && (
+                        <div className="staggered-enter" style={{ display: 'grid', gap: '2rem' }}>
+                            {/* Summary Cards */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+                                {/* English Summary */}
+                                <div className="neo-card brutal-border" style={{ flex: 1, minWidth: '300px', background: 'white', borderLeft: '6px solid #1e293b' }}>
+                                    <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <FileText size={20} /> English Summary
+                                    </h3>
+                                    <p style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#334155' }}>{result.summary}</p>
+                                </div>
+
+                                {/* Translated Summary */}
+                                <div className="neo-card brutal-border" style={{ flex: 1, minWidth: '300px', background: 'white', borderLeft: '6px solid var(--primary)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                        <h3 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Languages size={20} color="var(--primary)" /> {result.target_language} Summary
+                                        </h3>
+                                        <button 
+                                            onClick={() => speak(result.hindi_translation, ISO_LANGS[result.target_language.toLowerCase()] || 'en-US')}
+                                            style={{
+                                                background: speaking ? 'var(--primary)' : '#f1f5f9',
+                                                color: speaking ? 'white' : '#1e293b',
+                                                border: 'none',
+                                                padding: '0.5rem 1rem',
+                                                borderRadius: '50px',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            <Activity size={14} />
+                                            {speaking ? 'Stop Audio' : 'Play Audio Summary'}
+                                        </button>
+                                    </div>
+                                    <p style={{ fontSize: '1.3rem', lineHeight: '1.6', color: '#1e293b', fontWeight: 500 }}>
+                                        {result.hindi_translation}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Risk Section */}
+                            <div className="neo-card brutal-border" style={{ background: result.risk_level === 'High' ? '#fef2f2' : result.risk_level === 'Medium' ? '#fffbeb' : '#f0fdf4', borderLeft: '8px solid', borderColor: result.risk_level === 'High' ? '#ef4444' : result.risk_level === 'Medium' ? '#f59e0b' : '#10b981' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <AlertCircle size={32} color={result.risk_level === 'High' ? '#ef4444' : result.risk_level === 'Medium' ? '#f59e0b' : '#10b981'} />
+                                    <div>
+                                        <h4 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>Protocol: {result.risk_level} Attention Required</h4>
+                                        <p style={{ margin: 0, color: '#64748b' }}>Clinical recommendation based on document severity assessment.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Findings Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                                <div className="neo-card brutal-border panel-soft" style={{ background: 'white' }}>
+                                    <h4 style={{ color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                                        <CheckCircle size={18} color="#10b981" /> Key Medical Findings
+                                    </h4>
+                                    <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+                                        {result.key_findings.map((f, i) => (
+                                            <li key={i} style={{ padding: '0.75rem 0', borderBottom: i < result.key_findings.length - 1 ? '1px solid #f1f5f9' : 'none', color: '#334155', fontWeight: 500 }}>
+                                                • {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                <div className="neo-card brutal-border panel-soft" style={{ background: 'white' }}>
+                                    <h4 style={{ color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                                        <Brain size={18} color="#f59e0b" /> Potential Health Concerns
+                                    </h4>
+                                    <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+                                        {result.potential_concerns.map((c, i) => (
+                                            <li key={i} style={{ padding: '0.75rem 0', borderBottom: i < result.potential_concerns.length - 1 ? '1px solid #f1f5f9' : 'none', color: '#334155', fontWeight: 500 }}>
+                                                • {c}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             </div>
                         </div>
                     )}
-                </main>
-            </section>
+                </div>
+                </div>
+            </main>
         </div>
     );
 };

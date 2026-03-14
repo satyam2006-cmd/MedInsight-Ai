@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Building, Phone, Calendar, ArrowLeft, Shield, LogOut, Edit2, Save, X, Loader2, AlertTriangle } from 'lucide-react';
+import { User, Mail, Building, Phone, Calendar, ArrowLeft, Shield, LogOut, Edit2, Save, X, Loader2, AlertTriangle, LayoutGrid } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import GlobalSidebar from '../components/GlobalSidebar';
 
 const ProfilePage = () => {
     const navigate = useNavigate();
@@ -154,34 +155,76 @@ const ProfilePage = () => {
     const isDataMissing = !userData.name || userData.name === "Hospital Name" || !userData.username || !userData.phone;
 
     return (
-        <div className="v2-shell" role="main" aria-label="Profile workspace">
-            <aside className="v2-side staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
-                <div>
-                    <div className="kicker" style={{ color: '#d1e4de' }}>Module</div>
-                    <h2 style={{ color: '#f8f3ea', marginTop: '0.7rem', fontSize: '1.7rem' }}>Hospital Profile</h2>
-                    <p style={{ color: '#d6ded3', marginTop: '0.55rem' }}>
-                        Manage identity details used in report branding and patient communication.
-                    </p>
-                </div>
-                <button type="button" className="neo-btn" onClick={() => navigate('/dash')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Secure Workspace
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/reports')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Open Reports Layer
-                </button>
-                <button type="button" className="neo-btn" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'space-between', background: 'rgba(235,241,236,0.13)', borderColor: '#cde0d6', color: '#f8f3ea' }}>
-                    Back to Mission Control
-                </button>
-            </aside>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <GlobalSidebar />
 
-            <section className="v2-main" style={{ paddingBottom: '2rem' }}>
-                <div style={{ maxWidth: '900px', width: '100%' }}>
+            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+                <button
+                    onClick={() => navigate('/')}
+                    className="staggered-enter"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.6rem 1.4rem',
+                        background: '#fff',
+                        color: '#1e293b',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        marginBottom: '2rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderRadius: '99px',
+                        border: '1.5px solid #1e293b',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.transform = 'translateX(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = '#fff';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                >
+                    <ArrowLeft size={16} />
+                    BACK TO HUB
+                </button>
+                <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+                        <div style={{ 
+                            width: '64px', 
+                            height: '64px', 
+                            background: 'rgba(52, 39, 255, 0.1)', 
+                            borderRadius: '16px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: 'var(--primary)'
+                        }}>
+                            <User size={32} />
+                        </div>
+                        <div>
+                            <h1 style={{ fontSize: '3.8rem', fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
+                                Organization <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Profile</span>
+                            </h1>
+                            <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
+                                Manage your hospital branding and administrative credentials.
+                            </p>
+                        </div>
+                    </div>
+                </header>
 
                 {isIncomplete && isDataMissing && (
                     <div className="panel-soft" style={{
                         background: '#fff3cd',
                         padding: '1.5rem',
                         marginBottom: '2rem',
+                        borderRadius: '16px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '1rem'
@@ -194,27 +237,8 @@ const ProfilePage = () => {
                     </div>
                 )}
 
-                <button
-                    onClick={() => navigate('/dash')}
-                    className="neo-btn"
-                    disabled={isDataMissing}
-                    style={{
-                        marginBottom: '2rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        background: isDataMissing ? '#ccc' : 'white',
-                        color: isDataMissing ? '#666' : 'black',
-                        padding: '0.6rem 1.2rem',
-                        opacity: isDataMissing ? 0.7 : 1,
-                        cursor: isDataMissing ? 'not-allowed' : 'pointer'
-                    }}
-                >
-                    <ArrowLeft size={18} /> {isDataMissing ? "Complete profile to continue" : "Back to Dashboard"}
-                </button>
+                <div className="staggered-enter neo-card brutal-border" style={{ background: 'white', padding: '4rem', position: 'relative' }}>
 
-                <div className="neo-card panel-soft" style={{ background: 'white', padding: '3rem', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '8px', background: 'var(--primary, #5227FF)' }}></div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', marginBottom: '3rem' }}>
                         <div style={{
@@ -419,7 +443,7 @@ const ProfilePage = () => {
                     animation: spin 1s linear infinite;
                 }
             `}} />
-            </section>
+            </main>
         </div>
     );
 };
