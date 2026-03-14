@@ -1261,7 +1261,20 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#666', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.75rem' }}>
                                         <Shield size={16} color={riskColors.tone} /> AI RISK
                                     </div>
-                                    <div style={{ fontSize: '2rem', fontWeight: 800, color: riskColors.tone, lineHeight: 1.1 }}>{vitals.ai_risk || 'NORMAL'}</div>
+                                    <div
+                                        style={{
+                                            fontSize: 'clamp(1rem, 1.2vw, 1.25rem)',
+                                            fontWeight: 800,
+                                            color: riskColors.tone,
+                                            lineHeight: 1.1,
+                                            maxWidth: '100%',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis'
+                                        }}
+                                    >
+                                        {vitals.ai_risk || 'NORMAL'}
+                                    </div>
                                     <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.35rem' }}>
                                         Classifier confidence {Math.round((vitals.ai_risk_confidence || 0) * 100)}%
                                     </div>
