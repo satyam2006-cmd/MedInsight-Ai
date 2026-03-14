@@ -86,7 +86,7 @@ const ProfilePage = () => {
         try {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
-            navigate('/');
+            window.location.replace('/');
         } catch (error) {
             console.error('Error logging out:', error.message);
         }
