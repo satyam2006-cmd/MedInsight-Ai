@@ -21,6 +21,7 @@ const ProfilePage = () => {
         countryCode: "+91",
         phone: "",
         joinedDate: "",
+        accountType: "hospital",
         role: "Hospital Administrator",
         status: "Verified"
     });
@@ -45,8 +46,11 @@ const ProfilePage = () => {
 
             if (error) throw error;
             if (user) {
+                const accountType = user.user_metadata?.account_type === 'user' ? 'user' : 'hospital';
                 const profile = {
-                    name: user.user_metadata?.hospital_name || "Hospital Name",
+                    name: accountType === 'hospital'
+                        ? (user.user_metadata?.hospital_name || "Hospital Name")
+                        : (user.user_metadata?.full_name || user.user_metadata?.admin_username || "User"),
                     email: user.email,
                     username: user.user_metadata?.admin_username || "admin",
                     age: user.user_metadata?.age ? String(user.user_metadata.age) : "",
@@ -57,7 +61,8 @@ const ProfilePage = () => {
                         month: 'long',
                         day: 'numeric'
                     }),
-                    role: "Hospital Administrator",
+                    accountType,
+                    role: accountType === 'hospital' ? "Hospital Administrator" : "User",
                     status: "Verified"
                 };
                 setUserData(profile);
@@ -71,7 +76,10 @@ const ProfilePage = () => {
                 });
 
                 // Automatically enter edit mode if details are missing
-                if (!profile.name || !profile.username || !profile.phone) {
+                const needsCompletion = accountType === 'hospital'
+                    ? (!profile.name || profile.name === 'Hospital Name' || !profile.username || !profile.phone)
+                    : (!profile.username);
+                if (needsCompletion) {
                     setIsEditing(true);
                 }
             }
@@ -97,7 +105,9 @@ const ProfilePage = () => {
             setUpdating(true);
             const updatePayload = {
                 data: {
-                    hospital_name: editForm.name,
+                    account_type: userData.accountType,
+                    hospital_name: userData.accountType === 'hospital' ? editForm.name : "",
+                    full_name: userData.accountType === 'user' ? editForm.name : "",
                     admin_username: editForm.username,
                     age: editForm.age ? Number(editForm.age) : null,
                     country_code: editForm.countryCode,
@@ -130,7 +140,10 @@ const ProfilePage = () => {
             setIsEditing(false);
 
             // Redirect to dashboard if we were forced here and it's now complete
-            if (isIncomplete && editForm.name && editForm.username && editForm.phone) {
+            const completeNow = userData.accountType === 'hospital'
+                ? (editForm.name && editForm.username && editForm.phone)
+                : !!editForm.username;
+            if (isIncomplete && completeNow) {
                 navigate('/dash');
             }
         } catch (error) {
@@ -152,7 +165,9 @@ const ProfilePage = () => {
         );
     }
 
-    const isDataMissing = !userData.name || userData.name === "Hospital Name" || !userData.username || !userData.phone;
+    const isDataMissing = userData.accountType === 'hospital'
+        ? (!userData.name || userData.name === "Hospital Name" || !userData.username || !userData.phone)
+        : (!userData.username);
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
@@ -213,7 +228,9 @@ const ProfilePage = () => {
                                 Organization <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Profile</span>
                             </h1>
                             <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                Manage your hospital branding and administrative credentials.
+                                {userData.accountType === 'hospital'
+                                    ? 'Manage your hospital branding and administrative credentials.'
+                                    : 'Manage your account details and identity settings.'}
                             </p>
                         </div>
                     </div>
@@ -232,7 +249,11 @@ const ProfilePage = () => {
                         <AlertTriangle size={36} color="#856404" />
                         <div>
                             <h3 style={{ margin: 0, color: '#856404', fontWeight: 800 }}>Action Required: Complete Your Profile</h3>
-                            <p style={{ margin: '0.2rem 0 0', fontWeight: 600 }}>Please provide your hospital name and contact details to enable report branding and access the dashboard.</p>
+                            <p style={{ margin: '0.2rem 0 0', fontWeight: 600 }}>
+                                {userData.accountType === 'hospital'
+                                    ? 'Please provide your hospital name and contact details to enable report branding and access the dashboard.'
+                                    : 'Please set a username to continue.'}
+                            </p>
                         </div>
                     </div>
                 )}
@@ -256,7 +277,9 @@ const ProfilePage = () => {
                         <div style={{ flex: 1 }}>
                             {isEditing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <label style={{ fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase' }}>Hospital Name</label>
+                                    <label style={{ fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase' }}>
+                                        {userData.accountType === 'hospital' ? 'Hospital Name' : 'Full Name'}
+                                    </label>
                                     <input
                                         value={editForm.name}
                                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
@@ -301,7 +324,9 @@ const ProfilePage = () => {
                                     <User size={20} />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Admin Username</p>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>
+                                        {userData.accountType === 'hospital' ? 'Admin Username' : 'Username'}
+                                    </p>
                                     {isEditing ? (
                                         <input
                                             value={editForm.username}
