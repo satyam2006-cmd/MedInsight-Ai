@@ -15,7 +15,7 @@ function App() {
     return (
         <Routes>
             <Route path="/" element={<HubPage />} />
-            <Route path="/analyzer" element={<AnalyzerPage />} />
+            <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
             <Route path="/signins" element={<CloudWatchForm />} />
             <Route path="/dash" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/patients" element={<ProtectedRoute><PatientsPage /></ProtectedRoute>} />
