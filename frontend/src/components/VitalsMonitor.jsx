@@ -614,7 +614,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         setShowPatientModal(true);
     };
 
-    const handlePatientFormSubmit = () => {
+    const handlePatientFormSubmit = async () => {
         if (!patientForm.patientId.trim()) { setPatientFormError('Patient ID is required.'); return; }
         if (!patientForm.name.trim()) { setPatientFormError('Patient name is required.'); return; }
         if (!patientForm.contact.trim()) { setPatientFormError('Contact number is required.'); return; }
@@ -622,14 +622,48 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         if (pendingAction === 'summary') {
             fetchAISummary(patientForm);
         } else if (pendingAction === 'pdf') {
-            const base = getApiBase();
-            const params = new URLSearchParams();
-            if (vitals.session_id) params.set('session_id', vitals.session_id);
-            params.set('patient_id', patientForm.patientId);
-            params.set('patient_name', patientForm.name);
-            params.set('patient_contact', patientForm.contact);
-            params.set('language', patientForm.language);
-            window.open(`${base}/api/vitals/report?${params.toString()}`, '_blank');
+            try {
+                setCompareLoading(true);
+                const base = getApiBase();
+                const params = new URLSearchParams();
+                if (vitals.session_id) params.set('session_id', vitals.session_id);
+                params.set('patient_id', patientForm.patientId);
+                params.set('patient_name', patientForm.name);
+                params.set('patient_contact', patientForm.contact);
+                params.set('language', patientForm.language);
+
+                const { data: { session } } = await supabase.auth.getSession();
+                const headers = session?.access_token
+                    ? { Authorization: `Bearer ${session.access_token}` }
+                    : {};
+
+                const res = await fetch(`${base}/api/vitals/report?${params.toString()}`, {
+                    method: 'GET',
+                    headers,
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    setCompareMessage(err.error || 'Failed to download PDF report.');
+                    return;
+                }
+
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `vitals_report_${patientForm.patientId}_${Date.now()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+                setCompareMessage('PDF downloaded and synced to Insight Feed.');
+            } catch (e) {
+                setCompareMessage('Failed to download PDF report.');
+            } finally {
+                setCompareLoading(false);
+            }
         }
     };
 

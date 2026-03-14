@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, Header
 from fastapi.responses import JSONResponse, Response
 from ..services.vitals_service import VitalsService
 from ..services.report_service import generate_vitals_report
@@ -15,6 +15,7 @@ import json
 import time
 import uuid
 import numpy as np
+
 
 
 router = APIRouter()
@@ -176,7 +177,14 @@ async def get_session(session_id: str = None):
     return JSONResponse(content={"error": "No active session"}, status_code=404)
 
 @router.get("/api/vitals/report")
-async def get_report(session_id: str = None):
+async def get_report(
+    session_id: str = None,
+    patient_id: str = None,
+    patient_name: str = None,
+    patient_contact: str = None,
+    language: str = "English",
+    authorization: str = Header(None),
+):
     """Generate and download PDF report."""
     service, _ = _resolve_service(session_id)
     if not service:
@@ -199,6 +207,86 @@ async def get_report(session_id: str = None):
         if summary.get('avg_hr', 0) > 0:
             ai_text = await ai_summary_service.generate_summary(summary)
             summary['ai_summary'] = ai_text
+
+        # Persist a report entry so it appears in Insight Feed.
+        if patient_id and patient_name and patient_contact:
+            try:
+                supabase = get_supabase_client(authorization) if authorization else get_supabase_client()
+
+                patient_record = None
+                by_custom = (
+                    supabase.table("patients")
+                    .select("id, patient_name, patient_custom_id, patient_number")
+                    .eq("patient_custom_id", patient_id)
+                    .limit(1)
+                    .execute()
+                )
+                if by_custom.data and len(by_custom.data) > 0:
+                    patient_record = by_custom.data[0]
+
+                if not patient_record:
+                    by_number = (
+                        supabase.table("patients")
+                        .select("id, patient_name, patient_custom_id, patient_number")
+                        .eq("patient_number", patient_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    if by_number.data and len(by_number.data) > 0:
+                        patient_record = by_number.data[0]
+
+                if not patient_record:
+                    patient_record = db_service.create_patient(
+                        supabase=supabase,
+                        name=patient_name,
+                        number=patient_contact,
+                        custom_id=patient_id,
+                    )
+
+                user = None
+                try:
+                    auth_response = supabase.auth.get_user()
+                    user = auth_response.user if auth_response and auth_response.user else None
+                except Exception:
+                    user = None
+
+                hospital_info = None
+                if user and user.user_metadata:
+                    hospital_info = {
+                        "hospital_name": user.user_metadata.get("hospital_name", ""),
+                        "admin_name": user.user_metadata.get("admin_username", ""),
+                        "email": user.email or "",
+                        "phone": f"{user.user_metadata.get('country_code', '')} {user.user_metadata.get('phone', '')}".strip(),
+                    }
+
+                risk_level = summary.get("ai_risk_level") or "Unknown"
+                ai_summary = summary.get("ai_summary") or "Vitals session exported successfully."
+                report_text = (
+                    f"Vitals session report for {patient_name} ({patient_id}).\n"
+                    f"Average HR: {summary.get('avg_hr', 0)} BPM\n"
+                    f"Average RR: {summary.get('avg_rr', 0)} RPM\n"
+                    f"Average SpO2: {summary.get('avg_spo2', 0)}%\n"
+                    f"Session Duration: {summary.get('session_duration_sec', 0)} sec"
+                )
+
+                analysis_payload = {
+                    "summary": ai_summary,
+                    "target_language": language or "English",
+                    "risk_level": risk_level,
+                    "source": "vitals_pdf",
+                }
+                if hospital_info:
+                    analysis_payload["hospital_details"] = hospital_info
+
+                db_service.create_report(
+                    supabase=supabase,
+                    patient_id=patient_record.get("id"),
+                    extracted_text=report_text,
+                    analysis=analysis_payload,
+                )
+            except Exception:
+                # Report persistence should not block PDF generation.
+                pass
             
         pdf_bytes = generate_vitals_report(summary)
         return Response(

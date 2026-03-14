@@ -9,36 +9,41 @@ const ProtectedRoute = ({ children }) => {
     const location = useLocation();
 
     useEffect(() => {
-        const checkUser = async () => {
+        let alive = true;
+
+        const bootstrap = async () => {
             try {
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession();
                 if (sessionError) throw sessionError;
-
-                // Use persisted session as the source of truth during page reload.
+                if (!alive) return;
                 setUser(session?.user ?? null);
-
-                if (session?.access_token) {
-                    const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
-                    if (!userError && freshUser) {
-                        setUser(freshUser);
-                    }
-                }
             } catch (err) {
                 console.error("Auth check failed:", err);
+                if (!alive) return;
                 setUser(null);
             } finally {
-                setLoading(false);
+                if (alive) setLoading(false);
             }
         };
 
-        checkUser();
+        bootstrap();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!alive) return;
             setUser(session?.user ?? null);
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        // Safety net: never keep spinner forever on auth edge-cases.
+        const fallbackTimer = setTimeout(() => {
+            if (alive) setLoading(false);
+        }, 2000);
+
+        return () => {
+            alive = false;
+            clearTimeout(fallbackTimer);
+            subscription.unsubscribe();
+        };
     }, []);
 
     if (loading) {
