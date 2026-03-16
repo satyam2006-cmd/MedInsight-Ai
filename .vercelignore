@@ -1,0 +1,15 @@
+# Exclude backend files and dependencies from Vercel build
+app/
+requirements.txt
+Procfile
+render.yaml
+.env
+.env.example
+LICENSE
+README.md
+tmp/
+# Exclude any other non-frontend files
+*.py
+*.md
+*.yaml
+*.txt
