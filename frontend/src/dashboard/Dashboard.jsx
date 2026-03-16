@@ -39,12 +39,6 @@ const statTiles = [
 
 const workspaceActions = [
     {
-        title: 'Vitals Monitoring Session',
-        description: 'Open the live capture lab and launch contactless patient checkups.',
-        route: '/vitals',
-        icon: HeartPulse
-    },
-    {
         title: 'Patient Intake + Upload',
         description: 'Register a patient with report documents and language preference.',
         route: '/patients',
@@ -81,7 +75,7 @@ const Dashboard = () => {
                                 Clinical <span style={{ color: '#0ea5e9', fontWeight: 600 }}>Operations</span> Radar
                             </h2>
                             <p style={{ marginTop: '0.8rem', fontSize: '1.05rem', color: '#555', maxWidth: '600px' }}>
-                                Reorganized for flow-first decision making: intake, vitals acquisition, AI interpretation, and patient communication are now exposed as deliberate paths.
+                                Reorganized for flow-first decision making: intake, AI interpretation, and patient communication are now exposed as deliberate paths.
                             </p>
                         </div>
                         <button type="button" className="neo-btn" onClick={() => navigate('/reports')}>
@@ -144,9 +138,6 @@ const Dashboard = () => {
                         <p>Keep hospital identity and language settings current to improve share accuracy and patient-facing clarity.</p>
                         <button type="button" className="neo-btn" onClick={() => navigate('/profile')}>
                             Open Profile <UserRound size={15} />
-                        </button>
-                        <button type="button" className="neo-btn" onClick={() => navigate('/vitals')} style={{ background: 'var(--secondary)' }}>
-                            Launch Vitals Session <HeartPulse size={15} />
                         </button>
                     </article>
                 </section>

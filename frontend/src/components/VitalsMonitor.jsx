@@ -478,7 +478,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
             }
         } catch (err) {
             console.error('Camera start failed', err);
-            setError('Camera unavailable. Close other apps using camera, then select camera again (Laptop Cam or DroidCam/Iriun).');
+            setError('Camera unavailable. Close other apps using camera, then select camera again.');
         }
     };
 
