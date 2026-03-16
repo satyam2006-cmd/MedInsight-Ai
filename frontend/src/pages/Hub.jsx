@@ -5,6 +5,16 @@ import { ArrowRight } from 'lucide-react';
 
 const moduleCards = [
     {
+        id: 'vitals',
+        title: 'VITALS DECK',
+        subtitle: 'Contactless monitoring and live session capture.',
+        detail: 'Launch camera pipeline and monitor heart, respiration, and SpO2 flow in one panel.',
+        route: '/vitals',
+        tone: 'linear-gradient(135deg, #375361 0%, #2f4551 100%)', // accurately matched slate/teal
+        metric: 'LIVE SIGNALS',
+        image: '/assets/heart3d.png'
+    },
+    {
         id: 'analyzer',
         title: 'REPORT FORGE',
         subtitle: 'OCR extraction and AI interpretation workspace.',

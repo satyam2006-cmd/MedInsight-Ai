@@ -65,7 +65,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         return API_BASE_URL;
     };
 
-    const PHONE_KEYWORDS = ['droidcam', 'iriun', 'epoccam', 'ivcam', 'camo', 'phone', 'android', 'iphone', 'continuity'];
+    const PHONE_KEYWORDS = ['iriun', 'epoccam', 'ivcam', 'camo', 'phone', 'android', 'iphone', 'continuity'];
     const isPhoneDevice = (label) => {
         const lower = (label || '').toLowerCase();
         return PHONE_KEYWORDS.some((h) => lower.includes(h));
@@ -73,14 +73,13 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
 
     const pickPreferredCamera = (devices) => {
         if (!devices?.length) return '';
-        const preferred = devices.find((d) => isPhoneDevice(d.label));
-        return preferred?.deviceId || devices[0].deviceId;
+        return devices[0].deviceId;
     };
 
     const loadVideoDevices = async () => {
         try {
             const all = await navigator.mediaDevices.enumerateDevices();
-            const videos = all.filter((d) => d.kind === 'videoinput');
+            const videos = all.filter((d) => d.kind === 'videoinput' && !d.label.toLowerCase().includes('droidcam'));
             setCameraDevices(videos);
             if (videos.length > 0) {
                 const preferred = pickPreferredCamera(videos);

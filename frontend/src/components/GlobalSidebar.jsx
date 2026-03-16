@@ -14,6 +14,7 @@ import {
 import StaggeredMenu from './StaggeredMenu';
 
 const sidebarConfig = [
+    { id: 'vitals', icon: HeartPulse, label: 'Live Vitals', route: '/vitals', hasDot: true, dotColor: '#ef4444' },
     { id: 'analyzer', icon: FileScan, label: 'Report Forge', route: '/analyzer' },
     { id: 'patients', icon: Users, label: 'Patient Registry', route: '/patients' },
     { id: 'dash', icon: LayoutDashboard, label: 'Hospital Dash', route: '/dash' },
