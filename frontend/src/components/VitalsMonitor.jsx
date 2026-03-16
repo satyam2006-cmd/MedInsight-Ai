@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { API_BASE_URL } from '../lib/config';
 
 const VitalsMonitor = ({ initialPatientId = '' }) => {
     const videoRef = useRef(null);
@@ -61,8 +62,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const [patientFormError, setPatientFormError] = useState('');
 
     const getApiBase = () => {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        return isLocal ? 'http://localhost:8000' : '';
+        return API_BASE_URL;
     };
 
     const PHONE_KEYWORDS = ['droidcam', 'iriun', 'epoccam', 'ivcam', 'camo', 'phone', 'android', 'iphone', 'continuity'];
@@ -511,16 +511,14 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         // If already connecting or open, don't start another one
         if (wsRef.current && wsRef.current.readyState < 2) return;
         
-        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const hostname = window.location.hostname;
-        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-        const port = '8000';
+        // Derive WebSocket URL from API_BASE_URL
+        // API_BASE_URL is like https://huggingface.co/spaces/Satyam124/medinsight-ai-api
+        // or http://localhost:8000
+        const wsBase = API_BASE_URL.replace(/^http/, 'ws');
+        const wsUrl = `${wsBase}/ws/vitals`;
         
-        // Use 127.0.0.1 consistently if local to avoid localhost resolution issues
-        const host = isLocal ? `127.0.0.1:${port}` : window.location.host;
-        
-        console.log(`[Vitals] Connecting to ${protocol}://${host}/ws/vitals`);
-        const ws = new WebSocket(`${protocol}://${host}/ws/vitals`);
+        console.log(`[Vitals] Connecting to ${wsUrl}`);
+        const ws = new WebSocket(wsUrl);
         
         ws.onopen = () => { 
             console.log("[Vitals] WebSocket Connected");
