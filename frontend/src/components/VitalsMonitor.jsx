@@ -59,7 +59,6 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const [pendingAction, setPendingAction] = useState(null); // 'summary' | 'pdf'
     const [patientForm, setPatientForm] = useState({ patientId: '', name: '', contact: '', language: 'English' });
     const [patientFormError, setPatientFormError] = useState('');
-    const [speaking, setSpeaking] = useState(false);
 
     const getApiBase = () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -620,36 +619,6 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
             console.error("Error fetching AI summary:", e);
             setVitals(prev => ({ ...prev, ai_summary: 'Error generating summary.' }));
         }
-    };
-
-    const handleSpeech = () => {
-        if (!vitals.ai_summary_translated && !vitals.ai_summary) return;
-        
-        if (speaking) {
-            window.speechSynthesis.cancel();
-            setSpeaking(false);
-            return;
-        }
-
-        const textToSpeak = vitals.ai_summary_translated || vitals.ai_summary;
-        const msg = new SpeechSynthesisUtterance(textToSpeak);
-        
-        // Pick best voice for target language if possible
-        const voices = window.speechSynthesis.getVoices();
-        const targetLang = patientForm.language?.toLowerCase() || 'english';
-        
-        let selectedVoice = voices.find(v => v.lang.toLowerCase().includes(targetLang));
-        if (!selectedVoice) selectedVoice = voices.find(v => v.lang.includes('en-US')) || voices[0];
-        
-        if (selectedVoice) msg.voice = selectedVoice;
-        msg.rate = 0.95;
-        msg.pitch = 1.0;
-
-        msg.onstart = () => setSpeaking(true);
-        msg.onend = () => setSpeaking(false);
-        msg.onerror = () => setSpeaking(false);
-
-        window.speechSynthesis.speak(msg);
     };
 
     const openPatientModal = (action) => {
@@ -1656,36 +1625,29 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                     }}>
                         {(vitals.ai_summary || vitals.ai_summary_translated) ? (
                             <div className="ai-content">
-                                {vitals.ai_summary_translated && (
+                                {vitals.ai_summary_translated ? (
                                     <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                                             <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Translated Summary ({patientForm.language})</span>
-                                            <button 
-                                                onClick={handleSpeech}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', gap: '0.4rem', border: 'none', background: speaking ? '#ef4444' : '#1e293b',
-                                                    color: 'white', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer'
-                                                }}
-                                            >
-                                                {speaking ? 'Stop Audio' : 'Listen to Summary'}
-                                            </button>
                                         </div>
                                         {vitals.ai_summary_translated.split('\n').map((line, i) => (
                                             <p key={i} style={{ margin: '0 0 0.5rem' }}>{line}</p>
                                         ))}
                                     </div>
+                                ) : (
+                                    <>
+                                        <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Clinical Summary (English)</div>
+                                        {vitals.ai_summary.split('\n').map((line, i) => {
+                                            if (line.startsWith('##')) {
+                                                return <h4 key={i} style={{ margin: '1rem 0 0.5rem', color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{line.replace('##', '').trim()}</h4>;
+                                            }
+                                            if (line.startsWith('Recommendation:')) {
+                                                return <div key={i} style={{ marginTop: '1rem', padding: '0.8rem', background: '#f0fdf4', borderLeft: '4px solid #22c55e', fontWeight: 600 }}>{line}</div>;
+                                            }
+                                            return <p key={i} style={{ margin: '0 0 0.8rem' }}>{line}</p>;
+                                        })}
+                                    </>
                                 )}
-                                
-                                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Clinical Summary (English)</div>
-                                {vitals.ai_summary.split('\n').map((line, i) => {
-                                    if (line.startsWith('##')) {
-                                        return <h4 key={i} style={{ margin: '1rem 0 0.5rem', color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{line.replace('##', '').trim()}</h4>;
-                                    }
-                                    if (line.startsWith('Recommendation:')) {
-                                        return <div key={i} style={{ marginTop: '1rem', padding: '0.8rem', background: '#f0fdf4', borderLeft: '4px solid #22c55e', fontWeight: 600 }}>{line}</div>;
-                                    }
-                                    return <p key={i} style={{ margin: '0 0 0.8rem' }}>{line}</p>;
-                                })}
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.5, gap: '0.5rem' }}>

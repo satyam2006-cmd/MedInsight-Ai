@@ -1,0 +1,2 @@
+origin	https://github.com/Hackverse-healthcare2026/wiet-hackverse-2-0-hackathon-project-submission-healthcare-wh05_just-code-it.git (fetch)
+origin	https://github.com/Hackverse-healthcare2026/wiet-hackverse-2-0-hackathon-project-submission-healthcare-wh05_just-code-it.git (push)
