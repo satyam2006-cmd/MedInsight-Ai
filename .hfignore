@@ -1,0 +1,15 @@
+frontend/
+.env
+.env.example
+.vercelignore
+vercel.json
+push_error.txt
+Abnormal-ECG-signal-classification/
+setup_droidcam_usb.ps1
+setup_droidcam_wifi.ps1
+supabase_schema.sql
+supabase_schema_reset.sql
+report.jpg.jpeg
+.github/
+.vscode/
+.idea/
