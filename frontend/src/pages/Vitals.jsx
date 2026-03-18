@@ -10,39 +10,13 @@ const VitalsPage = () => {
     const patientIdFromUrl = searchParams.get('patient') || '';
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <div className="app-shell">
             <GlobalSidebar />
 
-            <main style={{ flex: 1, marginLeft: '80px', padding: '3rem', position: 'relative' }}>
+            <main className="app-main">
                 <button
                     onClick={() => navigate('/')}
-                    className="staggered-enter"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        padding: '0.6rem 1.4rem',
-                        background: '#fff',
-                        color: '#1e293b',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        marginBottom: '2rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        borderRadius: '99px',
-                        border: '1.5px solid #1e293b',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                        transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.background = '#f8fafc';
-                        e.currentTarget.style.transform = 'translateX(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.background = '#fff';
-                        e.currentTarget.style.transform = 'translateX(0)';
-                    }}
+                    className="staggered-enter app-back-btn"
                 >
                     <ArrowLeft size={16} />
                     BACK TO HUB
@@ -75,7 +49,7 @@ const VitalsPage = () => {
                 </div>
 
                 {patientIdFromUrl && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem', padding: '1rem 1.5rem', background: 'linear-gradient(135deg, #eef2ff 0%, #f0fdf4 100%)', border: '2px solid #5227FF', boxShadow: '4px 4px 0px #5227FF', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.9rem 1rem', background: 'linear-gradient(135deg, #eef2ff 0%, #f0fdf4 100%)', border: '2px solid #5227FF', boxShadow: '3px 3px 0px #5227FF', borderRadius: '8px' }}>
                         <div style={{ background: '#5227FF', padding: '0.6rem', borderRadius: '8px', flexShrink: 0 }}>
                             <UserCheck size={22} color="white" />
                         </div>
@@ -84,15 +58,15 @@ const VitalsPage = () => {
                             <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1a1a1a', marginTop: '0.1rem' }}>Patient ID: <span style={{ color: '#5227FF' }}>{patientIdFromUrl}</span></div>
                             <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.1rem' }}>This vitals session will be saved against the patient record above. Click <strong>Save Session</strong> when done.</div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', color: '#059669', fontWeight: 700, background: '#f0fdf4', padding: '0.4rem 0.8rem', border: '1px solid #bbf7d0', borderRadius: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.74rem', color: '#059669', fontWeight: 700, background: '#f0fdf4', padding: '0.35rem 0.65rem', border: '1px solid #bbf7d0', borderRadius: '20px' }}>
                             <span style={{ width: 8, height: 8, background: '#22c55e', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
                             Active
                         </div>
                     </div>
                 )}
 
-                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '3rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                         <div style={{ 
                             background: 'var(--primary)', 
                             padding: '1rem', 
@@ -102,14 +76,14 @@ const VitalsPage = () => {
                             <Activity size={40} color="white" strokeWidth={3} />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: '3rem', margin: '0', color: '#1a1a1a', letterSpacing: '-2px' }}>Vitals AI <span style={{ color: 'var(--secondary)' }}>Remote</span></h1>
-                            <p style={{ color: '#666', marginTop: '0.2rem', fontSize: '1.2rem', fontWeight: 500 }}>Advanced contactless physiological monitoring system.</p>
+                            <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3rem)', margin: '0', color: '#1a1a1a', letterSpacing: '-2px' }}>Vitals AI <span style={{ color: 'var(--secondary)' }}>Remote</span></h1>
+                            <p style={{ color: '#666', marginTop: '0.2rem', fontSize: 'clamp(0.95rem, 3.2vw, 1.2rem)', fontWeight: 500 }}>Advanced contactless physiological monitoring system.</p>
                         </div>
                     </div>
                 </header>
 
                 <div className="module-content" style={{ width: '100%', display: 'grid', gap: '2rem' }}>
-                    <div className="neo-card brutal-border" style={{ background: 'white', padding: '2rem' }}>
+                    <div className="neo-card brutal-border" style={{ background: 'white', padding: 'clamp(1rem, 3.5vw, 1.6rem)' }}>
                         <VitalsMonitor initialPatientId={patientIdFromUrl} />
                     </div>
                     

@@ -40,14 +40,14 @@ const Hub = () => {
     const navigate = useNavigate();
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <div className="app-shell">
             <GlobalSidebar />
 
-            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
-                <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+            <main className="app-main app-main-lg">
+                <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
                     
                     {/* Header Section */}
-                    <header className="staggered-enter hero-unboxed" style={{ marginBottom: '2rem' }}>
+                    <header className="staggered-enter hero-unboxed" style={{ marginBottom: '1.25rem' }}>
                         <div style={{ 
                             fontSize: '0.85rem', 
                             fontWeight: 700, 
@@ -59,7 +59,7 @@ const Hub = () => {
                             Clinical Workspace
                         </div>
                         <h2 style={{ 
-                            fontSize: '4.8rem', 
+                            fontSize: 'clamp(2.2rem, 8vw, 4.8rem)', 
                             fontWeight: 400, 
                             color: '#1e293b', 
                             letterSpacing: '-3px', 
@@ -69,11 +69,11 @@ const Hub = () => {
                             Fluid communication <br /> between <span style={{ color: 'var(--primary)', fontWeight: 600 }}>patients</span> and <span style={{ color: '#0ea5e9', fontWeight: 600 }}>care teams</span>
                         </h2>
                         <p style={{ 
-                            fontSize: '1.3rem', 
+                            fontSize: 'clamp(1rem, 3.5vw, 1.3rem)', 
                             color: '#64748b', 
                             maxWidth: '750px', 
                             lineHeight: 1.6,
-                            marginBottom: '3rem'
+                            marginBottom: '1.5rem'
                         }}>
                             From real-time vitals ingestion to deep AI analysis. Our unboxed interface
                             removes barriers, placing patient data at the center of your clinical workflow.
@@ -81,11 +81,7 @@ const Hub = () => {
                     </header>
 
                     {/* Module Cards Grid */}
-                    <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
-                        gap: '2.5rem' 
-                    }}>
+                    <div className="hub-modules-grid" style={{ gap: '2.5rem' }}>
                         {moduleCards.map((card) => (
                             <article
                                 key={card.id}
@@ -104,10 +100,10 @@ const Hub = () => {
                                 onClick={() => navigate(card.route)}
                             >
                                 {/* Top Half - Two Columns */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', flex: 1 }}>
+                                <div className="hub-module-top">
                                     
                                     {/* Left Content Area */}
-                                    <div style={{ padding: '2.5rem 2rem 1.5rem 2.5rem', display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ padding: 'clamp(1rem, 4vw, 2.5rem) clamp(1rem, 3vw, 2rem) 1rem clamp(1rem, 4vw, 2.5rem)', display: 'flex', flexDirection: 'column' }}>
                                         <div style={{ 
                                             display: 'inline-block', 
                                             padding: '0.4rem 0.8rem', 
@@ -119,18 +115,18 @@ const Hub = () => {
                                             fontWeight: 800, 
                                             letterSpacing: '0.5px',
                                             alignSelf: 'flex-start',
-                                            marginBottom: '2.5rem',
+                                            marginBottom: '1rem',
                                             boxShadow: '2px 2px 0px #000'
                                         }}>
                                             {card.metric}
                                         </div>
-                                        <h3 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>
+                                        <h3 style={{ fontSize: 'clamp(1.15rem, 4vw, 1.8rem)', fontWeight: 900, marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>
                                             {card.title}
                                         </h3>
                                         <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'rgba(255,255,255,0.95)', marginBottom: '1rem', lineHeight: 1.4 }}>
                                             {card.subtitle}
                                         </p>
-                                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
+                                        <p style={{ fontSize: 'clamp(0.8rem, 2.8vw, 0.9rem)', color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
                                             {card.detail}
                                         </p>
                                     </div>
@@ -149,11 +145,11 @@ const Hub = () => {
                                             src={card.image} 
                                             alt={card.title} 
                                             style={{ 
-                                                width: '130%', 
+                                                width: '100%', 
                                                 height: 'auto', 
                                                 objectFit: 'contain',
                                                 filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.4))',
-                                                transform: 'scale(1.1) translateX(10px)',
+                                                transform: 'scale(1.05)',
                                                 position: 'relative',
                                                 zIndex: 1
                                             }} 
@@ -162,7 +158,7 @@ const Hub = () => {
                                 </div>
 
                                 {/* Bottom Action Strip */}
-                                <div style={{ padding: '0 2.5rem 2.5rem 2.5rem', marginTop: 'auto' }}>
+                                <div style={{ padding: '0 clamp(1rem, 4vw, 2.5rem) clamp(1rem, 4vw, 2.5rem)', marginTop: 'auto' }}>
                                     <div
                                         style={{
                                             background: '#000',
