@@ -170,47 +170,21 @@ const ProfilePage = () => {
         : (!userData.username);
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <div className="app-shell">
             <GlobalSidebar />
 
-            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+            <main className="app-main app-main-lg">
                 <button
                     onClick={() => navigate('/')}
-                    className="staggered-enter"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        padding: '0.6rem 1.4rem',
-                        background: '#fff',
-                        color: '#1e293b',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        marginBottom: '2rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        borderRadius: '99px',
-                        border: '1.5px solid #1e293b',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                        transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.background = '#f8fafc';
-                        e.currentTarget.style.transform = 'translateX(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.background = '#fff';
-                        e.currentTarget.style.transform = 'translateX(0)';
-                    }}
+                    className="staggered-enter app-back-btn"
                 >
                     <ArrowLeft size={16} />
                     BACK TO HUB
                 </button>
                 <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
 
-                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '4rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                         <div style={{ 
                             width: '64px', 
                             height: '64px', 
@@ -224,10 +198,10 @@ const ProfilePage = () => {
                             <User size={32} />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: '3.8rem', fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
+                            <h1 className="page-hero-title" style={{ fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
                                 Organization <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Profile</span>
                             </h1>
-                            <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
+                            <p style={{ fontSize: 'clamp(0.95rem, 3.2vw, 1.2rem)', color: '#64748b', marginTop: '0.2rem' }}>
                                 {userData.accountType === 'hospital'
                                     ? 'Manage your hospital branding and administrative credentials.'
                                     : 'Manage your account details and identity settings.'}
@@ -258,7 +232,7 @@ const ProfilePage = () => {
                     </div>
                 )}
 
-                <div className="staggered-enter neo-card brutal-border" style={{ background: 'white', padding: '4rem', position: 'relative' }}>
+                <div className="staggered-enter neo-card brutal-border" style={{ background: 'white', padding: 'clamp(1rem, 4vw, 2.5rem)', position: 'relative' }}>
 
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', marginBottom: '3rem' }}>
@@ -288,7 +262,7 @@ const ProfilePage = () => {
                                     />
                                 </div>
                             ) : (
-                                <h1 style={{ fontSize: '2.5rem', margin: 0, letterSpacing: '-1px' }}>{userData.name}</h1>
+                                <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2.5rem)', margin: 0, letterSpacing: '-1px' }}>{userData.name}</h1>
                             )}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', color: '#666' }}>
                                 <Shield size={16} color="var(--primary, #5227FF)" />
@@ -349,7 +323,7 @@ const ProfilePage = () => {
                                 <div style={{ flex: 1 }}>
                                     <p style={{ margin: 0, fontSize: '0.8rem', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Phone Number</p>
                                     {isEditing ? (
-                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
                                             <input
                                                 value={editForm.countryCode}
                                                 onChange={(e) => setEditForm({ ...editForm, countryCode: e.target.value })}

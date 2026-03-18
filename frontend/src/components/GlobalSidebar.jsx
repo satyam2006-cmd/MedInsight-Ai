@@ -5,6 +5,7 @@ import {
     HeartPulse,
     FileScan,
     Users,
+    Home,
     LayoutDashboard,
     ClipboardList,
     Building2,
@@ -19,6 +20,16 @@ const sidebarConfig = [
     { id: 'patients', icon: Users, label: 'Patient Registry', route: '/patients' },
     { id: 'dash', icon: LayoutDashboard, label: 'Hospital Dash', route: '/dash' },
     { id: 'reports', icon: ClipboardList, label: 'Saved Reports', route: '/reports' }
+];
+
+const mobileNavConfig = [
+    { id: 'home', icon: Home, label: 'Hub', route: '/' },
+    { id: 'vitals', icon: HeartPulse, label: 'Vitals', route: '/vitals' },
+    { id: 'analyzer', icon: FileScan, label: 'Analyzer', route: '/analyzer' },
+    { id: 'patients', icon: Users, label: 'Patients', route: '/patients' },
+    { id: 'dash', icon: LayoutDashboard, label: 'Dash', route: '/dash' },
+    { id: 'reports', icon: ClipboardList, label: 'Reports', route: '/reports' },
+    { id: 'profile', icon: Building2, label: 'Profile', route: '/profile' }
 ];
 
 const GlobalSidebar = () => {
@@ -38,15 +49,17 @@ const GlobalSidebar = () => {
             onMouseLeave={() => setIsHovered(false)}
             style={{ position: 'relative', zIndex: 2001 }}
         >
-            <StaggeredMenu 
-                position="left" 
-                triggerHover={isHovered} 
-                items={staggeredMenuItems}
-                displaySocials={false}
-                isFixed={true}
-                colors={['#1c2128', '#2d333b']}
-                accentColor="#ffffff"
-            />
+            <div className="desktop-staggered-menu">
+                <StaggeredMenu 
+                    position="left" 
+                    triggerHover={isHovered} 
+                    items={staggeredMenuItems}
+                    displaySocials={false}
+                    isFixed={true}
+                    colors={['#1c2128', '#2d333b']}
+                    accentColor="#ffffff"
+                />
+            </div>
 
             {/* Dark Sidebar - Icon Only, Triggers Staggered Menu */}
             <aside className="dark-hover-sidebar">
@@ -123,6 +136,25 @@ const GlobalSidebar = () => {
                 </div>
             </aside>
 
+            <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
+                {mobileNavConfig.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.route;
+
+                    return (
+                        <button
+                            key={item.id}
+                            type="button"
+                            className={`mobile-nav-item ${isActive ? 'active' : ''}`}
+                            onClick={() => navigate(item.route)}
+                        >
+                            <Icon size={18} strokeWidth={isActive ? 2.4 : 2} />
+                            <span>{item.label}</span>
+                        </button>
+                    );
+                })}
+            </nav>
+
             {/* Global Sidebar CSS */}
             <style dangerouslySetInnerHTML={{__html: `
                 .dark-hover-sidebar {
@@ -185,6 +217,16 @@ const GlobalSidebar = () => {
                 .sidebar-item.active .sidebar-icon {
                     background: rgba(255, 255, 255, 0.08); /* slight highlight for active icon */
                     border-radius: 8px;
+                }
+
+                @media (max-width: 1024px) {
+                    .desktop-staggered-menu {
+                        display: none;
+                    }
+
+                    .dark-hover-sidebar {
+                        display: none;
+                    }
                 }
             `}} />
         </div>

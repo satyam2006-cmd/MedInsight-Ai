@@ -160,10 +160,10 @@ export default function SharedReport() {
         (analysis.hindi_translation && analysis.hindi_translation !== analysis.summary ? 'Analyzed' : 'English');
 
     return (
-        <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
+        <div className="container shared-report-shell" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
             <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
                 <Logo />
-                <h1 style={{ fontSize: '2.5rem', marginTop: '1rem' }}>MEDINSIGHT <span style={{ color: 'var(--secondary)' }}>AI</span></h1>
+                <h1 style={{ fontSize: 'clamp(1.6rem, 8vw, 2.5rem)', marginTop: '1rem' }}>MEDINSIGHT <span style={{ color: 'var(--secondary)' }}>AI</span></h1>
 
                 {hInfo?.hospital_name && (
                     <div style={{ paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
@@ -182,7 +182,7 @@ export default function SharedReport() {
                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 0 }}>
                         <FileText size={32} /> Report for {patient?.patient_name || 'Patient'}
                     </h2>
-                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                         <span className="badge" style={{ background: '#f0f0f0' }}>Type: Medical Summary</span>
                         <span className="badge" style={{
                             background: report.risk_level === 'High' ? 'var(--secondary)' :
@@ -193,9 +193,9 @@ export default function SharedReport() {
                         </span>
                     </div>
 
-                    <div style={{ background: 'white', border: '3px solid black', padding: '1.5rem', marginBottom: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h3 style={{ marginTop: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <div style={{ background: 'white', border: '3px solid black', padding: 'clamp(0.9rem, 4vw, 1.5rem)', marginBottom: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                            <h3 style={{ marginTop: 0, textTransform: 'uppercase', letterSpacing: '1px', fontSize: 'clamp(0.95rem, 3.2vw, 1rem)' }}>
                                 Clinical Summary ({targetLang})
                             </h3>
                             <button
@@ -208,7 +208,7 @@ export default function SharedReport() {
                                 {speaking ? 'Stop Audio' : 'Play Audio'}
                             </button>
                         </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 600, lineHeight: '1.8' }}>
+                        <div style={{ fontSize: 'clamp(0.95rem, 3.8vw, 1.3rem)', fontWeight: 600, lineHeight: '1.75' }}>
                             {(analysis.hindi_translation || analysis.summary_translated || analysis.summary || "").trim().split(/\s+/).map((word, i) => (
                                 <span
                                     key={i}
@@ -234,7 +234,7 @@ export default function SharedReport() {
                 </div>
             </main>
 
-            <footer style={{ marginTop: '4rem', textAlign: 'center', color: '#666', fontSize: '0.9rem', borderTop: '2px solid #eee', paddingTop: '2rem' }}>
+            <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#666', fontSize: '0.9rem', borderTop: '2px solid #eee', paddingTop: '1.25rem' }}>
                 {hInfo && (
                     <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', color: 'black' }}>
                         <div>
@@ -258,6 +258,22 @@ export default function SharedReport() {
                 __html: `
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 .animate-spin { animation: spin 1s linear infinite; }
+
+                @media (max-width: 640px) {
+                    .shared-report-shell {
+                        padding: 0.9rem !important;
+                    }
+
+                    .shared-report-shell .neo-card {
+                        border-width: 2px !important;
+                        box-shadow: 3px 3px 0px var(--black) !important;
+                        padding: 0.9rem !important;
+                    }
+
+                    .shared-report-shell .badge {
+                        font-size: 0.68rem;
+                    }
+                }
             `}} />
         </div>
     );

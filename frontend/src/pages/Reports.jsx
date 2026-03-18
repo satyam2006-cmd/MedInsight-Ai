@@ -174,46 +174,20 @@ export default function ReportsPage() {
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <div className="app-shell">
             <GlobalSidebar />
 
-            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+            <main className="app-main app-main-lg">
                 <button
                     onClick={() => navigate('/')}
-                    className="staggered-enter"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        padding: '0.6rem 1.4rem',
-                        background: '#fff',
-                        color: '#1e293b',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        marginBottom: '2rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        borderRadius: '99px',
-                        border: '1.5px solid #1e293b',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                        transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.background = '#f8fafc';
-                        e.currentTarget.style.transform = 'translateX(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.background = '#fff';
-                        e.currentTarget.style.transform = 'translateX(0)';
-                    }}
+                    className="staggered-enter app-back-btn"
                 >
                     <ArrowLeft size={16} />
                     BACK TO HUB
                 </button>
-                <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
-                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '4rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+                <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                         <div style={{ 
                             width: '64px', 
                             height: '64px', 
@@ -227,10 +201,10 @@ export default function ReportsPage() {
                             <FileText size={32} />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: '3.8rem', fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
+                            <h1 className="page-hero-title" style={{ fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
                                 Insight <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Feed</span>
                             </h1>
-                            <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
+                            <p style={{ fontSize: 'clamp(0.95rem, 3.2vw, 1.2rem)', color: '#64748b', marginTop: '0.2rem' }}>
                                 Longitudinal AI report history and clinical documentation.
                             </p>
                         </div>
@@ -253,13 +227,15 @@ export default function ReportsPage() {
             )}
 
             {!loading && patients.map((patient) => (
-                <div key={patient.id} className="staggered-enter neo-card brutal-border" style={{ marginBottom: '3rem', background: 'white' }}>
+                <div key={patient.id} className="staggered-enter neo-card brutal-border" style={{ marginBottom: '1rem', background: 'white' }}>
                     <div
                         style={{ 
                             display: 'flex', 
                             justifyContent: 'space-between', 
                             alignItems: 'end', 
                             cursor: 'pointer',
+                            gap: '0.8rem',
+                            flexWrap: 'wrap',
                             padding: '0.5rem 0',
                             borderBottom: '1px solid rgba(0,0,0,0.06)',
                             marginBottom: '1.5rem'
@@ -268,13 +244,13 @@ export default function ReportsPage() {
                     >
                         <div>
                             <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Patient Record</span>
-                            <h3 style={{ margin: '0.2rem 0', fontSize: '2.2rem', color: '#1e293b', fontWeight: 500 }}>{patient.patient_name}</h3>
+                            <h3 style={{ margin: '0.2rem 0', fontSize: 'clamp(1.4rem, 5vw, 2.2rem)', color: '#1e293b', fontWeight: 500 }}>{patient.patient_name}</h3>
                             <div style={{ display: 'flex', gap: '1.5rem', color: '#64748b', fontSize: '0.95rem' }}>
                                 <span>ID: <strong style={{color: '#1e293b'}}>{patient.patient_custom_id || patient.patient_number}</strong></span>
                                 <span>Total Reports: <strong style={{color: '#1e293b'}}>{patient.reports?.length || 0}</strong></span>
                             </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
