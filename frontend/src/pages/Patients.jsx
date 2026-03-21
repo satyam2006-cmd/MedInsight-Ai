@@ -108,46 +108,20 @@ export default function PatientsPage() {
 
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <div className="app-shell">
             <GlobalSidebar />
 
-            <main style={{ flex: 1, marginLeft: '80px', padding: '4rem 5rem', position: 'relative' }}>
+            <main className="app-main app-main-lg">
                 <button
                     onClick={() => navigate('/')}
-                    className="staggered-enter"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        padding: '0.6rem 1.4rem',
-                        background: '#fff',
-                        color: '#1e293b',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        marginBottom: '2rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        borderRadius: '99px',
-                        border: '1.5px solid #1e293b',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                        transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.background = '#f8fafc';
-                        e.currentTarget.style.transform = 'translateX(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.background = '#fff';
-                        e.currentTarget.style.transform = 'translateX(0)';
-                    }}
+                    className="staggered-enter app-back-btn"
                 >
                     <ArrowLeft size={16} />
                     BACK TO HUB
                 </button>
-                <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '4rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+                <div className="page-container">
+                <header className="staggered-enter hero-unboxed" style={{ marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                         <div style={{ 
                             width: '64px', 
                             height: '64px', 
@@ -161,21 +135,21 @@ export default function PatientsPage() {
                             <UserPlus size={32} />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: '3.8rem', fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
+                            <h1 className="page-hero-title" style={{ fontWeight: 400, letterSpacing: '-2px', color: '#1e293b', margin: 0 }}>
                                 Patient <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Registry</span>
                             </h1>
-                            <p style={{ fontSize: '1.2rem', color: '#64748b', marginTop: '0.2rem' }}>
+                            <p style={{ fontSize: 'clamp(0.95rem, 3.2vw, 1.2rem)', color: '#64748b', marginTop: '0.2rem' }}>
                                 Register patients and process clinical documentation seamlessly.
                             </p>
                         </div>
                     </div>
                 </header>
 
-                <div className="module-content" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '4rem', alignItems: 'start' }}>
+                <div className="module-content patients-grid" style={{ gap: '1.25rem' }}>
                 {/* Left Side: Form */}
                 <form onSubmit={handleSubmit} className="staggered-enter" style={{ display: 'grid', gap: '1.5rem' }}>
                     <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#1e293b', fontWeight: 500 }}>Register New Patient</h3>
-                    <div className="neo-card brutal-border" style={{ padding: '2.5rem', display: 'grid', gap: '1.2rem' }}>
+                    <div className="neo-card brutal-border" style={{ padding: 'clamp(1rem, 3vw, 2rem)', display: 'grid', gap: '1rem' }}>
                         <div style={{ display: 'grid', gap: '0.5rem' }}>
                             <label htmlFor="patientId" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Patient ID</label>
                             <input
@@ -253,7 +227,7 @@ export default function PatientsPage() {
                 </form>
 
                 {/* Right Side: Table */}
-                <div className="neo-card brutal-border panel-soft" style={{ padding: '2rem', background: 'white' }}>
+                <div className="neo-card brutal-border panel-soft" style={{ padding: 'clamp(1rem, 3vw, 1.6rem)', background: 'white' }}>
                     <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         Recent Entries
                         <span style={{ fontSize: '1rem', background: 'var(--accent)', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
