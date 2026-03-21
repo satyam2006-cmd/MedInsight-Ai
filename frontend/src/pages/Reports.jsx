@@ -245,7 +245,7 @@ export default function ReportsPage() {
                         <div>
                             <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Patient Record</span>
                             <h3 style={{ margin: '0.2rem 0', fontSize: 'clamp(1.4rem, 5vw, 2.2rem)', color: '#1e293b', fontWeight: 500 }}>{patient.patient_name}</h3>
-                            <div style={{ display: 'flex', gap: '1.5rem', color: '#64748b', fontSize: '0.95rem' }}>
+                            <div style={{ display: 'flex', gap: '1.5rem', color: '#64748b', fontSize: '0.95rem', flexWrap: 'wrap' }}>
                                 <span>ID: <strong style={{color: '#1e293b'}}>{patient.patient_custom_id || patient.patient_number}</strong></span>
                                 <span>Total Reports: <strong style={{color: '#1e293b'}}>{patient.reports?.length || 0}</strong></span>
                             </div>
@@ -291,7 +291,7 @@ export default function ReportsPage() {
                                                 }}>
                                                     AI Status: {report.status} | Risk Level: {report.risk_level || 'Unknown'}
                                                 </span>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                                     <button
                                                         onClick={() => handleShareWhatsApp(patient, report)}
                                                         className="neo-btn"
@@ -329,7 +329,7 @@ export default function ReportsPage() {
                                             {/* Hospital Dashboard View: English Only */}
                                             <div className="panel-soft" style={{ background: '#f5f5f5', padding: '1.5rem', borderRadius: '10px' }}>
                                                 {/* Hospital Header for trusting branding */}
-                                                <div style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                                                     {(() => {
                                                         const hospitalName = analysis?.hospital_details?.hospital_name || hospitalInfo?.hospital_name;
                                                         return (

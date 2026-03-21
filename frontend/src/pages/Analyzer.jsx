@@ -210,7 +210,7 @@ const AnalyzerPage = () => {
                                         <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Upload size={28} color="var(--primary)" />
                                         </div>
-                                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '1.1rem' }}>
+                                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '1.1rem', maxWidth: '100%', wordBreak: 'break-word' }}>
                                             {file ? file.name : 'Click to upload medical document'}
                                         </span>
                                         <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Supports JPG, PNG, PDF</span>
