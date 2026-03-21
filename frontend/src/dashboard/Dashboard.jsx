@@ -62,11 +62,11 @@ const Dashboard = () => {
     const navigate = useNavigate();
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <div className="app-shell">
             <GlobalSidebar />
 
-            <main style={{ flex: 1, marginLeft: '80px', padding: '3rem', position: 'relative' }}>
-                <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'grid', gap: '2rem' }}>
+            <main className="app-main">
+                <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'grid', gap: '1.25rem' }}>
                 <header className="neo-card staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -80,7 +80,7 @@ const Dashboard = () => {
                             }}>
                                 Clinical <span style={{ color: '#0ea5e9', fontWeight: 600 }}>Operations</span> Radar
                             </h2>
-                            <p style={{ marginTop: '0.8rem', fontSize: '1.05rem', color: '#555', maxWidth: '600px' }}>
+                            <p style={{ marginTop: '0.8rem', fontSize: 'clamp(0.95rem, 3vw, 1.05rem)', color: '#555', maxWidth: '600px' }}>
                                 Reorganized for flow-first decision making: intake, vitals acquisition, AI interpretation, and patient communication are now exposed as deliberate paths.
                             </p>
                         </div>

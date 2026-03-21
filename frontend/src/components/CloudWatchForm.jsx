@@ -100,20 +100,20 @@ export default function CloudWatchForm() {
     };
 
     return (
-        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff', padding: '2rem', overflowY: 'auto', zIndex: 30 }}>
+        <div className="cw-auth-shell" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff', padding: '2rem', overflowY: 'auto', zIndex: 30 }}>
 
             <button
                 onClick={() => navigate('/')}
-                className="neo-btn"
+                className="neo-btn cw-back-btn"
                 style={{ position: 'absolute', top: '2rem', left: '2rem', padding: '0.5rem 1rem', background: 'white', color: 'black' }}
             >
                 &larr; Back to Home
             </button>
 
-            <div className="neo-card" style={{ maxWidth: '900px', width: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '3rem', background: 'white', position: 'relative' }}>
+            <div className="neo-card cw-auth-card" style={{ maxWidth: '980px', width: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '2rem', background: 'white', position: 'relative' }}>
 
                 {/* Cartoon Face (Left Side) */}
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+                <div className="cw-art-pane" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
                     <div style={{ position: 'relative', width: '100%', maxWidth: '350px', aspectRatio: '564/349' }}>
                         <img
                             src="https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/cloud.jpg"
@@ -158,9 +158,9 @@ export default function CloudWatchForm() {
                 </div>
 
                 {/* Form (Right Side) */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div className="cw-form-pane" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-                    <h2 style={{ textAlign: 'center', fontSize: '1.8rem', margin: 0 }}>
+                    <h2 style={{ textAlign: 'center', fontSize: 'clamp(1.3rem, 4.8vw, 1.8rem)', margin: 0 }}>
                         {isLogin ? "Login" : (accountType === "hospital" ? "Register Hospital" : "Register User")}
                     </h2>
 
@@ -289,6 +289,61 @@ export default function CloudWatchForm() {
                 </div>
 
             </div>
+
+            <style dangerouslySetInnerHTML={{ __html: `
+                .cw-auth-card {
+                    padding: clamp(1rem, 3.8vw, 2rem);
+                }
+
+                @media (max-width: 960px) {
+                    .cw-auth-shell {
+                        align-items: flex-start;
+                        padding: 1rem;
+                    }
+
+                    .cw-back-btn {
+                        position: static !important;
+                        width: 100%;
+                        margin-bottom: 0.8rem;
+                        justify-content: center;
+                    }
+
+                    .cw-auth-card {
+                        margin-top: 0;
+                        flex-direction: column;
+                        gap: 1rem;
+                    }
+
+                    .cw-art-pane {
+                        width: 100%;
+                        padding: 0.2rem;
+                    }
+
+                    .cw-art-pane > div {
+                        max-width: 250px !important;
+                    }
+
+                    .cw-form-pane {
+                        width: 100%;
+                    }
+                }
+
+                @media (max-width: 520px) {
+                    .cw-auth-shell {
+                        padding: 0.7rem;
+                    }
+
+                    .cw-auth-card {
+                        border-width: 2px !important;
+                        box-shadow: 3px 3px 0px var(--black) !important;
+                    }
+
+                    .cw-form-pane input,
+                    .cw-form-pane .neo-input {
+                        font-size: 16px;
+                    }
+                }
+            ` }} />
         </div>
     );
 }
