@@ -13,7 +13,7 @@ const VitalsPage = () => {
         <div className="app-shell">
             <GlobalSidebar />
 
-            <main className="app-main">
+            <main className="app-main mobile-page-shell vitals-mobile-shell">
                 <button
                     onClick={() => navigate('/')}
                     className="staggered-enter app-back-btn"

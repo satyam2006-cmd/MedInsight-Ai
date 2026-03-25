@@ -173,7 +173,7 @@ const ProfilePage = () => {
         <div className="app-shell">
             <GlobalSidebar />
 
-            <main className="app-main app-main-lg">
+            <main className="app-main app-main-lg mobile-page-shell profile-mobile-shell">
                 <button
                     onClick={() => navigate('/')}
                     className="staggered-enter app-back-btn"
@@ -232,10 +232,10 @@ const ProfilePage = () => {
                     </div>
                 )}
 
-                <div className="staggered-enter neo-card brutal-border" style={{ background: 'white', padding: 'clamp(1rem, 4vw, 2.5rem)', position: 'relative' }}>
+                <div className="staggered-enter neo-card brutal-border profile-main-card" style={{ background: 'white', padding: 'clamp(1rem, 4vw, 2.5rem)', position: 'relative' }}>
 
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', marginBottom: '3rem' }}>
+                    <div className="profile-identity-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', marginBottom: '3rem' }}>
                         <div style={{
                             width: '120px',
                             height: '120px',
@@ -271,7 +271,7 @@ const ProfilePage = () => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                    <div className="profile-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                 <div className="icon-chip">
@@ -323,7 +323,7 @@ const ProfilePage = () => {
                                 <div style={{ flex: 1 }}>
                                     <p style={{ margin: 0, fontSize: '0.8rem', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Phone Number</p>
                                     {isEditing ? (
-                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+                                        <div className="profile-phone-input-row" style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
                                             <input
                                                 value={editForm.countryCode}
                                                 onChange={(e) => setEditForm({ ...editForm, countryCode: e.target.value })}
@@ -379,11 +379,11 @@ const ProfilePage = () => {
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '4rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', borderTop: '2px solid #eee', paddingTop: '2rem' }}>
+                    <div className="profile-action-row" style={{ marginTop: '4rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', borderTop: '2px solid #eee', paddingTop: '2rem' }}>
                         {isEditing ? (
                             <>
                                 <button
-                                    className="neo-btn"
+                                    className="neo-btn profile-save-btn"
                                     onClick={handleSave}
                                     disabled={updating}
                                     style={{ background: 'var(--primary, #5227FF)', color: 'black', flex: 1, justifyContent: 'center' }}
@@ -392,7 +392,7 @@ const ProfilePage = () => {
                                     {updating ? "Saving..." : "Save Changes"}
                                 </button>
                                 <button
-                                    className="neo-btn"
+                                    className="neo-btn profile-cancel-btn"
                                     onClick={() => {
                                         setIsEditing(false);
                                         setEditForm({
@@ -412,7 +412,7 @@ const ProfilePage = () => {
                             </>
                         ) : (
                             <button
-                                className="neo-btn"
+                                className="neo-btn profile-edit-btn"
                                 onClick={() => setIsEditing(true)}
                                 style={{ background: 'black', color: 'white', flex: 1, justifyContent: 'center' }}
                             >
@@ -422,7 +422,7 @@ const ProfilePage = () => {
 
                         {!isEditing && (
                             <button
-                                className="neo-btn"
+                                className="neo-btn profile-logout-btn"
                                 onClick={handleLogout}
                                 style={{ background: '#ff4d4d', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.5rem' }}
                             >

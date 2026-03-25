@@ -177,7 +177,7 @@ export default function ReportsPage() {
         <div className="app-shell">
             <GlobalSidebar />
 
-            <main className="app-main app-main-lg">
+            <main className="app-main app-main-lg mobile-page-shell reports-mobile-shell">
                 <button
                     onClick={() => navigate('/')}
                     className="staggered-enter app-back-btn"
@@ -227,8 +227,9 @@ export default function ReportsPage() {
             )}
 
             {!loading && patients.map((patient) => (
-                <div key={patient.id} className="staggered-enter neo-card brutal-border" style={{ marginBottom: '1rem', background: 'white' }}>
+                <div key={patient.id} className="staggered-enter neo-card brutal-border reports-patient-card" style={{ marginBottom: '1rem', background: 'white' }}>
                     <div
+                        className="reports-patient-header"
                         style={{ 
                             display: 'flex', 
                             justifyContent: 'space-between', 
@@ -270,7 +271,7 @@ export default function ReportsPage() {
 
                     {/* Expaned Details (Reports) */}
                     {expandedPatientId === patient.id && (
-                        <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '2px solid #eee' }}>
+                        <div className="reports-expanded-body" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '2px solid #eee' }}>
                             {patient.reports && patient.reports.length > 0 ? (
                                 patient.reports.map((report) => {
                                     const analysis = typeof report.analysis === 'string'
@@ -278,11 +279,11 @@ export default function ReportsPage() {
                                         : report.analysis;
 
                                     return (
-                                        <div key={report.id} style={{ marginBottom: '2rem' }}>
+                                        <div key={report.id} className="reports-report-card" style={{ marginBottom: '2rem' }}>
                                             <h4 style={{ margin: '0 0 1rem 0' }}>Report from {new Date(report.created_at).toLocaleDateString()}</h4>
 
                                             {/* Status / Risk Pill and Buttons */}
-                                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
+                                            <div className="reports-report-toolbar" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
                                                 <span style={{
                                                     display: 'inline-block', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold',
                                                     background: report.risk_level === 'High' ? '#ffebee' : report.risk_level === 'Medium' ? '#fff3e0' : '#e8f5e9',
@@ -291,10 +292,10 @@ export default function ReportsPage() {
                                                 }}>
                                                     AI Status: {report.status} | Risk Level: {report.risk_level || 'Unknown'}
                                                 </span>
-                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                <div className="reports-action-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                                     <button
                                                         onClick={() => handleShareWhatsApp(patient, report)}
-                                                        className="neo-btn"
+                                                        className="neo-btn reports-action-primary"
                                                         style={{
                                                             padding: '0.4rem 0.8rem',
                                                             fontSize: '0.8rem',
@@ -309,7 +310,7 @@ export default function ReportsPage() {
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteReport(report.id)}
-                                                        className="neo-btn"
+                                                        className="neo-btn reports-action-danger"
                                                         style={{
                                                             padding: '0.4rem 0.8rem',
                                                             fontSize: '0.8rem',

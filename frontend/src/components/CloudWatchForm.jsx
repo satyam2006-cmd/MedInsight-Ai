@@ -330,17 +330,27 @@ export default function CloudWatchForm() {
 
                 @media (max-width: 520px) {
                     .cw-auth-shell {
-                        padding: 0.7rem;
+                        padding: 0.55rem;
                     }
 
                     .cw-auth-card {
                         border-width: 2px !important;
                         box-shadow: 3px 3px 0px var(--black) !important;
+                        gap: 0.65rem;
+                        padding: 0.85rem !important;
+                    }
+
+                    .cw-art-pane {
+                        display: none !important;
                     }
 
                     .cw-form-pane input,
                     .cw-form-pane .neo-input {
                         font-size: 16px;
+                    }
+
+                    .cw-form-pane {
+                        gap: 0.7rem !important;
                     }
                 }
             ` }} />

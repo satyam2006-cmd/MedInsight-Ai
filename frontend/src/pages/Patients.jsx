@@ -8,6 +8,7 @@ import GlobalSidebar from '../components/GlobalSidebar';
 
 export default function PatientsPage() {
     const navigate = useNavigate();
+    const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
     const [patientId, setPatientId] = useState('');
     const [patientName, setPatientName] = useState('');
     const [patientNumber, setPatientNumber] = useState('');
@@ -31,6 +32,13 @@ export default function PatientsPage() {
             }
         };
         loadPreferredLanguage();
+    }, []);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 768px)');
+        const onChange = (event) => setIsMobile(event.matches);
+        media.addEventListener('change', onChange);
+        return () => media.removeEventListener('change', onChange);
     }, []);
 
     const handleSubmit = async (e) => {
@@ -111,7 +119,7 @@ export default function PatientsPage() {
         <div className="app-shell">
             <GlobalSidebar />
 
-            <main className="app-main app-main-lg">
+            <main className="app-main app-main-lg mobile-page-shell">
                 <button
                     onClick={() => navigate('/')}
                     className="staggered-enter app-back-btn"
@@ -227,7 +235,7 @@ export default function PatientsPage() {
                 </form>
 
                 {/* Right Side: Table */}
-                <div className="neo-card brutal-border panel-soft" style={{ padding: 'clamp(1rem, 3vw, 1.6rem)', background: 'white' }}>
+                <div className="neo-card brutal-border panel-soft patients-entries-panel" style={{ padding: 'clamp(1rem, 3vw, 1.6rem)', background: 'white' }}>
                     <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         Recent Entries
                         <span style={{ fontSize: '1rem', background: 'var(--accent)', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
@@ -235,6 +243,36 @@ export default function PatientsPage() {
                         </span>
                     </h3>
 
+                    {isMobile ? (
+                        <div className="patients-mobile-list">
+                            {patientsList.length === 0 ? (
+                                <div className="patients-mobile-empty">No patients added yet. Fill out the form to add an entry.</div>
+                            ) : (
+                                patientsList.map((patient, index) => (
+                                    <article key={index} className="patients-mobile-card brutal-border">
+                                        <div className="patients-mobile-card-top">
+                                            <div>
+                                                <div className="patients-mobile-label">Patient ID</div>
+                                                <h4>{patient.id}</h4>
+                                            </div>
+                                            <span className="badge accent-bg">{patient.reports?.length || 0} Reports</span>
+                                        </div>
+                                        <p><strong>Name:</strong> {patient.name}</p>
+                                        <p><strong>Contact:</strong> {patient.number}</p>
+                                        <p><strong>Document:</strong> {patient.reportName}</p>
+                                        <p><strong>Date:</strong> {patient.dateAdded}</p>
+                                        <button
+                                            onClick={() => navigate(`/vitals?patient=${encodeURIComponent(patient.id)}`)}
+                                            className="neo-btn"
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.55rem 0.7rem', background: 'var(--secondary)', color: 'white', fontWeight: 700, fontSize: '0.78rem', width: '100%' }}
+                                        >
+                                            <Activity size={13} /> Take Vitals
+                                        </button>
+                                    </article>
+                                ))
+                            )}
+                        </div>
+                    ) : (
                     <div style={{ overflowX: 'auto' }}>
                         <table className="table-v2">
                             <thead>
@@ -284,6 +322,7 @@ export default function PatientsPage() {
                             </tbody>
                         </table>
                     </div>
+                    )}
                 </div>
                 </div>
                 </div>
