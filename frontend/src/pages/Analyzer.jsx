@@ -150,7 +150,7 @@ const AnalyzerPage = () => {
         <div className="app-shell">
             <GlobalSidebar />
 
-            <main className="app-main app-main-lg">
+            <main className="app-main app-main-lg mobile-page-shell analyzer-mobile-shell">
                 <button
                     onClick={() => navigate('/')}
                     className="staggered-enter app-back-btn"
@@ -185,11 +185,11 @@ const AnalyzerPage = () => {
                     </div>
                 </header>
 
-                <div className="module-content" style={{ display: 'grid', gap: '1.25rem' }}>
+                <div className="module-content analyzer-mobile-content" style={{ display: 'grid', gap: '1.25rem' }}>
                     <section className="staggered-enter" style={{ position: 'relative' }}>
                         <div className="analyzer-step-grid" style={{ gap: '1.25rem' }}>
                             {/* Left Side: Upload */}
-                            <div className="neo-card brutal-border" style={{ background: 'white' }}>
+                            <div className="neo-card brutal-border analyzer-upload-card" style={{ background: 'white' }}>
                                 <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#1e293b', fontWeight: 500 }}>1. Provide Document</h3>
                                 <div style={{
                                     border: '2px dashed rgba(0,0,0,0.1)',
@@ -219,7 +219,7 @@ const AnalyzerPage = () => {
                             </div>
 
                             {/* Right Side: Language & Analyze */}
-                            <div className="neo-card brutal-border" style={{ background: 'white' }}>
+                            <div className="neo-card brutal-border analyzer-target-card" style={{ background: 'white' }}>
                                 <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#1e293b', fontWeight: 500 }}>2. Analysis Target</h3>
                                 <div style={{ display: 'grid', gap: '1.5rem' }}>
                                     <div>
@@ -244,7 +244,7 @@ const AnalyzerPage = () => {
                                         />
                                     </div>
                                     <button
-                                        className="neo-btn"
+                                        className="neo-btn analyzer-primary-cta"
                                         onClick={handleAnalyze}
                                         disabled={!file || loading || extracting}
                                         style={{ 
@@ -268,7 +268,7 @@ const AnalyzerPage = () => {
 
                     {/* 3. Results Section */}
                     {rawText && (
-                        <div className="neo-card brutal-border staggered-enter" style={{ background: '#f8fafc', padding: '1.5rem' }}>
+                        <div className="neo-card brutal-border staggered-enter analyzer-raw-card" style={{ background: '#f8fafc', padding: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1rem' }}>
                                 <FileSearch size={20} color="#64748b" />
                                 <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '0.9rem', color: '#64748b', letterSpacing: '1px' }}>Extracted Clinical Data</h4>
@@ -295,7 +295,7 @@ const AnalyzerPage = () => {
                             {/* Summary Cards */}
                             <div className="analyzer-summary-grid">
                                 {/* English Summary */}
-                                <div className="neo-card brutal-border" style={{ background: 'white', borderLeft: '6px solid #1e293b' }}>
+                                <div className="neo-card brutal-border analyzer-summary-card" style={{ background: 'white', borderLeft: '6px solid #1e293b' }}>
                                     <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <FileText size={20} /> English Summary
                                     </h3>
@@ -303,12 +303,13 @@ const AnalyzerPage = () => {
                                 </div>
 
                                 {/* Translated Summary */}
-                                <div className="neo-card brutal-border" style={{ background: 'white', borderLeft: '6px solid var(--primary)' }}>
+                                <div className="neo-card brutal-border analyzer-summary-card" style={{ background: 'white', borderLeft: '6px solid var(--primary)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                         <h3 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             <Languages size={20} color="var(--primary)" /> {result.target_language} Summary
                                         </h3>
                                         <button 
+                                            className="analyzer-secondary-cta"
                                             onClick={() => speak(result.hindi_translation, ISO_LANGS[result.target_language.toLowerCase()] || 'en-US')}
                                             style={{
                                                 background: speaking ? 'var(--primary)' : '#f1f5f9',

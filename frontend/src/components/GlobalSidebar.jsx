@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Activity,
@@ -10,7 +10,9 @@ import {
     ClipboardList,
     Building2,
     ChevronsUpDown,
-    Plus
+    Plus,
+    Menu,
+    X
 } from 'lucide-react';
 import StaggeredMenu from './StaggeredMenu';
 
@@ -22,13 +24,16 @@ const sidebarConfig = [
     { id: 'reports', icon: ClipboardList, label: 'Saved Reports', route: '/reports' }
 ];
 
-const mobileNavConfig = [
+const mobilePrimaryNavConfig = [
     { id: 'home', icon: Home, label: 'Hub', route: '/' },
     { id: 'vitals', icon: HeartPulse, label: 'Vitals', route: '/vitals' },
     { id: 'analyzer', icon: FileScan, label: 'Analyzer', route: '/analyzer' },
+    { id: 'reports', icon: ClipboardList, label: 'Reports', route: '/reports' }
+];
+
+const mobileMoreNavConfig = [
     { id: 'patients', icon: Users, label: 'Patients', route: '/patients' },
-    { id: 'dash', icon: LayoutDashboard, label: 'Dash', route: '/dash' },
-    { id: 'reports', icon: ClipboardList, label: 'Reports', route: '/reports' },
+    { id: 'dash', icon: LayoutDashboard, label: 'Dashboard', route: '/dash' },
     { id: 'profile', icon: Building2, label: 'Profile', route: '/profile' }
 ];
 
@@ -36,6 +41,11 @@ const GlobalSidebar = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isHovered, setIsHovered] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    useEffect(() => {
+        setMobileMenuOpen(false);
+    }, [location.pathname]);
 
     const staggeredMenuItems = sidebarConfig.map(item => ({
         label: item.label,
@@ -137,7 +147,7 @@ const GlobalSidebar = () => {
             </aside>
 
             <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
-                {mobileNavConfig.map((item) => {
+                {mobilePrimaryNavConfig.map((item) => {
                     const Icon = item.icon;
                     const isActive = location.pathname === item.route;
 
@@ -153,7 +163,39 @@ const GlobalSidebar = () => {
                         </button>
                     );
                 })}
+
+                <button
+                    type="button"
+                    className={`mobile-nav-item ${mobileMenuOpen ? 'active' : ''}`}
+                    onClick={() => setMobileMenuOpen((prev) => !prev)}
+                    aria-expanded={mobileMenuOpen}
+                    aria-controls="mobile-more-menu"
+                >
+                    {mobileMenuOpen ? <X size={18} strokeWidth={2.2} /> : <Menu size={18} strokeWidth={2.2} />}
+                    <span>More</span>
+                </button>
             </nav>
+
+            <div id="mobile-more-menu" className={`mobile-more-sheet ${mobileMenuOpen ? 'open' : ''}`}>
+                <div className="mobile-more-sheet-card brutal-border">
+                    {mobileMoreNavConfig.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.route;
+
+                        return (
+                            <button
+                                key={item.id}
+                                type="button"
+                                className={`mobile-more-item ${isActive ? 'active' : ''}`}
+                                onClick={() => navigate(item.route)}
+                            >
+                                <Icon size={18} strokeWidth={isActive ? 2.3 : 2} />
+                                <span>{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
 
             {/* Global Sidebar CSS */}
             <style dangerouslySetInnerHTML={{__html: `
@@ -225,6 +267,57 @@ const GlobalSidebar = () => {
                     }
 
                     .dark-hover-sidebar {
+                        display: none;
+                    }
+
+                    .mobile-more-sheet {
+                        position: fixed;
+                        left: 0;
+                        right: 0;
+                        bottom: 4.8rem;
+                        padding: 0.7rem;
+                        z-index: 3400;
+                        pointer-events: none;
+                        opacity: 0;
+                        transform: translateY(10px);
+                        transition: opacity 0.18s ease, transform 0.18s ease;
+                    }
+
+                    .mobile-more-sheet.open {
+                        opacity: 1;
+                        transform: translateY(0);
+                        pointer-events: auto;
+                    }
+
+                    .mobile-more-sheet-card {
+                        background: #ffffff;
+                        border-radius: 12px;
+                        padding: 0.45rem;
+                        display: grid;
+                        gap: 0.35rem;
+                    }
+
+                    .mobile-more-item {
+                        border: 0;
+                        background: transparent;
+                        color: #334155;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.6rem;
+                        font-weight: 700;
+                        padding: 0.7rem 0.8rem;
+                        border-radius: 10px;
+                        text-align: left;
+                    }
+
+                    .mobile-more-item.active {
+                        background: #f1f5f9;
+                        color: #0f172a;
+                    }
+                }
+
+                @media (min-width: 1025px) {
+                    .mobile-more-sheet {
                         display: none;
                     }
                 }

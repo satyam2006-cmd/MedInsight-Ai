@@ -65,7 +65,7 @@ const Dashboard = () => {
         <div className="app-shell">
             <GlobalSidebar />
 
-            <main className="app-main">
+            <main className="app-main mobile-page-shell dashboard-mobile-shell">
                 <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'grid', gap: '1.25rem' }}>
                 <header className="neo-card staggered-enter" style={{ display: 'grid', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>

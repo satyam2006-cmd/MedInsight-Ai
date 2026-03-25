@@ -1875,6 +1875,11 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                 }
 
                 @media (max-width: 640px) {
+                    .vitals-left-panel,
+                    .vitals-right-panel > .neo-card {
+                        padding: 0.9rem !important;
+                    }
+
                     .vitals-top-row {
                         flex-direction: column;
                         align-items: flex-start !important;
@@ -1887,11 +1892,46 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                         max-width: 100% !important;
                         min-width: 200px;
                     }
+
+                    .vitals-controls-row button,
+                    .vitals-controls-row select {
+                        width: 100%;
+                    }
+
                     .vitals-metrics-grid {
                         grid-template-columns: minmax(0, 1fr) !important;
                     }
+
+                    .metric-card,
+                    .metric-card-wide {
+                        min-height: auto;
+                        border-radius: 14px;
+                        border-width: 2px;
+                        box-shadow: 3px 3px 0px #000;
+                        padding: 0.8rem;
+                    }
+
+                    .vitals-right-panel > button {
+                        width: 100%;
+                    }
+
                     .vitals-action-row button {
                         flex: 1 1 150px;
+                    }
+
+                    .vitals-action-row {
+                        display: grid !important;
+                        grid-template-columns: 1fr 1fr;
+                    }
+                }
+
+                @media (max-width: 460px) {
+                    .vitals-action-row {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .vitals-layout-grid {
+                        gap: 0.85rem !important;
                     }
                 }
             `}} />

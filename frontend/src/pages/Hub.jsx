@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GlobalSidebar from '../components/GlobalSidebar';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, HeartPulse, FileScan, Users } from 'lucide-react';
 
 const moduleCards = [
     {
@@ -12,7 +12,8 @@ const moduleCards = [
         route: '/vitals',
         tone: 'linear-gradient(135deg, #375361 0%, #2f4551 100%)', // accurately matched slate/teal
         metric: 'LIVE SIGNALS',
-        image: '/assets/heart3d.png'
+        image: '/assets/heart3d.png',
+        icon: HeartPulse
     },
     {
         id: 'analyzer',
@@ -22,7 +23,8 @@ const moduleCards = [
         route: '/analyzer',
         tone: 'linear-gradient(135deg, #be4f33 0%, #a23a20 100%)', // accurately matched rust orange
         metric: 'INSIGHT ENGINE',
-        image: '/assets/liver3d.png'
+        image: '/assets/liver3d.png',
+        icon: FileScan
     },
     {
         id: 'patients',
@@ -32,18 +34,62 @@ const moduleCards = [
         route: '/patients',
         tone: 'linear-gradient(135deg, #d39a31 0%, #bb821d 100%)', // accurately matched mustard gold
         metric: 'CARE INDEX',
-        image: '/assets/cells3d.png'
+        image: '/assets/cells3d.png',
+        icon: Users
     }
 ];
 
 const Hub = () => {
     const navigate = useNavigate();
+    const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 768px)');
+        const onChange = (event) => setIsMobile(event.matches);
+        media.addEventListener('change', onChange);
+        return () => media.removeEventListener('change', onChange);
+    }, []);
 
     return (
         <div className="app-shell">
             <GlobalSidebar />
 
             <main className="app-main app-main-lg">
+                {isMobile ? (
+                    <div className="page-container mobile-hub-stack">
+                        <header className="hero-unboxed mobile-hub-header">
+                            <div className="mobile-hub-kicker">Clinical Workspace</div>
+                            <h2>Care Hub</h2>
+                            <p>Choose a module to start monitoring, analyzing, or managing patients in one tap.</p>
+                        </header>
+
+                        <section className="mobile-hub-cards">
+                            {moduleCards.map((card) => {
+                                const Icon = card.icon;
+
+                                return (
+                                    <button
+                                        key={card.id}
+                                        type="button"
+                                        className="mobile-hub-card brutal-border"
+                                        style={{ background: card.tone }}
+                                        onClick={() => navigate(card.route)}
+                                    >
+                                        <div className="mobile-hub-card-top">
+                                            <div className="mobile-hub-chip">{card.metric}</div>
+                                            <Icon size={18} />
+                                        </div>
+                                        <h3>{card.title}</h3>
+                                        <p>{card.subtitle}</p>
+                                        <div className="mobile-hub-cta">
+                                            Open <ArrowRight size={14} />
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </section>
+                    </div>
+                ) : (
                 <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
                     
                     {/* Header Section */}
@@ -184,6 +230,7 @@ const Hub = () => {
                     </div>
 
                 </div>
+                )}
             </main>
         </div>
     );
