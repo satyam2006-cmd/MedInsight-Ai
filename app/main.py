@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes import analyze, tts, patients, vitals
 from .config import settings
 import logging
+from datetime import datetime, timezone
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +20,7 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ALLOW_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,7 +37,7 @@ async def health():
     return {
         "status": "healthy", 
         "version": settings.APP_VERSION,
-        "timestamp": "2026-03-10T20:45:00", # Manually updated to verify sync
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "features": ["analysis", "tts", "patients"]
     }
 

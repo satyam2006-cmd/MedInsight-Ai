@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from ..ai_engine import ai_engine
 from ..services.ocr_service import ocr_service
-from ..utils.validators import validate_medical_file
+from ..utils.validators import validate_medical_file, validate_medical_mime_type, sanitize_text
 import logging
 
 router = APIRouter()
@@ -19,6 +19,9 @@ async def analyze_report(
     # 1. Validate File
     file_content = await file.read()
     validate_medical_file(file.filename, len(file_content))
+    validate_medical_mime_type(file.content_type)
+    target_language = sanitize_text(target_language or "English")[:64]
+    extracted_text = sanitize_text(extracted_text) if extracted_text else None
     
     try:
         # 2. Extract Text if not provided by Frontend
@@ -39,6 +42,8 @@ async def analyze_report(
         # 4. Final Response
         return analysis.dict()
 
-    except Exception as e:
-        logger.error(f"Error in /analyze-report: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Error in /analyze-report")
+        raise HTTPException(status_code=500, detail="Failed to analyze report")
