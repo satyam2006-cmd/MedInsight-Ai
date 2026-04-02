@@ -26,19 +26,12 @@ const VitalsPage = () => {
                     {patientIdFromUrl && (
                         <button
                             onClick={() => navigate('/patients')}
-                            className="staggered-enter"
+                            className="staggered-enter app-back-btn app-back-btn-secondary"
                             style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.6rem', 
-                                padding: '0.6rem 1.4rem', 
                                 background: '#eef2ff', 
                                 border: '1.5px solid #5227FF', 
                                 color: '#3730a3', 
                                 fontWeight: 700, 
-                                cursor: 'pointer', 
-                                fontSize: '0.8rem',
-                                borderRadius: '99px',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.5px'
                             }}

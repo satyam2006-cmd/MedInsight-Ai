@@ -1110,6 +1110,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                     </h3>
                     <div className="vitals-controls-row" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <select
+                            className="vitals-control-input"
                             value={selectedCameraId}
                             onChange={(e) => switchCamera(e.target.value)}
                             disabled={cameraSwitching}
@@ -1123,6 +1124,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                             ))}
                         </select>
                         <button
+                            className="vitals-control-btn"
                             onClick={loadVideoDevices}
                             style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.28rem 0.45rem', background: '#fff', fontSize: '0.7rem', cursor: 'pointer' }}
                         >
@@ -1457,12 +1459,13 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                                 <div style={{ padding: '0.9rem', background: '#eef2ff' }}>
                                 <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3730a3', marginBottom: '0.5rem' }}>ACCURACY CROSS-CHECK</div>
                                 <div className="vitals-action-row" style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-                                    <button onClick={saveSession} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>1) Save Session</button>
-                                    <button onClick={saveReference} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>2) Save Reference</button>
-                                    <button onClick={runCompare} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: '#1e293b', color: 'white', fontWeight: 700, cursor: 'pointer' }}>3) Compare</button>
-                                    <button onClick={runCalibrate} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: '#0f766e', color: 'white', fontWeight: 700, cursor: 'pointer' }}>4) Calibrate Live</button>
+                                    <button className="vitals-action-btn" onClick={saveSession} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>1) Save Session</button>
+                                    <button className="vitals-action-btn" onClick={saveReference} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: 'white', fontWeight: 700, cursor: 'pointer' }}>2) Save Reference</button>
+                                    <button className="vitals-action-btn" onClick={runCompare} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: '#1e293b', color: 'white', fontWeight: 700, cursor: 'pointer' }}>3) Compare</button>
+                                    <button className="vitals-action-btn" onClick={runCalibrate} disabled={compareLoading} style={{ padding: '0.45rem 0.7rem', border: '1px solid #1e293b', background: '#0f766e', color: 'white', fontWeight: 700, cursor: 'pointer' }}>4) Calibrate Live</button>
                                 </div>
                                 <textarea
+                                    className="vitals-control-textarea"
                                     value={referenceInput}
                                     onChange={(e) => setReferenceInput(e.target.value)}
                                     placeholder={'time,hr,rr,spo2\n10,78,15,98\n20,80,16,98'}
@@ -1523,6 +1526,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                         </h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <select
+                                className="vitals-trend-select"
                                 value={trendDays}
                                 onChange={(e) => setTrendDays(Number(e.target.value))}
                                 style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.2rem 0.45rem', fontSize: '0.74rem' }}
@@ -1531,6 +1535,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                                 <option value={14}>14 days</option>
                             </select>
                             <button
+                                className="vitals-trend-refresh"
                                 onClick={() => fetchLongTermTrend(trendPatientId, trendDays)}
                                 style={{ border: '1px solid #0f172a', borderRadius: '8px', padding: '0.25rem 0.55rem', background: '#fff', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}
                             >
@@ -1591,6 +1596,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                             <Activity size={22} color="var(--primary)" /> AI HEALTH REPORT
                         </h3>
                         <button 
+                            className="vitals-summary-btn"
                             onClick={() => openPatientModal('summary')}
                             disabled={vitals.bpm === 0}
                             style={{ 
@@ -1698,7 +1704,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                             </div>
                             <button onClick={() => setShowPatientModal(false)} style={{
                                 background: 'none', border: '2px solid #111827', borderRadius: '4px',
-                                width: '32px', height: '32px', cursor: 'pointer', fontWeight: 900,
+                                width: '44px', height: '44px', cursor: 'pointer', fontWeight: 900,
                                 fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 boxShadow: '2px 2px 0px #111827', flexShrink: 0
                             }}>✕</button>

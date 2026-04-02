@@ -37,6 +37,7 @@
 .sm-logo {
   display: flex;
   align-items: center;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -133,8 +134,8 @@
   width: clamp(260px, 38vw, 420px);
   height: 100%;
   background: #22272e;
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
   padding: 6em 2em 2em 2em;
@@ -324,6 +325,7 @@
   color: var(--sm-accent, #5227ff);
   letter-spacing: 0;
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
   opacity: var(--sm-num-opacity, 0);
 }
@@ -349,5 +351,22 @@
 
   .staggered-menu-wrapper[data-open] .sm-logo-img {
     filter: invert(100%);
+  }
+}
+
+@media (hover: none) {
+  .sm-socials-list:hover .sm-socials-link,
+  .staggered-menu-panel .sm-socials-list:hover .sm-socials-link:not(:hover) {
+    opacity: 1;
+  }
+
+  .sm-panel-item:hover,
+  .sm-socials-link:hover {
+    color: inherit;
+  }
+
+  .sm-socials-link:active,
+  .sm-panel-item:active {
+    opacity: 0.85;
   }
 }
