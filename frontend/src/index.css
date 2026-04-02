@@ -69,6 +69,12 @@ body,
   min-height: 100%;
 }
 
+html,
+body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-main);
   font-size: var(--fs-300);
@@ -112,6 +118,14 @@ textarea {
   font: inherit;
 }
 
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -124,8 +138,8 @@ a:focus-visible {
 /* Glass & Depth Effects */
 .glass-panel {
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
 }
@@ -539,11 +553,12 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.6rem 1.4rem;
+  min-height: 44px;
+  padding: 0.62rem 1.2rem;
   background: #fff;
   color: #1e293b;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   cursor: pointer;
   margin-bottom: 2rem;
   text-transform: uppercase;
@@ -552,6 +567,12 @@ a:focus-visible {
   border: 1.5px solid #1e293b;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
+}
+
+.app-back-btn-secondary {
+  background: #eef2ff;
+  border-color: #5227ff;
+  color: #3730a3;
 }
 
 .app-back-btn:hover {
@@ -631,8 +652,8 @@ a:focus-visible {
     padding: 0.55rem 0.45rem calc(0.55rem + env(safe-area-inset-bottom));
     background: rgba(28, 33, 40, 0.96);
     border-top: 1px solid #444c56;
-    backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     gap: 0.45rem;
     justify-content: space-between;
   }
@@ -647,6 +668,7 @@ a:focus-visible {
     color: #9aa4b2;
     min-width: 0;
     flex: 1;
+    min-height: 44px;
     padding: 0.45rem 0.4rem;
     border-radius: 10px;
     display: flex;
@@ -663,6 +685,11 @@ a:focus-visible {
   .mobile-nav-item.active {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.1);
+  }
+
+  .mobile-nav-item:active {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
   }
 
   .hub-module-top {
@@ -708,8 +735,42 @@ a:focus-visible {
     padding: 0.95rem !important;
   }
 
+  .vitals-control-input,
+  .vitals-control-btn,
+  .vitals-action-btn,
+  .vitals-control-textarea,
+  .vitals-trend-select,
+  .vitals-trend-refresh,
+  .vitals-summary-btn {
+    min-height: 44px;
+    font-size: 1rem !important;
+  }
+
+  .vitals-control-input,
+  .vitals-control-btn,
+  .vitals-trend-select,
+  .vitals-trend-refresh,
+  .vitals-summary-btn {
+    padding-top: 0.55rem !important;
+    padding-bottom: 0.55rem !important;
+  }
+
+  .vitals-control-textarea {
+    line-height: 1.45;
+  }
+
   .hero-unboxed > div {
     flex-wrap: wrap;
+  }
+
+  .neo-btn,
+  .app-back-btn,
+  .mobile-more-item {
+    min-height: 44px;
+  }
+
+  .mobile-more-item {
+    width: 100%;
   }
 
   .v2-shell {
@@ -718,7 +779,7 @@ a:focus-visible {
 
   .v2-side {
     position: static;
-    min-height: auto;
+    min-height: 0;
   }
 }
 
@@ -750,6 +811,16 @@ a:focus-visible {
 
   .mobile-page-shell .app-back-btn {
     margin-bottom: 0.65rem;
+    justify-self: start;
+    align-self: start;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.58rem 1rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
   }
 
   .mobile-page-shell .hero-unboxed {
@@ -763,7 +834,15 @@ a:focus-visible {
   }
 
   .mobile-page-shell .hero-unboxed p {
-    font-size: 0.88rem !important;
+    font-size: 1rem !important;
+  }
+
+  .mobile-page-shell p,
+  .mobile-hub-header p,
+  .mobile-hub-card p,
+  .patients-mobile-card p {
+    font-size: 1rem !important;
+    line-height: 1.5;
   }
 
   .analyzer-mobile-shell .module-content,
@@ -792,7 +871,7 @@ a:focus-visible {
 
   .reports-mobile-shell .neo-btn,
   .vitals-mobile-shell .neo-btn {
-    min-height: 38px;
+    min-height: 44px;
   }
 
   .patients-entries-panel {
@@ -800,8 +879,10 @@ a:focus-visible {
   }
 
   .app-back-btn {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    max-width: 100%;
+    justify-content: flex-start;
+    min-width: 0;
   }
 
   .page-container {
@@ -814,7 +895,7 @@ a:focus-visible {
   }
 
   .mobile-nav-item {
-    font-size: 0.58rem;
+    font-size: 0.62rem;
     padding: 0.4rem 0.3rem;
   }
 
@@ -832,7 +913,7 @@ a:focus-visible {
   .table-v2 th,
   .table-v2 td {
     padding: 0.65rem;
-    font-size: 0.82rem;
+    font-size: 0.94rem;
   }
 }
 
@@ -881,6 +962,7 @@ a:focus-visible {
   .vitals-mobile-shell [style*='Download Session PDF Report'] {
     width: 100%;
   }
+}
 
 
 @media (max-width: 390px) {
@@ -890,8 +972,8 @@ a:focus-visible {
   }
 
   .mobile-page-shell .app-back-btn {
-    font-size: 0.7rem;
-    padding: 0.52rem 0.8rem;
+    font-size: 0.76rem;
+    padding: 0.54rem 0.82rem;
   }
 
   .mobile-page-shell .hero-unboxed {
@@ -904,7 +986,7 @@ a:focus-visible {
   }
 
   .mobile-page-shell .hero-unboxed p {
-    font-size: 0.8rem !important;
+    font-size: 1rem !important;
   }
 
   .analyzer-mobile-content {
@@ -930,7 +1012,7 @@ a:focus-visible {
 
   .analyzer-summary-card p,
   .analyzer-raw-card {
-    font-size: 0.86rem !important;
+    font-size: 1rem !important;
   }
 
   .reports-patient-card {
@@ -965,7 +1047,7 @@ a:focus-visible {
   .reports-action-danger {
     width: 100%;
     justify-content: center;
-    font-size: 0.74rem !important;
+    font-size: 0.9rem !important;
     padding: 0.5rem 0.65rem !important;
   }
 
@@ -1013,9 +1095,9 @@ a:focus-visible {
   .profile-cancel-btn {
     width: 100%;
     justify-content: center;
-    min-height: 42px;
+    min-height: 44px;
     padding: 0.62rem 0.7rem !important;
-    font-size: 0.82rem;
+    font-size: 0.9rem;
   }
 
   .mobile-bottom-nav {
@@ -1025,10 +1107,10 @@ a:focus-visible {
   }
 
   .mobile-nav-item {
-    font-size: 0.5rem;
+    font-size: 0.56rem;
     padding: 0.36rem 0.2rem;
   }
-}
+
   .vitals-action-row > button {
     flex-basis: 100%;
   }
