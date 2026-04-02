@@ -1,9 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Header, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Header
 from typing import Optional
 import logging
 from ..services.db_service import get_supabase_client, db_service
 from ..ai_engine import ai_engine
 from ..services.ocr_service import ocr_service
+from ..utils.validators import validate_medical_file, validate_medical_mime_type, sanitize_text
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -30,9 +31,13 @@ async def create_patient_and_report(
         profile_language = ""
         if user and user.user_metadata:
             profile_language = user.user_metadata.get("preferred_language") or user.user_metadata.get("language") or ""
-        resolved_language = (language or profile_language or "").strip()
+        resolved_language = sanitize_text((language or profile_language or "").strip())[:64]
         if not resolved_language:
             raise HTTPException(status_code=400, detail="Target language is required. Set preferred language in profile or provide language.")
+
+        file_content = await report_file.read()
+        validate_medical_file(report_file.filename, len(file_content))
+        validate_medical_mime_type(report_file.content_type)
         
         # 1. Create Patient
         logger.info(f"Creating patient record for {patient_name}...")
@@ -46,7 +51,6 @@ async def create_patient_and_report(
         new_patient_db_id = patient_record.get("id")
         
         # 2. Extract Text from document
-        file_content = await report_file.read()
         logger.info(f"Extracting text from {report_file.filename} using PaddleOCR...")
         extracted_text = ocr_service.extract_text(file_content)
         
@@ -101,9 +105,11 @@ async def create_patient_and_report(
             "report_summary": report_record
         }
 
-    except Exception as e:
-        logger.error(f"Error in POST /patients: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Error in POST /patients")
+        raise HTTPException(status_code=500, detail="Failed to create patient report")
 
 @router.get("/patients")
 async def get_patients(authorization: str = Header(...)):
@@ -135,7 +141,7 @@ async def get_patients(authorization: str = Header(...)):
                     ]
         
         return patients
-    except Exception as e:
-        logger.error(f"Error fetching patients: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Error fetching patients")
+        raise HTTPException(status_code=500, detail="Failed to fetch patients")
 

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from ..services.tts_service import tts_service
+from ..config import settings
 import logging
+import re
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -17,6 +19,15 @@ async def get_tts(
     if not text:
         raise HTTPException(status_code=400, detail="Text parameter is required")
 
+    if len(text) > settings.MAX_TTS_TEXT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Text is too long. Max length is {settings.MAX_TTS_TEXT_LENGTH} characters",
+        )
+
+    if not re.match(r"^[a-z]{2,8}(-[A-Za-z]{2,8})?$", lang):
+        raise HTTPException(status_code=400, detail="Invalid language code")
+
     try:
         audio_stream = await tts_service.generate_audio(text, lang)
         # Get the size of the BytesIO stream
@@ -30,6 +41,6 @@ async def get_tts(
                 "Content-Length": str(content_length)
             }
         )
-    except Exception as e:
-        logger.error(f"TTS Route Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate speech: {str(e)}")
+    except Exception:
+        logger.exception("TTS route error")
+        raise HTTPException(status_code=500, detail="Failed to generate speech")
