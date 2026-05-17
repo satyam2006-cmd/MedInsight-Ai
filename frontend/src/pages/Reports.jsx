@@ -503,36 +503,55 @@ export default function ReportsPage() {
 
                         {/* Action buttons */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                            <button
-                                onClick={() => {
-                                    const shareUrl = `${window.location.origin}/share/${shareModal.report?.id}`;
-                                    window.open(shareUrl, '_blank', 'noopener,noreferrer');
-                                }}
+                            <a
+                                href={`${window.location.origin}/share/${shareModal.report?.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="neo-btn"
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                                     background: 'var(--primary)', color: 'white', border: '2px solid #111827', borderRadius: '4px',
                                     padding: '0.8rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
-                                    boxShadow: '3px 3px 0px #111827'
+                                    boxShadow: '3px 3px 0px #111827',
+                                    textDecoration: 'none'
                                 }}
                             >
                                 <ExternalLink size={16} /> Open Patient Report Portal
-                            </button>
+                            </a>
                             
-                            <button
-                                onClick={() => {
-                                    handleShareWhatsApp(shareModal.patient, shareModal.report);
-                                }}
-                                className="neo-btn"
-                                style={{
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                    background: '#25D366', color: 'white', border: '2px solid #111827', borderRadius: '4px',
-                                    padding: '0.8rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
-                                    boxShadow: '3px 3px 0px #111827'
-                                }}
-                            >
-                                <MessageSquare size={16} strokeWidth={2.5} /> Send WhatsApp Notification
-                            </button>
+                            {(() => {
+                                if (!shareModal.patient || !shareModal.report) return null;
+                                const patientName = shareModal.patient.patient_name || 'Patient';
+                                const patientNumber = shareModal.patient.patient_number || '';
+                                
+                                let analysisObj = shareModal.report.analysis;
+                                if (typeof analysisObj === 'string') {
+                                    try { analysisObj = JSON.parse(analysisObj); } catch { analysisObj = {}; }
+                                }
+                                const targetLanguage = safeString(analysisObj?.target_language, 'English');
+                                const shareUrl = `${window.location.origin}/share/${shareModal.report.id}`;
+                                const message = generateShareMessage(patientName, targetLanguage, shareUrl);
+                                
+                                const cleanNumber = patientNumber.replace(/\D/g, '');
+                                const whatsappUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+                                return (
+                                    <a
+                                        href={whatsappUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="neo-btn"
+                                        style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                            background: '#25D366', color: 'white', border: '2px solid #111827', borderRadius: '4px',
+                                            padding: '0.8rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
+                                            boxShadow: '3px 3px 0px #111827',
+                                            textDecoration: 'none'
+                                        }}
+                                    >
+                                        <MessageSquare size={16} strokeWidth={2.5} /> Send WhatsApp Notification
+                                    </a>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
