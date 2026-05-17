@@ -156,11 +156,16 @@ export default function SharedReport() {
     /**
      * Safely converts any value to a renderable string.
      * Prevents React error #31 when analysis fields are objects instead of strings.
+     * Flattens nested dictionaries if they contain text properties.
      */
     const safeString = (value, fallback = '') => {
         if (value === null || value === undefined) return fallback;
         if (typeof value === 'string') return value;
         if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (typeof value === 'object') {
+            // Retrieve nested text if available
+            return value.summary || value.hindi_translation || value.text || value.summary_translated || JSON.stringify(value);
+        }
         try { return JSON.stringify(value); } catch { return fallback; }
     };
 
@@ -210,7 +215,7 @@ export default function SharedReport() {
                                 Clinical Summary ({targetLang})
                             </h3>
                             <button
-                                onClick={() => speak(analysis.hindi_translation || analysis.summary_translated || analysis.summary, targetLang)}
+                                onClick={() => speak(safeString(analysis.hindi_translation || analysis.summary_translated || analysis.summary), targetLang)}
                                 className="neo-btn"
                                 disabled={audioLoading}
                                 style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}

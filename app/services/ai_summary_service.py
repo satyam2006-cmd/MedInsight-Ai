@@ -70,10 +70,35 @@ class AISummaryService:
             )
             
             try:
-                return json.loads(response.text)
-            except json.JSONDecodeError:
-                logger.error(f"Failed to parse JSON from AI response: {response.text}")
-                # Fallback if AI didn't return perfect JSON
+                data = json.loads(response.text)
+                # If the AI nested everything under a "summary" key or similar
+                if "summary" in data and isinstance(data["summary"], dict):
+                    nested = data["summary"]
+                    return {
+                        "summary": str(nested.get("summary") or nested.get("text") or nested.get("hindi_translation") or nested),
+                        "hindi_translation": str(nested.get("hindi_translation") or nested.get("summary") or nested),
+                        "risk_level": str(nested.get("risk_level") or data.get("risk_level") or "Moderate")
+                    }
+                
+                # Otherwise, ensure all keys are flat strings
+                flat_data = {}
+                for k in ["summary", "hindi_translation", "risk_level"]:
+                    val = data.get(k, "")
+                    if isinstance(val, dict):
+                        val = val.get("summary") or val.get("text") or val.get("hindi_translation") or val
+                    flat_data[k] = str(val)
+                
+                # Fallback for missing keys
+                if not flat_data.get("summary"):
+                    flat_data["summary"] = "No summary generated."
+                if not flat_data.get("hindi_translation"):
+                    flat_data["hindi_translation"] = flat_data["summary"]
+                if not flat_data.get("risk_level"):
+                    flat_data["risk_level"] = "Moderate"
+                
+                return flat_data
+            except Exception as parse_err:
+                logger.error(f"Failed to parse JSON from AI response: {response.text}, error: {parse_err}")
                 return {
                     "summary": response.text[:500],
                     "hindi_translation": response.text[:500],

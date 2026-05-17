@@ -82,12 +82,16 @@ export default function ReportsPage() {
     /**
      * Safely converts any value to a renderable string.
      * Prevents React error #31 when analysis fields are objects instead of strings.
+     * Flattens nested dictionaries if they contain text properties.
      */
     const safeString = (value, fallback = '') => {
         if (value === null || value === undefined) return fallback;
         if (typeof value === 'string') return value;
         if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-        // If it's an object/array, stringify it so React doesn't crash
+        if (typeof value === 'object') {
+            // Retrieve nested text if available
+            return value.summary || value.hindi_translation || value.text || value.summary_translated || JSON.stringify(value);
+        }
         try { return JSON.stringify(value); } catch { return fallback; }
     };
 
