@@ -153,6 +153,17 @@ export default function SharedReport() {
         ? JSON.parse(report.analysis)
         : (report.analysis || {});
 
+    /**
+     * Safely converts any value to a renderable string.
+     * Prevents React error #31 when analysis fields are objects instead of strings.
+     */
+    const safeString = (value, fallback = '') => {
+        if (value === null || value === undefined) return fallback;
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        try { return JSON.stringify(value); } catch { return fallback; }
+    };
+
     const hInfo = analysis.hospital_details || hospital; // Fallback to fetched profile
 
     // For older reports, if the translation is different from the summary, it's likely the target language
@@ -209,7 +220,7 @@ export default function SharedReport() {
                             </button>
                         </div>
                         <div style={{ fontSize: 'clamp(0.95rem, 3.8vw, 1.3rem)', fontWeight: 600, lineHeight: '1.75' }}>
-                            {(analysis.hindi_translation || analysis.summary_translated || analysis.summary || "").trim().split(/\s+/).map((word, i) => (
+                            {safeString(analysis.hindi_translation || analysis.summary_translated || analysis.summary, "").trim().split(/\s+/).map((word, i) => (
                                 <span
                                     key={i}
                                     style={{
@@ -239,15 +250,15 @@ export default function SharedReport() {
                     <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', color: 'black' }}>
                         <div>
                             <p style={{ margin: 0, fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: '#999' }}>Verified By</p>
-                            <p style={{ margin: 0, fontWeight: 700 }}>{hInfo.admin_name || hInfo.admin_username}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{safeString(hInfo.admin_name || hInfo.admin_username)}</p>
                         </div>
                         <div>
                             <p style={{ margin: 0, fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: '#999' }}>Contact Email</p>
-                            <p style={{ margin: 0, fontWeight: 700 }}>{hInfo.email}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{safeString(hInfo.email)}</p>
                         </div>
                         <div>
                             <p style={{ margin: 0, fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: '#999' }}>Contact Number</p>
-                            <p style={{ margin: 0, fontWeight: 700 }}>{hInfo.phone || 'N/A'}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{safeString(hInfo.phone, 'N/A')}</p>
                         </div>
                     </div>
                 )}

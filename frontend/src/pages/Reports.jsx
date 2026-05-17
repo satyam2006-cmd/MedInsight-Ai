@@ -79,6 +79,18 @@ export default function ReportsPage() {
         fetchPatientsAndReports();
     }, []);
 
+    /**
+     * Safely converts any value to a renderable string.
+     * Prevents React error #31 when analysis fields are objects instead of strings.
+     */
+    const safeString = (value, fallback = '') => {
+        if (value === null || value === undefined) return fallback;
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        // If it's an object/array, stringify it so React doesn't crash
+        try { return JSON.stringify(value); } catch { return fallback; }
+    };
+
     const renderAiAnalysis = (analysis) => {
         if (!analysis) return <p>No AI analysis available.</p>;
 
@@ -89,29 +101,29 @@ export default function ReportsPage() {
             return (
                 <div style={{ background: '#f5f5f5', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px', marginTop: '1rem' }}>
                     <h5 style={{ marginTop: 0, marginBottom: '0.5rem', color: 'var(--primary)', fontSize: '1.2rem' }}>
-                        Risk Level: {parsed.risk_level || 'Unknown'}
+                        Risk Level: {safeString(parsed.risk_level, 'Unknown')}
                     </h5>
 
                     {parsed.summary && (
                         <div style={{ marginBottom: '1rem' }}>
                             <strong style={{ display: 'block', marginBottom: '0.3rem' }}>Summary:</strong>
-                            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{parsed.summary}</p>
+                            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{safeString(parsed.summary)}</p>
                         </div>
                     )}
 
                     {(parsed.hindi_translation || parsed.summary_translated || parsed.translation) && (
                         <div style={{ marginBottom: '1rem' }}>
-                            <strong style={{ display: 'block', marginBottom: '0.3rem' }}>Translation ({parsed.target_language || 'Target Language'}):</strong>
-                            <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{parsed.hindi_translation || parsed.summary_translated || parsed.translation}</p>
+                            <strong style={{ display: 'block', marginBottom: '0.3rem' }}>Translation ({safeString(parsed.target_language, 'Target Language')}):</strong>
+                            <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{safeString(parsed.hindi_translation || parsed.summary_translated || parsed.translation)}</p>
                         </div>
                     )}
 
                     {parsed.vitals_snapshot && (
                         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed #ddd' }}>
-                            <div style={{ fontSize: '0.8rem' }}><strong>HR:</strong> {parsed.vitals_snapshot.hr} BPM</div>
-                            <div style={{ fontSize: '0.8rem' }}><strong>SpO2:</strong> {parsed.vitals_snapshot.spo2}%</div>
-                            <div style={{ fontSize: '0.8rem' }}><strong>RR:</strong> {parsed.vitals_snapshot.rr} RPM</div>
-                            <div style={{ fontSize: '0.8rem' }}><strong>HRV:</strong> {parsed.vitals_snapshot.hrv}ms</div>
+                            <div style={{ fontSize: '0.8rem' }}><strong>HR:</strong> {safeString(parsed.vitals_snapshot.hr)} BPM</div>
+                            <div style={{ fontSize: '0.8rem' }}><strong>SpO2:</strong> {safeString(parsed.vitals_snapshot.spo2)}%</div>
+                            <div style={{ fontSize: '0.8rem' }}><strong>RR:</strong> {safeString(parsed.vitals_snapshot.rr)} RPM</div>
+                            <div style={{ fontSize: '0.8rem' }}><strong>HRV:</strong> {safeString(parsed.vitals_snapshot.hrv)}ms</div>
                         </div>
                     )}
 
@@ -141,7 +153,12 @@ export default function ReportsPage() {
     const handleShareWhatsApp = (patient, report) => {
         const patientName = patient.patient_name || 'Patient';
         const patientNumber = patient.patient_number;
-        const targetLanguage = report.analysis?.target_language || 'English';
+        // Safely extract target_language even if analysis is a string or object
+        let analysisObj = report.analysis;
+        if (typeof analysisObj === 'string') {
+            try { analysisObj = JSON.parse(analysisObj); } catch { analysisObj = {}; }
+        }
+        const targetLanguage = safeString(analysisObj?.target_language, 'English');
 
         if (!patientNumber) {
             alert("No phone number found for this patient.");
@@ -289,9 +306,15 @@ export default function ReportsPage() {
                         <div className="reports-expanded-body" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '2px solid #eee' }}>
                             {patient.reports && patient.reports.length > 0 ? (
                                 patient.reports.map((report) => {
-                                    const analysis = typeof report.analysis === 'string'
-                                        ? JSON.parse(report.analysis)
-                                        : report.analysis;
+                                    let analysis = {};
+                                    try {
+                                        analysis = typeof report.analysis === 'string'
+                                            ? JSON.parse(report.analysis)
+                                            : (report.analysis || {});
+                                    } catch (e) {
+                                        console.warn('Failed to parse report analysis:', e);
+                                        analysis = {};
+                                    }
 
                                     return (
                                         <div key={report.id} className="reports-report-card" style={{ marginBottom: '2rem' }}>
@@ -305,7 +328,7 @@ export default function ReportsPage() {
                                                     color: report.risk_level === 'High' ? '#c62828' : report.risk_level === 'Medium' ? '#ef6c00' : '#2e7d32',
                                                     border: '1px solid currentColor'
                                                 }}>
-                                                    AI Status: {report.status} | Risk Level: {report.risk_level || 'Unknown'}
+                                                    AI Status: {safeString(report.status)} | Risk Level: {safeString(report.risk_level, 'Unknown')}
                                                 </span>
                                                 <div className="reports-action-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                                     <button
@@ -350,7 +373,7 @@ export default function ReportsPage() {
                                                 {/* Hospital Header for trusting branding */}
                                                 <div style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                                                     {(() => {
-                                                        const hospitalName = analysis?.hospital_details?.hospital_name || hospitalInfo?.hospital_name;
+                                                        const hospitalName = safeString(analysis?.hospital_details?.hospital_name || hospitalInfo?.hospital_name);
                                                         return (
                                                     <p style={{ margin: 0, fontWeight: 800, fontSize: '0.8rem', color: 'var(--primary, #5227FF)', textTransform: 'uppercase' }}>
                                                         FROM {hospitalName || 'HOSPITAL PROFILE NOT SET'}
@@ -361,14 +384,14 @@ export default function ReportsPage() {
                                                 </div>
 
                                                 <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, whiteSpace: 'pre-wrap', color: 'black' }}>
-                                                    {analysis?.summary || "No summary available."}
+                                                    {safeString(analysis?.summary, "No summary available.")}
                                                 </p>
 
                                                 {/* Hospital Footer for Liability */}
                                                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #ddd', display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>
-                                                    <div>ADMIN: {analysis?.hospital_details?.admin_name || hospitalInfo?.admin_name || 'Not set in profile'}</div>
-                                                    <div>EMAIL: {analysis?.hospital_details?.email || hospitalInfo?.email || 'Not set in profile'}</div>
-                                                    <div>PHONE: {analysis?.hospital_details?.phone || hospitalInfo?.phone || 'Not set in profile'}</div>
+                                                    <div>ADMIN: {safeString(analysis?.hospital_details?.admin_name || hospitalInfo?.admin_name, 'Not set in profile')}</div>
+                                                    <div>EMAIL: {safeString(analysis?.hospital_details?.email || hospitalInfo?.email, 'Not set in profile')}</div>
+                                                    <div>PHONE: {safeString(analysis?.hospital_details?.phone || hospitalInfo?.phone, 'Not set in profile')}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -482,7 +505,8 @@ export default function ReportsPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
                             <button
                                 onClick={() => {
-                                    window.open(`/share/${shareModal.report?.id}`, '_blank');
+                                    const shareUrl = `${window.location.origin}/share/${shareModal.report?.id}`;
+                                    window.open(shareUrl, '_blank', 'noopener,noreferrer');
                                 }}
                                 className="neo-btn"
                                 style={{
