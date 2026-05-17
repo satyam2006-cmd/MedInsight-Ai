@@ -280,8 +280,10 @@ async def get_report(
         
         # Always try to generate a fresh AI summary for the final report if there's valid data
         if summary.get('avg_hr', 0) > 0:
-            ai_text = await ai_summary_service.generate_summary(summary)
-            summary['ai_summary'] = ai_text
+            ai_data = await ai_summary_service.generate_summary(summary, target_language=language)
+            summary['ai_summary'] = ai_data.get("summary", "")
+            summary['ai_summary_translated'] = ai_data.get("hindi_translation", "")
+            summary['ai_risk_level'] = ai_data.get("risk_level", "Unknown")
 
         # Persist a report entry so it appears in Insight Feed.
         if patient_id and patient_name and patient_contact:
@@ -391,37 +393,55 @@ async def save_session(payload: SaveVitalsSessionRequest):
         supabase = get_supabase_client()
         summary = service.get_session_summary()
         samples = service.get_recent_samples()
-        saved = db_service.create_vitals_session(
-            supabase=supabase,
-            session_id=resolved_session_id,
-            patient_id=patient_key,
-            device_label=payload.device_label,
-            condition_tag=payload.condition_tag,
-            summary=summary,
-            samples=samples,
+        saved = None
+        patient_record = None
+        by_custom = supabase.table("patients").select("id, patient_name").eq("patient_custom_id", patient_key).limit(1).execute()
+        if by_custom.data and len(by_custom.data) > 0:
+            patient_record = by_custom.data[0]
+            
+        if not patient_record:
+            by_number = supabase.table("patients").select("id, patient_name").eq("patient_number", patient_key).limit(1).execute()
+            if by_number.data and len(by_number.data) > 0:
+                patient_record = by_number.data[0]
+                
+        if not patient_record:
+            # If we don't have the patient record, we return an error since we can't create it without name/phone.
+            return JSONResponse(content={"error": f"Patient with ID '{patient_key}' not found. Please generate the PDF report first to register the patient."}, status_code=404)
+            
+        report_text = (
+            f"Live AI-Analyzed Vitals Session for {patient_record.get('patient_name')} ({patient_key}).\n"
+            f"Average HR: {summary.get('avg_hr', 0)} BPM\n"
+            f"Average RR: {summary.get('avg_rr', 0)} RPM\n"
+            f"Average SpO2: {summary.get('avg_spo2', 0)}%\n"
+            f"Session Duration: {summary.get('session_duration_sec', 0)} sec"
         )
 
-        db_service.create_patient_session(
+        analysis_payload = {
+            "summary": summary.get("ai_summary", "Vitals session completed and analyzed."),
+            "hindi_translation": summary.get("ai_summary_translated", ""),
+            "target_language": "English",
+            "risk_level": summary.get("ai_risk_level", "Unknown"),
+            "source": "vitals_live",
+            "vitals_snapshot": {
+                "hr": summary.get("avg_hr"),
+                "spo2": summary.get("avg_spo2"),
+                "rr": summary.get("avg_rr"),
+                "hrv": summary.get("hrv_sdnn")
+            }
+        }
+
+        db_service.create_report(
             supabase=supabase,
-            session_id=resolved_session_id,
-            patient_id=patient_key,
-            timestamp=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-            heart_rate=summary.get("avg_hr", 0),
-            respiration_rate=summary.get("avg_rr", 0),
-            spo2=summary.get("avg_spo2", 0),
-            hrv=summary.get("hrv_sdnn", 0),
-            stress_score=summary.get("stress_score", 0),
-            ai_risk_level=summary.get("ai_risk_level", "NORMAL"),
+            patient_id=patient_record.get("id"),
+            extracted_text=report_text,
+            analysis=analysis_payload,
         )
 
-        trend = db_service.list_patient_sessions(supabase, patient_id=patient_key, limit=365)
-        trend_analysis = trend_analysis_service.analyze_sessions(trend, days=14)
         return {
-            "session_id": saved.get("id"),
-            "message": "Session saved successfully",
+            "session_id": resolved_session_id,
+            "message": "Session saved successfully to Reports",
             "sample_count": len(samples),
             "patient_id": patient_key,
-            "long_term_trend": trend_analysis,
         }
     except Exception as e:
         return JSONResponse(content={"error": f"Failed to save session: {e}"}, status_code=500)

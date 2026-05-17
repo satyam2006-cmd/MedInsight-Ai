@@ -13,6 +13,21 @@ export default function ReportsPage() {
     const [error, setError] = useState(null);
     const [expandedPatientId, setExpandedPatientId] = useState(null);
     const [hospitalInfo, setHospitalInfo] = useState(null);
+    const [shareModal, setShareModal] = useState({
+        isOpen: false,
+        patient: null,
+        report: null,
+        copied: false
+    });
+
+    const openShareModal = (patient, report) => {
+        setShareModal({
+            isOpen: true,
+            patient,
+            report,
+            copied: false
+        });
+    };
 
     useEffect(() => {
         const fetchPatientsAndReports = async () => {
@@ -294,7 +309,7 @@ export default function ReportsPage() {
                                                 </span>
                                                 <div className="reports-action-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                                     <button
-                                                        onClick={() => handleShareWhatsApp(patient, report)}
+                                                        onClick={() => openShareModal(patient, report)}
                                                         className="neo-btn reports-action-primary"
                                                         style={{
                                                             padding: '0.4rem 0.8rem',
@@ -302,11 +317,14 @@ export default function ReportsPage() {
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             gap: '0.4rem',
-                                                            background: '#25D366',
-                                                            color: 'white'
+                                                            background: 'var(--primary)',
+                                                            color: 'white',
+                                                            border: '2px solid black',
+                                                            borderRadius: '4px',
+                                                            boxShadow: '2px 2px 0px black'
                                                         }}
                                                     >
-                                                        <MessageSquare size={16} /> Share to Patient
+                                                        <Share2 size={16} /> Share to Patient
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteReport(report.id)}
@@ -365,6 +383,136 @@ export default function ReportsPage() {
             ))}
                 </div>
             </main>
+
+            {shareModal.isOpen && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    background: 'rgba(0,0,0,0.55)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem'
+                }}>
+                    <div className="neo-card" style={{
+                        background: '#ffffff',
+                        border: '3px solid #111827',
+                        boxShadow: '8px 8px 0px #111827',
+                        borderRadius: '4px',
+                        padding: '2rem',
+                        width: '100%',
+                        maxWidth: '480px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1.25rem'
+                    }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '0.3rem' }}>
+                                    Patient Portal
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#111827', letterSpacing: '-0.5px' }}>
+                                    Share Patient Report
+                                </h3>
+                            </div>
+                            <button onClick={() => setShareModal(prev => ({ ...prev, isOpen: false }))} style={{
+                                background: 'none', border: '2px solid #111827', borderRadius: '4px',
+                                width: '44px', height: '44px', cursor: 'pointer', fontWeight: 900,
+                                fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                boxShadow: '2px 2px 0px #111827', flexShrink: 0
+                            }}>✕</button>
+                        </div>
+
+                        {/* Patient info */}
+                        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem', color: '#1e293b' }}>
+                            <div><span style={{ fontWeight: 600, color: '#64748b' }}>Patient Name:</span> {shareModal.patient?.patient_name}</div>
+                            <div><span style={{ fontWeight: 600, color: '#64748b' }}>Phone Number:</span> {shareModal.patient?.patient_number || 'N/A'}</div>
+                            <div><span style={{ fontWeight: 600, color: '#64748b' }}>Date Generated:</span> {shareModal.report ? new Date(shareModal.report.created_at).toLocaleDateString() : ''}</div>
+                        </div>
+
+                        {/* Copy Link Field */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Patient Access URL</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input
+                                    readOnly
+                                    value={`${window.location.origin}/share/${shareModal.report?.id}`}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.7rem 0.9rem',
+                                        border: '2px solid #111827',
+                                        borderRadius: '4px',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 600,
+                                        background: '#f1f5f9',
+                                        color: '#334155',
+                                        outline: 'none'
+                                    }}
+                                />
+                                <button
+                                    onClick={() => {
+                                        const url = `${window.location.origin}/share/${shareModal.report?.id}`;
+                                        navigator.clipboard.writeText(url);
+                                        setShareModal(prev => ({ ...prev, copied: true }));
+                                        setTimeout(() => {
+                                            setShareModal(prev => ({ ...prev, copied: false }));
+                                        }, 2000);
+                                    }}
+                                    className="neo-btn"
+                                    style={{
+                                        background: shareModal.copied ? '#22c55e' : 'var(--accent)',
+                                        color: shareModal.copied ? 'white' : 'black',
+                                        padding: '0.7rem 1rem',
+                                        fontWeight: 700,
+                                        border: '2px solid #111827',
+                                        borderRadius: '4px',
+                                        boxShadow: '2px 2px 0px #111827',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.1s'
+                                    }}
+                                >
+                                    {shareModal.copied ? 'Copied!' : 'Copy'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                            <button
+                                onClick={() => {
+                                    window.open(`/share/${shareModal.report?.id}`, '_blank');
+                                }}
+                                className="neo-btn"
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                    background: 'var(--primary)', color: 'white', border: '2px solid #111827', borderRadius: '4px',
+                                    padding: '0.8rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
+                                    boxShadow: '3px 3px 0px #111827'
+                                }}
+                            >
+                                <ExternalLink size={16} /> Open Patient Report Portal
+                            </button>
+                            
+                            <button
+                                onClick={() => {
+                                    handleShareWhatsApp(shareModal.patient, shareModal.report);
+                                }}
+                                className="neo-btn"
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                    background: '#25D366', color: 'white', border: '2px solid #111827', borderRadius: '4px',
+                                    padding: '0.8rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
+                                    boxShadow: '3px 3px 0px #111827'
+                                }}
+                            >
+                                <MessageSquare size={16} strokeWidth={2.5} /> Send WhatsApp Notification
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
