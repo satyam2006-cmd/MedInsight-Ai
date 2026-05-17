@@ -611,18 +611,90 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                 if (data.archived) {
                     setCompareMessage('Vitals session successfully archived as a Report.');
                 }
+                return data;
+            } else {
+                throw new Error('Failed to fetch summary.');
             }
         } catch (e) {
             console.error("Error fetching AI summary:", e);
             setVitals(prev => ({ ...prev, ai_summary: 'Error generating summary.' }));
+            throw e;
         }
     };
 
     const openPatientModal = (action) => {
         setPendingAction(action);
-        setPatientForm({ patientId: patientInputId || '', name: '', contact: '', language: 'English' });
+        setPatientForm(prev => ({
+            patientId: prev.patientId || patientInputId || '',
+            name: prev.name || '',
+            contact: prev.contact || '',
+            language: prev.language || 'English'
+        }));
         setPatientFormError('');
         setShowPatientModal(true);
+    };
+
+    const triggerPdfDownload = async (patientInfo) => {
+        try {
+            setCompareLoading(true);
+            
+            // 1. If AI summary hasn't been generated yet (or previously failed), generate it first!
+            const summaryEmpty = !vitals.ai_summary || vitals.ai_summary === 'Error generating summary.' || vitals.ai_summary === 'Analyzing...';
+            if (summaryEmpty) {
+                setCompareMessage('AI summary not found. Initiating clinical summary generation first... Please wait a few moments...');
+                try {
+                    await fetchAISummary(patientInfo);
+                    setCompareMessage('AI summary generated successfully! Compiling your professional clinical PDF...');
+                } catch (e) {
+                    console.error("AI summary pre-generation failed:", e);
+                    setCompareMessage('Could not generate AI summary. Compiling base clinical report instead...');
+                }
+            } else {
+                setCompareMessage('Compiling your professional clinical PDF report...');
+            }
+
+            // 2. Fetch the PDF report
+            const base = getApiBase();
+            const params = new URLSearchParams();
+            if (vitals.session_id) params.set('session_id', vitals.session_id);
+            params.set('patient_id', patientInfo.patientId);
+            params.set('patient_name', patientInfo.name);
+            params.set('patient_contact', patientInfo.contact);
+            params.set('language', patientInfo.language);
+
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers = session?.access_token
+                ? { Authorization: `Bearer ${session.access_token}` }
+                : {};
+
+            const res = await fetch(`${base}/api/vitals/report?${params.toString()}`, {
+                method: 'GET',
+                headers,
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                setCompareMessage(err.error || 'Failed to download PDF report.');
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vitals_report_${patientInfo.patientId}_${Date.now()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            setCompareMessage('PDF downloaded and synced to Insight Feed.');
+        } catch (e) {
+            console.error("Error generating report:", e);
+            setCompareMessage('Failed to download PDF report.');
+        } finally {
+            setCompareLoading(false);
+        }
     };
 
     const handlePatientFormSubmit = async () => {
@@ -633,48 +705,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         if (pendingAction === 'summary') {
             fetchAISummary(patientForm);
         } else if (pendingAction === 'pdf') {
-            try {
-                setCompareLoading(true);
-                const base = getApiBase();
-                const params = new URLSearchParams();
-                if (vitals.session_id) params.set('session_id', vitals.session_id);
-                params.set('patient_id', patientForm.patientId);
-                params.set('patient_name', patientForm.name);
-                params.set('patient_contact', patientForm.contact);
-                params.set('language', patientForm.language);
-
-                const { data: { session } } = await supabase.auth.getSession();
-                const headers = session?.access_token
-                    ? { Authorization: `Bearer ${session.access_token}` }
-                    : {};
-
-                const res = await fetch(`${base}/api/vitals/report?${params.toString()}`, {
-                    method: 'GET',
-                    headers,
-                });
-
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    setCompareMessage(err.error || 'Failed to download PDF report.');
-                    return;
-                }
-
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `vitals_report_${patientForm.patientId}_${Date.now()}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-
-                setCompareMessage('PDF downloaded and synced to Insight Feed.');
-            } catch (e) {
-                setCompareMessage('Failed to download PDF report.');
-            } finally {
-                setCompareLoading(false);
-            }
+            await triggerPdfDownload(patientForm);
         }
     };
 
@@ -805,8 +836,13 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     }, [hrTrend]);
 
     // Helpers
-    const downloadReport = () => {
-        openPatientModal('pdf');
+    const downloadReport = async () => {
+        const hasValidPatientInfo = patientForm.patientId.trim() && patientForm.name.trim() && patientForm.contact.trim();
+        if (hasValidPatientInfo) {
+            await triggerPdfDownload(patientForm);
+        } else {
+            openPatientModal('pdf');
+        }
     };
 
     const saveSession = async () => {

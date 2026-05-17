@@ -1477,6 +1477,8 @@ class VitalsService:
             "ai_risk_level": self.risk_level,
             "alerts": self.alerts_history[-10:],
             "hr_trend": self.hr_readings,
+            "resp_trend": self.resp_readings,
+            "spo2_trend": self.spo2_readings,
         }
 
     def get_recent_samples(self) -> List[Dict[str, Any]]:

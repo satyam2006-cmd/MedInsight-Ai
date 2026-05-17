@@ -267,6 +267,22 @@ async def get_report(
     try:
         summary = service.get_session_summary()
 
+        # Resolve hospital details if authorization or patient is defined
+        hospital_info = None
+        try:
+            sb_client = get_supabase_client(authorization) if authorization else get_supabase_client()
+            auth_res = sb_client.auth.get_user()
+            user = auth_res.user if auth_res and auth_res.user else None
+            if user and user.user_metadata:
+                hospital_info = {
+                    "hospital_name": user.user_metadata.get("hospital_name", ""),
+                    "admin_name": user.user_metadata.get("admin_username", ""),
+                    "email": user.email or "",
+                    "phone": f"{user.user_metadata.get('country_code', '')} {user.user_metadata.get('phone', '')}".strip(),
+                }
+        except Exception:
+            pass
+
         # Attach long-term trend analysis when this session has been persisted.
         if session_id:
             try:
@@ -320,22 +336,6 @@ async def get_report(
                         custom_id=patient_id,
                     )
 
-                user = None
-                try:
-                    auth_response = supabase.auth.get_user()
-                    user = auth_response.user if auth_response and auth_response.user else None
-                except Exception:
-                    user = None
-
-                hospital_info = None
-                if user and user.user_metadata:
-                    hospital_info = {
-                        "hospital_name": user.user_metadata.get("hospital_name", ""),
-                        "admin_name": user.user_metadata.get("admin_username", ""),
-                        "email": user.email or "",
-                        "phone": f"{user.user_metadata.get('country_code', '')} {user.user_metadata.get('phone', '')}".strip(),
-                    }
-
                 risk_level = summary.get("ai_risk_level") or "Unknown"
                 ai_summary = summary.get("ai_summary") or "Vitals session exported successfully."
                 report_text = (
@@ -365,6 +365,14 @@ async def get_report(
                 # Report persistence should not block PDF generation.
                 pass
             
+        # Pass patient and hospital details into the summary dictionary
+        summary["patient_id"] = patient_id
+        summary["patient_name"] = patient_name
+        summary["patient_contact"] = patient_contact
+        summary["language"] = language
+        if hospital_info:
+            summary["hospital_details"] = hospital_info
+
         pdf_bytes = generate_vitals_report(summary)
         return Response(
             content=pdf_bytes,
