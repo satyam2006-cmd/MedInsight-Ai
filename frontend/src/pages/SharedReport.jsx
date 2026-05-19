@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { FileText, Loader2, Volume2, VolumeX, Stethoscope, AlertCircle } from 'lucide-react';
+import { FileText, Loader2, Volume2, VolumeX, Stethoscope, AlertCircle, Languages } from 'lucide-react';
 import { API_BASE_URL } from '../lib/config';
 
 const Logo = () => (
@@ -30,6 +30,36 @@ export default function SharedReport() {
     const [audio, setAudio] = useState(null);
     const [audioLoading, setAudioLoading] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
+    const [translateLang, setTranslateLang] = useState('');
+    const [translating, setTranslating] = useState(false);
+    const [translatedText, setTranslatedText] = useState('');
+
+    const translateReport = async (summaryText, targetLang) => {
+        if (!summaryText || !targetLang) return;
+        if (targetLang.toLowerCase() === 'english') {
+            setTranslatedText(summaryText);
+            return;
+        }
+        try {
+            setTranslating(true);
+            const res = await fetch(`${API_BASE_URL}/translate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: summaryText, target_language: targetLang })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setTranslatedText(data.translated_text || data.translation || summaryText);
+            }
+        } catch (err) {
+            console.error('Translation error:', err);
+        } finally {
+            setTranslating(false);
+        }
+    };
 
     useEffect(() => {
         const fetchReport = async () => {
@@ -45,6 +75,21 @@ export default function SharedReport() {
                 if (!reportData) throw new Error('Report not found');
 
                 setReport(reportData);
+
+                const analysis = typeof reportData.analysis === 'string'
+                    ? JSON.parse(reportData.analysis)
+                    : (reportData.analysis || {});
+
+                const initialLang = analysis.target_language || 'Hindi';
+                setTranslateLang(initialLang);
+
+                const existingTranslation = analysis.hindi_translation || analysis.summary_translated || analysis.translation || '';
+                if (existingTranslation && existingTranslation !== analysis.summary) {
+                    setTranslatedText(existingTranslation);
+                } else if (initialLang.toLowerCase() !== 'english' && analysis.summary) {
+                    // Auto translate on load by default
+                    translateReport(analysis.summary, initialLang);
+                }
 
                 // Fetch patient data linked to report, including hospital_id
                 const { data: patientData, error: patientError } = await supabase
@@ -210,35 +255,82 @@ export default function SharedReport() {
                     </div>
 
                     <div style={{ background: 'white', border: '3px solid black', padding: 'clamp(0.9rem, 4vw, 1.5rem)', marginBottom: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                            <h3 style={{ marginTop: 0, textTransform: 'uppercase', letterSpacing: '1px', fontSize: 'clamp(0.95rem, 3.2vw, 1rem)' }}>
-                                Clinical Summary ({targetLang})
-                            </h3>
-                            <button
-                                onClick={() => speak(safeString(analysis.hindi_translation || analysis.summary_translated || analysis.summary), targetLang)}
-                                className="neo-btn"
-                                disabled={audioLoading}
-                                style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}
-                            >
-                                {audioLoading ? <Loader2 size={18} className="animate-spin" /> : speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                                {speaking ? 'Stop Audio' : 'Play Audio'}
-                            </button>
-                        </div>
-                        <div style={{ fontSize: 'clamp(0.95rem, 3.8vw, 1.3rem)', fontWeight: 600, lineHeight: '1.75' }}>
-                            {safeString(analysis.hindi_translation || analysis.summary_translated || analysis.summary, "").trim().split(/\s+/).map((word, i) => (
-                                <span
-                                    key={i}
+                        {/* Translation & Playback Toolbar */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingBottom: '1rem', borderBottom: '1px dashed #ccc', marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Languages size={16} color="var(--primary)" />
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Translate & Listen</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <input
+                                    type="text"
+                                    value={translateLang}
+                                    onChange={(e) => setTranslateLang(e.target.value)}
+                                    placeholder="Hindi, Telugu, Spanish..."
                                     style={{
-                                        display: 'inline-block',
-                                        marginRight: '0.4rem',
-                                        padding: '0 2px',
-                                        background: highlightIndex === i ? 'var(--accent)' : 'transparent',
-                                        color: 'black'
+                                        flex: '1 1 160px', minWidth: '120px',
+                                        padding: '0.5rem 0.7rem',
+                                        border: '2px solid #111827',
+                                        borderRadius: '4px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 600,
+                                        boxShadow: '2px 2px 0px #111827'
+                                    }}
+                                />
+                                <button
+                                    onClick={() => translateReport(analysis.summary, translateLang)}
+                                    disabled={translating}
+                                    className="neo-btn"
+                                    style={{
+                                        padding: '0.5rem 0.8rem',
+                                        background: '#1e293b',
+                                        color: 'white',
+                                        border: '2px solid #111827',
+                                        borderRadius: '4px',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 700,
+                                        display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                        boxShadow: '2px 2px 0px #111827',
+                                        cursor: translating ? 'wait' : 'pointer'
                                     }}
                                 >
-                                    {word}
-                                </span>
-                            ))}
+                                    {translating ? <Loader2 size={14} className="animate-spin" /> : <Languages size={14} />}
+                                    {translating ? 'Translating...' : 'Translate'}
+                                </button>
+                                <button
+                                    onClick={() => speak(translatedText || analysis.summary, translateLang || 'English')}
+                                    className="neo-btn"
+                                    disabled={audioLoading}
+                                    style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}
+                                >
+                                    {audioLoading ? <Loader2 size={18} className="animate-spin" /> : speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                    {speaking ? 'Stop Audio' : 'Play Audio'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Render Translated Text with Highlighting */}
+                        <div>
+                            <h3 style={{ marginTop: 0, textTransform: 'uppercase', letterSpacing: '1px', fontSize: 'clamp(0.95rem, 3.2vw, 1rem)', color: 'var(--primary)', marginBottom: '0.5rem' }}>
+                                {translatedText ? `${translateLang || 'Translated'} Summary` : 'Clinical Summary'}
+                            </h3>
+                            <div style={{ fontSize: 'clamp(0.95rem, 3.8vw, 1.3rem)', fontWeight: 600, lineHeight: '1.75' }}>
+                                {(translatedText || safeString(analysis.summary, "")).trim().split(/\s+/).map((word, i) => (
+                                    <span
+                                        key={i}
+                                        style={{
+                                            display: 'inline-block',
+                                            marginRight: '0.4rem',
+                                            padding: '0 2px',
+                                            background: (speaking && highlightIndex === i) ? 'var(--accent)' : 'transparent',
+                                            color: 'black',
+                                            borderRadius: '2px'
+                                        }}
+                                    >
+                                        {word}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </section>

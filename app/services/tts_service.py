@@ -19,8 +19,8 @@ class TTSService:
             'telugu': 'te-IN-MohanNeural',
             'kannada': 'kn-IN-GaganNeural',
             'gujarati': 'gu-IN-NiranjanNeural',
-            'malayalam': 'ml-IN-MidhunNeural',
             'punjabi': 'pa-IN-GurumaNeural',
+            'malayalam': 'ml-IN-MidhunNeural',
             'english': 'en-US-AndrewNeural',
             'spanish': 'es-ES-AlvaroNeural',
             'french': 'fr-FR-HenriNeural',
@@ -31,11 +31,33 @@ class TTSService:
             'russian': 'ru-RU-DmitryNeural'
         }
 
+        self.LANG_CODE_MAP = {
+            'en': 'english', 'en-us': 'english', 'en-gb': 'english', 'en-au': 'english',
+            'hi': 'hindi', 'hi-in': 'hindi',
+            'mr': 'marathi', 'mr-in': 'marathi',
+            'bn': 'bengali', 'bn-in': 'bengali',
+            'ta': 'tamil', 'ta-in': 'tamil',
+            'te': 'telugu', 'te-in': 'telugu',
+            'kn': 'kannada', 'kn-in': 'kannada',
+            'gu': 'gujarati', 'gu-in': 'gujarati',
+            'pa': 'punjabi', 'pa-in': 'punjabi',
+            'ml': 'malayalam', 'ml-in': 'malayalam',
+            'es': 'spanish', 'es-es': 'spanish',
+            'fr': 'french', 'fr-fr': 'french',
+            'de': 'german', 'de-de': 'german',
+            'zh': 'chinese', 'zh-cn': 'chinese',
+            'ja': 'japanese', 'ja-jp': 'japanese',
+            'ko': 'korean', 'ko-kr': 'korean',
+            'ru': 'russian', 'ru-ru': 'russian'
+        }
+
     async def generate_audio(self, text: str, lang: str = 'en') -> io.BytesIO:
         """
         Converts text to speech asynchronously and returns a BytesIO object.
         """
         lang_lower = lang.lower().strip()
+        if lang_lower in self.LANG_CODE_MAP:
+            lang_lower = self.LANG_CODE_MAP[lang_lower]
         voice = self.VOICE_MAP.get(lang_lower, self.VOICE_MAP['english'])
 
         try:

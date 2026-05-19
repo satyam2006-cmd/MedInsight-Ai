@@ -11,11 +11,102 @@ try:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch, mm
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether, Image
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     HAS_REPORTLAB = True
 except ImportError:
     HAS_REPORTLAB = False
+
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    HAS_PLOTLY = True
+except ImportError:
+    HAS_PLOTLY = False
+
+
+def _generate_plotly_chart(session_data: Dict[str, Any]) -> bytes:
+    if not HAS_PLOTLY:
+        return None
+    
+    hr_trend = session_data.get('hr_trend') or []
+    resp_trend = session_data.get('resp_trend') or []
+    spo2_trend = session_data.get('spo2_trend') or []
+    
+    if not hr_trend and not resp_trend and not spo2_trend:
+        return None
+        
+    fig = make_subplots(
+        rows=3, cols=1, 
+        shared_xaxes=True, 
+        vertical_spacing=0.08,
+        subplot_titles=("Heart Rate (BPM)", "Respiration Rate (RPM)", "Oxygen Saturation (SpO₂ %)")
+    )
+    
+    # 1. Heart Rate
+    if hr_trend:
+        start_time = hr_trend[0][0]
+        x_hr = [t[0] - start_time for t in hr_trend]
+        y_hr = [t[1] for t in hr_trend]
+        fig.add_trace(
+            go.Scatter(
+                x=x_hr, y=y_hr, 
+                mode='lines+markers', 
+                name='Heart Rate', 
+                line=dict(color='#ff6b8a', width=2),
+                marker=dict(size=3)
+            ),
+            row=1, col=1
+        )
+        
+    # 2. Respiration Rate
+    if resp_trend:
+        start_time = resp_trend[0][0] if resp_trend else (hr_trend[0][0] if hr_trend else 0)
+        x_rr = [t[0] - start_time for t in resp_trend]
+        y_rr = [t[1] for t in resp_trend]
+        fig.add_trace(
+            go.Scatter(
+                x=x_rr, y=y_rr, 
+                mode='lines+markers', 
+                name='Respiration Rate', 
+                line=dict(color='#3b82f6', width=2),
+                marker=dict(size=3)
+            ),
+            row=2, col=1
+        )
+        
+    # 3. SpO2
+    if spo2_trend:
+        start_time = spo2_trend[0][0] if spo2_trend else (hr_trend[0][0] if hr_trend else 0)
+        x_spo2 = [t[0] - start_time for t in spo2_trend]
+        y_spo2 = [t[1] for t in spo2_trend]
+        fig.add_trace(
+            go.Scatter(
+                x=x_spo2, y=y_spo2, 
+                mode='lines+markers', 
+                name='SpO2', 
+                line=dict(color='#0ea5e9', width=2),
+                marker=dict(size=3)
+            ),
+            row=3, col=1
+        )
+        
+    fig.update_layout(
+        height=380, 
+        width=480, 
+        title_text="Vitals Signal Telemetry Trends",
+        title_font=dict(size=12, family="Helvetica-Bold", color="#0f172a"),
+        showlegend=False,
+        margin=dict(l=35, r=35, t=40, b=35),
+        plot_bgcolor="#f8fafc",
+        paper_bgcolor="#ffffff",
+    )
+    
+    fig.update_xaxes(showgrid=True, gridcolor='#e2e8f0', linecolor='#cbd5e1', tickfont=dict(size=7))
+    fig.update_yaxes(showgrid=True, gridcolor='#e2e8f0', linecolor='#cbd5e1', tickfont=dict(size=7))
+    fig.update_xaxes(title_text="Elapsed Time (seconds)", row=3, col=1, title_font=dict(size=8))
+    
+    return fig.to_image(format="png")
 
 
 def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
@@ -127,7 +218,7 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
     
     elements.append(header_table)
     elements.append(Spacer(1, 4))
-    elements.append(Paragraph("CLINICAL VITALS SIGNALS & AI SUMMARY REPORT", title_style))
+    elements.append(Paragraph("CLINICAL VITALS SIGNALS REPORT", title_style))
     elements.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0f172a'), spaceAfter=10))
 
     # 2. Patient Demographics & Registry Card (Professional Booktabs Style Table)
@@ -219,6 +310,17 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
     elements.append(summary_table)
     elements.append(Spacer(1, 10))
 
+    # 3.5. Plotly Trend Chart
+    try:
+        chart_bytes = _generate_plotly_chart(session_data)
+        if chart_bytes:
+            chart_stream = io.BytesIO(chart_bytes)
+            elements.append(Paragraph("Vitals Signal Telemetry Trends", section_heading))
+            elements.append(Image(chart_stream, width=480, height=380))
+            elements.append(Spacer(1, 10))
+    except Exception as e:
+        print(f"Error generating or inserting Plotly chart: {e}")
+
     # 4. Chronological Vital Signals Log (Align & sample readings over session)
     hr_trend = session_data.get('hr_trend') or []
     resp_trend = session_data.get('resp_trend') or []
@@ -279,11 +381,11 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
         elements.append(readings_table)
         elements.append(Spacer(1, 10))
 
-    # 5. AI Health Diagnostic Summary Section
+    # 5. Clinical Diagnostics Summary Section
     ai_summary_text = session_data.get('ai_summary', '')
     if ai_summary_text:
         ai_elements = []
-        ai_elements.append(Paragraph("AI Clinician Health Insights", section_heading))
+        ai_elements.append(Paragraph("Clinical Diagnostics Summary", section_heading))
         
         # Clinical card box styling
         parsed_paragraphs = []
@@ -318,6 +420,37 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
         
         ai_elements.append(card_table)
         elements.append(KeepTogether(ai_elements))
+
+    # 5b. Translated Clinical Summary (if language != English)
+    translated_text = session_data.get('ai_summary_translated', '')
+    p_lang = session_data.get("language") or "English"
+    if translated_text and p_lang.lower() != 'english':
+        trans_elements = []
+        trans_elements.append(Spacer(1, 6))
+        trans_elements.append(Paragraph(f"Clinical Summary ({p_lang})", section_heading))
+
+        trans_paragraphs = []
+        for line in translated_text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            trans_paragraphs.append(Paragraph(line, ParagraphStyle('TransText', parent=normal_style, spaceAfter=4)))
+
+        trans_card_data = [[Spacer(1, 1), trans_paragraphs]]
+        trans_card = Table(trans_card_data, colWidths=[6, 474])
+        trans_card.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#eff6ff')),
+            ('LINELEFT', (0, 0), (0, -1), 3, colors.HexColor('#2563eb')),
+            ('BOX', (1, 0), (-1, -1), 0.5, colors.HexColor('#bfdbfe')),
+            ('LEFTPADDING', (0, 0), (0, -1), 0),
+            ('RIGHTPADDING', (0, 0), (0, -1), 0),
+            ('TOPPADDING', (0, 0), (0, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (0, -1), 0),
+            ('PADDING', (1, 0), (-1, -1), 8),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        trans_elements.append(trans_card)
+        elements.append(KeepTogether(trans_elements))
 
     # 6. Long-term trend section
     long_term = session_data.get('long_term_trend') or {}
@@ -396,7 +529,7 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
     elements.append(HRFlowable(width="100%", thickness=0.8, color=colors.HexColor('#cbd5e1')))
     elements.append(Spacer(1, 6))
     elements.append(Paragraph(
-        "<b>DISCLAIMER:</b> This vitals telemetry analysis report was auto-generated by the MedInsight AI System. "
+        "<b>DISCLAIMER:</b> This vitals telemetry analysis report was auto-generated by the MedInsight System. "
         "The estimated metrics are based on digital video photoplethysmography (PPG) and should not be used as a primary "
         "basis for diagnostic or medical decisions. Please consult a qualified clinical professional for precise diagnostic evaluations.",
         ParagraphStyle('Disclaimer', parent=normal_style, fontSize=7.5, leading=10, textColor=colors.HexColor('#94a3b8'), alignment=TA_CENTER)
@@ -404,3 +537,73 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
 
     doc.build(elements)
     return buffer.getvalue()
+
+
+def build_clinical_summary_sentence(summary: dict) -> str:
+    avg_hr = round(summary.get('avg_hr', 0), 1)
+    avg_rr = round(summary.get('avg_rr', 0), 1)
+    avg_spo2 = round(summary.get('avg_spo2', 0), 1)
+    hrv = round(summary.get('hrv_sdnn', 0), 1)
+    quality = round(summary.get('avg_signal_quality', 0), 1)
+    
+    duration_sec = round(summary.get('session_duration_sec', 0))
+    if duration_sec < 60:
+        duration_phrase = f"{duration_sec}-second"
+    else:
+        mins = duration_sec // 60
+        secs = duration_sec % 60
+        if secs == 0:
+            duration_phrase = f"{mins}-minute"
+        else:
+            duration_phrase = f"{mins}-minute {secs}-second"
+            
+    alert_count = len(summary.get('alerts', []))
+    
+    abnormalities = []
+    hr_status = "normal"
+    if avg_hr < 60 or avg_hr > 100:
+        hr_status = "abnormal"
+        abnormalities.append("heart rate")
+        
+    rr_status = "normal"
+    if avg_rr < 12 or avg_rr > 20:
+        rr_status = "abnormal"
+        abnormalities.append("respiration rate")
+        
+    spo2_status = "normal"
+    if avg_spo2 < 95:
+        spo2_status = "abnormal"
+        abnormalities.append("peripheral oxygen saturation (SpO2)")
+        
+    if not abnormalities:
+        vitals_status_phrase = "vital signs were within normal limits"
+    else:
+        if len(abnormalities) == 1:
+            vitals_status_phrase = f"vital signs were largely within normal limits, with the exception of {abnormalities[0]}"
+        else:
+            vitals_status_phrase = f"vital signs showed abnormalities in {', '.join(abnormalities[:-1])} and {abnormalities[-1]}"
+            
+    hrv_phrase = "good" if hrv >= 50 else "sub-optimal"
+    
+    if avg_spo2 < 95:
+        spo2_detail = f"However, the average SpO2 was {avg_spo2}%, which is below the normal threshold of >95%, indicating mild hypoxemia."
+    else:
+        spo2_detail = f"The average SpO2 was {avg_spo2}%, which is within the normal threshold of >95%."
+        
+    quality_phrase = "high" if quality >= 70 else "low"
+    reliability_phrase = "supporting high data reliability" if quality >= 70 else "and may impact the reliability of the recorded data"
+    
+    if alert_count == 0:
+        alerts_phrase = "No high-level alerts were triggered."
+    else:
+        alerts_phrase = f"{alert_count} high-level alerts were triggered during the session."
+        
+    sentence = (
+        f"During a {duration_phrase} remote monitoring session, {vitals_status_phrase}. "
+        f"Average heart rate ({avg_hr} BPM) and respiration rate ({avg_rr} RPM) were {hr_status}. "
+        f"Heart rate variability (SDNN {hrv} ms) was {hrv_phrase}. "
+        f"{spo2_detail} "
+        f"Signal quality was {quality}%, which is {quality_phrase} {reliability_phrase}. "
+        f"{alerts_phrase}"
+    )
+    return sentence

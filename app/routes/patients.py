@@ -97,12 +97,13 @@ async def create_patient_and_report(
             analysis=analysis_result.dict()
         )
         
-        # 5. Return success back to frontend
+        # 5. Return success back to frontend, including translated analysis
         return {
             "status": "success",
             "message": "Patient records and AI report saved successfully.",
             "patient": patient_record,
-            "report_summary": report_record
+            "report_summary": report_record,
+            "analysis": analysis_result.dict()
         }
 
     except HTTPException:

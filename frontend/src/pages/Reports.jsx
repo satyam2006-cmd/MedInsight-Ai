@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Trash2, Share2, FileText, ChevronDown, ChevronUp, ExternalLink, Brain, LayoutGrid, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Trash2, Share2, FileText, ChevronDown, ChevronUp, ExternalLink, Brain, LayoutGrid, ArrowLeft, MessageSquare, Volume2, VolumeX, Loader2, Languages } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/config';
 import { openWhatsApp, generateShareMessage } from '../lib/whatsapp';
@@ -19,6 +19,16 @@ export default function ReportsPage() {
         report: null,
         copied: false
     });
+
+    // Translation + Audio playback states
+    const [speaking, setSpeaking] = useState(false);
+    const [audio, setAudio] = useState(null);
+    const [audioLoading, setAudioLoading] = useState(false);
+    const [highlightIndex, setHighlightIndex] = useState(-1);
+    const [activeAudioReportId, setActiveAudioReportId] = useState(null);
+    const [translateLang, setTranslateLang] = useState({});
+    const [translating, setTranslating] = useState({});
+    const [translatedTexts, setTranslatedTexts] = useState({});
 
     const openShareModal = (patient, report) => {
         setShareModal({
@@ -144,13 +154,98 @@ export default function ReportsPage() {
         }
     };
 
-    const speak = (text, lang = 'en-US') => {
-        if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang;
-            window.speechSynthesis.speak(utterance);
-        } else {
-            alert('Text-to-speech not supported in this browser.');
+    const speak = async (text, lang, reportId) => {
+        // Toggle off if same report is already playing
+        if (speaking && activeAudioReportId === reportId && audio) {
+            audio.pause();
+            setSpeaking(false);
+            setHighlightIndex(-1);
+            setActiveAudioReportId(null);
+            return;
+        }
+
+        if (audioLoading) return;
+        if (!text) return;
+
+        try {
+            setAudioLoading(true);
+            setActiveAudioReportId(reportId);
+            const url = `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
+            const newAudio = new Audio(url);
+
+            newAudio.oncanplaythrough = async () => {
+                setAudioLoading(false);
+                try {
+                    await newAudio.play();
+                    setSpeaking(true);
+                } catch (playErr) {
+                    console.error('Play error:', playErr);
+                    setSpeaking(false);
+                }
+            };
+
+            newAudio.addEventListener('timeupdate', () => {
+                const duration = newAudio.duration;
+                if (duration && duration !== Infinity && !isNaN(duration)) {
+                    const progress = newAudio.currentTime / duration;
+                    const words = text.trim().split(/\s+/);
+                    setHighlightIndex(Math.floor(progress * words.length));
+                }
+            });
+
+            newAudio.onended = () => {
+                setSpeaking(false);
+                setAudio(null);
+                setHighlightIndex(-1);
+                setActiveAudioReportId(null);
+            };
+
+            newAudio.onerror = () => {
+                setSpeaking(false);
+                setAudioLoading(false);
+                setAudio(null);
+                setHighlightIndex(-1);
+                setActiveAudioReportId(null);
+            };
+
+            setAudio(newAudio);
+        } catch (err) {
+            console.error('TTS Error:', err);
+            setSpeaking(false);
+            setAudioLoading(false);
+        }
+    };
+
+    const translateReport = async (reportId, summaryText, targetLang) => {
+        if (!summaryText || !targetLang) return;
+        if (targetLang.toLowerCase() === 'english') {
+            setTranslatedTexts(prev => ({ ...prev, [reportId]: summaryText }));
+            return;
+        }
+        try {
+            setTranslating(prev => ({ ...prev, [reportId]: true }));
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers = session?.access_token
+                ? { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }
+                : { 'Content-Type': 'application/json' };
+
+            const res = await fetch(`${API_BASE_URL}/translate`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ text: summaryText, target_language: targetLang })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setTranslatedTexts(prev => ({ ...prev, [reportId]: data.translated_text || data.translation || summaryText }));
+            } else {
+                alert('Translation failed. Please try again.');
+            }
+        } catch (err) {
+            console.error('Translation error:', err);
+            alert('Translation service unavailable.');
+        } finally {
+            setTranslating(prev => ({ ...prev, [reportId]: false }));
         }
     };
 
@@ -372,9 +467,9 @@ export default function ReportsPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Hospital Dashboard View: English Only */}
+                                            {/* Hospital Dashboard View */}
                                             <div className="panel-soft" style={{ background: '#f5f5f5', padding: '1.5rem', borderRadius: '10px' }}>
-                                                {/* Hospital Header for trusting branding */}
+                                                {/* Hospital Header */}
                                                 <div style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                                                     {(() => {
                                                         const hospitalName = safeString(analysis?.hospital_details?.hospital_name || hospitalInfo?.hospital_name);
@@ -387,9 +482,12 @@ export default function ReportsPage() {
                                                     <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.6 }}>WITH MEDINSIGHT AI</span>
                                                 </div>
 
+                                                {/* English Summary */}
                                                 <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, whiteSpace: 'pre-wrap', color: 'black' }}>
                                                     {safeString(analysis?.summary, "No summary available.")}
                                                 </p>
+
+
 
                                                 {/* Hospital Footer for Liability */}
                                                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #ddd', display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.75rem', fontWeight: 600, color: '#666' }}>

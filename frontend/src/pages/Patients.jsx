@@ -16,6 +16,10 @@ export default function PatientsPage() {
     const [preferredLanguage, setPreferredLanguage] = useState('');
     const [report, setReport] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState(null);
+    const [speaking, setSpeaking] = useState(false);
+    const [audioLoading, setAudioLoading] = useState(false);
+    const [audio, setAudio] = useState(null);
 
     // Maintain a list of added patients
     const [patientsList, setPatientsList] = useState([]);
@@ -96,6 +100,7 @@ export default function PatientsPage() {
             };
 
             setPatientsList([...patientsList, newPatient]);
+            setAnalysisResult(result.analysis || result.report_summary?.analysis || null);
             alert('Patient record and AI report saved efficiently!');
 
             // Reset fields
@@ -114,6 +119,50 @@ export default function PatientsPage() {
         }
     };
 
+    const speak = async (text, lang) => {
+        if (speaking && audio) {
+            audio.pause();
+            setSpeaking(false);
+            return;
+        }
+
+        if (audioLoading) return;
+        if (!text) return;
+
+        try {
+            setAudioLoading(true);
+            const url = `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
+            const newAudio = new Audio(url);
+
+            newAudio.oncanplaythrough = async () => {
+                setAudioLoading(false);
+                try {
+                    await newAudio.play();
+                    setSpeaking(true);
+                } catch (playErr) {
+                    console.error('Play error:', playErr);
+                    setSpeaking(false);
+                }
+            };
+
+            newAudio.onended = () => {
+                setSpeaking(false);
+                setAudio(null);
+            };
+
+            newAudio.onerror = () => {
+                setSpeaking(false);
+                setAudioLoading(false);
+                setAudio(null);
+            };
+
+            setAudio(newAudio);
+        } catch (err) {
+            console.error('TTS Error:', err);
+            setSpeaking(false);
+            setAudioLoading(false);
+        }
+    };
 
     return (
         <div className="app-shell">
@@ -233,6 +282,50 @@ export default function PatientsPage() {
                         </button>
                     </div>
                 </form>
+
+                {analysisResult && (
+                    <div className="neo-card brutal-border" style={{ padding: 'clamp(1rem, 3vw, 1.6rem)', background: 'white', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <h3 style={{ marginTop: 0, marginBottom: 0, fontSize: '1.35rem', color: '#1e293b' }}>Analysis Result</h3>
+                        
+                        <div style={{ display: 'grid', gap: '1.25rem' }}>
+                            <div>
+                                <strong style={{ fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>English Summary</strong>
+                                <p style={{ margin: '0.5rem 0 0 0', whiteSpace: 'pre-wrap', fontSize: '1.05rem', color: '#1e293b', lineHeight: 1.6 }}>
+                                    {analysisResult.summary || 'N/A'}
+                                </p>
+                            </div>
+
+                            <div style={{ display: 'grid', gap: '0.75rem', borderTop: '1px dashed #ccc', paddingTop: '1rem' }}>
+                                <div>
+                                    <strong style={{ fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Translated Summary</strong>
+                                    <p style={{ margin: '0.5rem 0 0 0', whiteSpace: 'pre-wrap', fontSize: '1.05rem', color: '#1e293b', lineHeight: 1.6 }}>
+                                        {analysisResult.hindi_translation || 'No translated summary available.'}
+                                    </p>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => speak(analysisResult.hindi_translation || analysisResult.summary, analysisResult.target_language || language || 'English')}
+                                        disabled={audioLoading}
+                                        className="neo-btn"
+                                        style={{ background: speaking ? '#dc2626' : 'var(--primary)', color: 'white', padding: '0.9rem 1.1rem', borderRadius: '14px', fontWeight: 700 }}
+                                    >
+                                        {audioLoading ? 'Loading audio...' : speaking ? 'Stop audio' : 'Play Translated Audio'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => speak(analysisResult.summary, 'English')}
+                                        disabled={audioLoading}
+                                        className="neo-btn"
+                                        style={{ background: '#1e293b', color: 'white', padding: '0.9rem 1.1rem', borderRadius: '14px', fontWeight: 700 }}
+                                    >
+                                        {audioLoading ? 'Loading audio...' : speaking ? 'Stop audio' : 'Play English Audio'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Right Side: Table */}
                 <div className="neo-card brutal-border panel-soft patients-entries-panel" style={{ padding: 'clamp(1rem, 3vw, 1.6rem)', background: 'white' }}>

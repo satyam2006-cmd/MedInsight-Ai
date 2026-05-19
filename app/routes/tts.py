@@ -25,8 +25,12 @@ async def get_tts(
             detail=f"Text is too long. Max length is {settings.MAX_TTS_TEXT_LENGTH} characters",
         )
 
-    if not re.match(r"^[a-z]{2,8}(-[A-Za-z]{2,8})?$", lang):
-        raise HTTPException(status_code=400, detail="Invalid language code")
+    lang = lang.strip()
+    if not lang:
+        raise HTTPException(status_code=400, detail="Language parameter is required")
+
+    if not re.match(r"^[A-Za-z]{2,8}(-[A-Za-z]{2,8})?$", lang):
+        raise HTTPException(status_code=400, detail="Invalid language code or name")
 
     try:
         audio_stream = await tts_service.generate_audio(text, lang)

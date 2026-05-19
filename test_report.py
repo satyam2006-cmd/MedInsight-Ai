@@ -10,7 +10,7 @@ session_data = {
     "patient_id": "Pt - test2",
     "patient_name": "Satyam Bhagat",
     "patient_contact": "7620548131",
-    "language": "English",
+    "language": "Hindi",
     "session_duration_sec": 42.0,
     "avg_hr": 55.2,
     "avg_rr": 10.9,
@@ -20,7 +20,8 @@ session_data = {
     "hr_trend": [(1715950000 + i, 55.2 + i % 2) for i in range(10)],
     "resp_trend": [(1715950000 + i, 10.9 + i % 2) for i in range(10)],
     "spo2_trend": [(1715950000 + i, 93.9 + i % 2) for i in range(10)],
-    "ai_summary": "Remote monitoring session data indicate mild bradycardia (average heart rate 55.2 BPM), mild bradypnea (average respiration rate 10.9 RPM), and mild hypoxia (average SpO2 93.9%). Heart Rate Variability (SDNN 194.2 ms) is preserved. The reliability of these readings is limited by a low signal quality (35.0%) and brief session duration (0.7 minutes). Further clinical assessment or repeat monitoring with improved signal integrity is advised.",
+    "ai_summary": "During a 42-second remote monitoring session, vital signs showed abnormalities in heart rate, respiration rate and peripheral oxygen saturation (SpO2). Average heart rate (55.2 BPM) and respiration rate (10.9 RPM) were abnormal. Heart rate variability (SDNN 194.2 ms) was good. However, the average SpO2 was 93.9%, which is below the normal threshold of >95%, indicating mild hypoxemia. Signal quality was 35.0%, which is low and may impact the reliability of the recorded data. 2 high-level alerts were triggered during the session.",
+    "ai_summary_translated": "42-सेकंड के रिमोट मॉनिटरिंग सत्र के दौरान, महत्वपूर्ण संकेतों ने हृदय गति, श्वसन दर और परिधीय ऑक्सीजन संतृप्ति (SpO2) में असामान्यताओं को दिखाया। औसत हृदय गति (55.2 BPM) और श्वसन दर (10.9 RPM) असामान्य थीं। हृदय गति परिवर्तनशीलता (SDNN 194.2 ms) अच्छी थी। हालांकि, औसत SpO2 93.9% था, जो >95% की सामान्य सीमा से नीचे है, जो हल्के हाइपोक्सिमिया का संकेत देता है। सिग्नल की गुणवत्ता 35.0% थी, जो कम है और रिकॉर्ड किए गए डेटा की विश्वसनीयता को प्रभावित कर सकती है। सत्र के दौरान 2 उच्च-स्तरीय अलर्ट ट्रिगर किए गए।",
     "long_term_trend": {
         "trend_status": "STABLE",
         "trend_indicator": "Stable trend",

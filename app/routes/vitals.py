@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, Header
 from fastapi.responses import JSONResponse, Response
 from ..services.vitals_service import VitalsService
-from ..services.report_service import generate_vitals_report
+from ..services.report_service import generate_vitals_report, build_clinical_summary_sentence
 from ..services.ai_summary_service import ai_summary_service
 from ..services.db_service import db_service, get_supabase_client
 from ..services.trend_analysis_service import trend_analysis_service
+from ..services.translation_service import translation_service
 from ..schemas import (
     SaveVitalsSessionRequest,
     CreateReferenceReadingsRequest,
@@ -175,9 +176,26 @@ async def get_session(
         
         # Ensure we have a valid summary if enough data exists
         if summary.get('avg_hr', 0) > 0:
-            # Generate structured AI insights (English + Translation + Risk)
-            ai_data = await ai_summary_service.generate_summary(summary, target_language=language)
-            summary.update(ai_data) # Inject summary_en, summary_target, risk_level
+            # Local non-AI classification
+            avg_hr = summary.get('avg_hr', 0)
+            avg_spo2 = summary.get('avg_spo2', 0)
+            ai_risk_level = "NORMAL"
+            if avg_spo2 > 0:
+                if avg_spo2 < 90 or avg_hr > 120 or avg_hr < 50:
+                    ai_risk_level = "CRITICAL"
+                elif avg_spo2 < 95 or avg_hr > 100 or avg_hr < 60:
+                    ai_risk_level = "WARNING"
+            
+            clinical_summary_text = build_clinical_summary_sentence(summary)
+            translated_summary = ""
+            if language and language.lower() != 'english':
+                try:
+                    translated_summary = translation_service.translate_text(clinical_summary_text, language)
+                except Exception:
+                    translated_summary = ""
+            summary["ai_summary"] = clinical_summary_text
+            summary["ai_summary_translated"] = translated_summary
+            summary["ai_risk_level"] = ai_risk_level
             
             # If patient info is provided, archive this as a permanent "Report"
             if patient_id and patient_name:
@@ -212,18 +230,18 @@ async def get_session(
                             "email": user.email or "",
                         }
 
-                    # 3. Create Report Record (archived in English as requested)
+                    # 3. Create Report Record
                     report_text = (
-                        f"AI-Analyzed Vitals Session\n"
+                        f"Vitals Session Report\n"
                         f"Patient: {patient_name} ({patient_id})\n"
                         f"Average HR: {summary.get('avg_hr')} BPM\n"
                         f"Average SpO2: {summary.get('avg_spo2')}%"
                     )
                     
                     analysis_data = {
-                        "summary": ai_data.get("summary"),
-                        "hindi_translation": ai_data.get("hindi_translation"),
-                        "risk_level": ai_data.get("risk_level"),
+                        "summary": clinical_summary_text,
+                        "hindi_translation": translated_summary,
+                        "risk_level": ai_risk_level,
                         "target_language": language or "English",
                         "source": "vitals_live",
                         "vitals_snapshot": {
@@ -294,12 +312,26 @@ async def get_report(
             except Exception:
                 pass
         
-        # Always try to generate a fresh AI summary for the final report if there's valid data
-        if summary.get('avg_hr', 0) > 0:
-            ai_data = await ai_summary_service.generate_summary(summary, target_language=language)
-            summary['ai_summary'] = ai_data.get("summary", "")
-            summary['ai_summary_translated'] = ai_data.get("hindi_translation", "")
-            summary['ai_risk_level'] = ai_data.get("risk_level", "Unknown")
+        # Generate local clinical summary sentence
+        clinical_summary_text = build_clinical_summary_sentence(summary)
+        translated_summary = ""
+        if language and language.lower() != 'english':
+            try:
+                translated_summary = translation_service.translate_text(clinical_summary_text, language)
+            except Exception:
+                translated_summary = ""
+        summary['ai_summary'] = clinical_summary_text
+        summary['ai_summary_translated'] = translated_summary
+        
+        avg_hr = summary.get('avg_hr', 0)
+        avg_spo2 = summary.get('avg_spo2', 0)
+        ai_risk_level = "NORMAL"
+        if avg_spo2 > 0:
+            if avg_spo2 < 90 or avg_hr > 120 or avg_hr < 50:
+                ai_risk_level = "CRITICAL"
+            elif avg_spo2 < 95 or avg_hr > 100 or avg_hr < 60:
+                ai_risk_level = "WARNING"
+        summary['ai_risk_level'] = ai_risk_level
 
         # Persist a report entry so it appears in Insight Feed.
         if patient_id and patient_name and patient_contact:
@@ -416,23 +448,42 @@ async def save_session(payload: SaveVitalsSessionRequest):
             # If we don't have the patient record, we return an error since we can't create it without name/phone.
             return JSONResponse(content={"error": f"Patient with ID '{patient_key}' not found. Please generate the PDF report first to register the patient."}, status_code=404)
             
+        avg_hr = summary.get('avg_hr', 0)
+        avg_spo2 = summary.get('avg_spo2', 0)
+        ai_risk_level = "NORMAL"
+        if avg_spo2 > 0:
+            if avg_spo2 < 90 or avg_hr > 120 or avg_hr < 50:
+                ai_risk_level = "CRITICAL"
+            elif avg_spo2 < 95 or avg_hr > 100 or avg_hr < 60:
+                ai_risk_level = "WARNING"
+
+        clinical_summary_text = build_clinical_summary_sentence(summary)
+
         report_text = (
-            f"Live AI-Analyzed Vitals Session for {patient_record.get('patient_name')} ({patient_key}).\n"
-            f"Average HR: {summary.get('avg_hr', 0)} BPM\n"
+            f"Live Vitals Session for {patient_record.get('patient_name')} ({patient_key}).\n"
+            f"Average HR: {avg_hr} BPM\n"
             f"Average RR: {summary.get('avg_rr', 0)} RPM\n"
-            f"Average SpO2: {summary.get('avg_spo2', 0)}%\n"
+            f"Average SpO2: {avg_spo2}%\n"
             f"Session Duration: {summary.get('session_duration_sec', 0)} sec"
         )
 
+        translated_summary = ""
+        req_language = body.language if hasattr(body, 'language') else "English"
+        if req_language and req_language.lower() != 'english':
+            try:
+                translated_summary = translation_service.translate_text(clinical_summary_text, req_language)
+            except Exception:
+                translated_summary = ""
+
         analysis_payload = {
-            "summary": summary.get("ai_summary", "Vitals session completed and analyzed."),
-            "hindi_translation": summary.get("ai_summary_translated", ""),
-            "target_language": "English",
-            "risk_level": summary.get("ai_risk_level", "Unknown"),
+            "summary": clinical_summary_text,
+            "hindi_translation": translated_summary,
+            "target_language": req_language or "English",
+            "risk_level": ai_risk_level,
             "source": "vitals_live",
             "vitals_snapshot": {
-                "hr": summary.get("avg_hr"),
-                "spo2": summary.get("avg_spo2"),
+                "hr": avg_hr,
+                "spo2": avg_spo2,
                 "rr": summary.get("avg_rr"),
                 "hrv": summary.get("hrv_sdnn")
             }

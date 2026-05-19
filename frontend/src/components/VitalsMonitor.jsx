@@ -1,7 +1,40 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
+import { Activity, Heart, Wind, Droplets, Camera, AlertCircle, CheckCircle2, Shield, Download, TrendingUp, BarChart3, Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { API_BASE_URL } from '../lib/config';
+import lottie from 'lottie-web';
+import paperplaneAnimation from '../assets/paperplane.json';
+
+const PaperplaneLoader = () => {
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const anim = lottie.loadAnimation({
+            container: containerRef.current,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: paperplaneAnimation,
+        });
+
+        return () => anim.destroy();
+    }, []);
+
+    return (
+        <div 
+            ref={containerRef} 
+            style={{ 
+                width: '180px', 
+                height: '180px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                margin: '0 auto' 
+            }} 
+        />
+    );
+};
 
 const VitalsMonitor = ({ initialPatientId = '' }) => {
     const videoRef = useRef(null);
@@ -55,8 +88,15 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const [trendLoading, setTrendLoading] = useState(false);
     const [trendPatientId, setTrendPatientId] = useState('');
 
+    // Playback states
+    const [speaking, setSpeaking] = useState(false);
+    const [audio, setAudio] = useState(null);
+    const [audioLoading, setAudioLoading] = useState(false);
+    const [highlightIndex, setHighlightIndex] = useState(-1);
+
     // Patient info modal
     const [showPatientModal, setShowPatientModal] = useState(false);
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
     const [pendingAction, setPendingAction] = useState(null); // 'summary' | 'pdf'
     const [patientForm, setPatientForm] = useState({ patientId: '', name: '', contact: '', language: 'English' });
     const [patientFormError, setPatientFormError] = useState('');
@@ -605,7 +645,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                 setVitals(prev => ({ 
                     ...prev, 
                     ai_summary: data.summary || '',
-                    ai_summary_translated: data.hindi_translation || '',
+                    ai_summary_translated: data.hindi_translation || data.summary_translated || data.translation || '',
                     ai_risk_level: data.risk_level || ''
                 }));
                 if (data.archived) {
@@ -619,6 +659,65 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
             console.error("Error fetching AI summary:", e);
             setVitals(prev => ({ ...prev, ai_summary: 'Error generating summary.' }));
             throw e;
+        }
+    };
+
+    const speak = async (text, lang) => {
+        if (speaking && audio) {
+            audio.pause();
+            setSpeaking(false);
+            setHighlightIndex(-1);
+            return;
+        }
+
+        if (audioLoading) return;
+        if (!text) return;
+
+        try {
+            setAudioLoading(true);
+            const url = `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
+            const newAudio = new Audio(url);
+
+            newAudio.oncanplaythrough = async () => {
+                setAudioLoading(false);
+                try {
+                    await newAudio.play();
+                    setSpeaking(true);
+                } catch (playErr) {
+                    console.error('Play error:', playErr);
+                    setSpeaking(false);
+                }
+            };
+
+            newAudio.addEventListener('timeupdate', () => {
+                const duration = newAudio.duration;
+                if (duration && duration !== Infinity && !isNaN(duration)) {
+                    const currentTime = newAudio.currentTime;
+                    const progress = currentTime / duration;
+                    const words = text.trim().split(/\\s+/);
+                    const foundIndex = Math.floor(progress * words.length);
+                    setHighlightIndex(foundIndex);
+                }
+            });
+
+            newAudio.onended = () => {
+                setSpeaking(false);
+                setAudio(null);
+                setHighlightIndex(-1);
+            };
+
+            newAudio.onerror = () => {
+                setSpeaking(false);
+                setAudioLoading(false);
+                setAudio(null);
+                setHighlightIndex(-1);
+            };
+
+            setAudio(newAudio);
+        } catch (err) {
+            console.error('TTS Error:', err);
+            setSpeaking(false);
+            setAudioLoading(false);
         }
     };
 
@@ -637,21 +736,9 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
     const triggerPdfDownload = async (patientInfo) => {
         try {
             setCompareLoading(true);
+            setIsDownloadingPdf(true);
             
-            // 1. If AI summary hasn't been generated yet (or previously failed), generate it first!
-            const summaryEmpty = !vitals.ai_summary || vitals.ai_summary === 'Error generating summary.' || vitals.ai_summary === 'Analyzing...';
-            if (summaryEmpty) {
-                setCompareMessage('AI summary not found. Initiating clinical summary generation first... Please wait a few moments...');
-                try {
-                    await fetchAISummary(patientInfo);
-                    setCompareMessage('AI summary generated successfully! Compiling your professional clinical PDF...');
-                } catch (e) {
-                    console.error("AI summary pre-generation failed:", e);
-                    setCompareMessage('Could not generate AI summary. Compiling base clinical report instead...');
-                }
-            } else {
-                setCompareMessage('Compiling your professional clinical PDF report...');
-            }
+            setCompareMessage('Compiling your professional clinical PDF report...');
 
             // 2. Fetch the PDF report
             const base = getApiBase();
@@ -694,6 +781,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
             setCompareMessage('Failed to download PDF report.');
         } finally {
             setCompareLoading(false);
+            setIsDownloadingPdf(false);
         }
     };
 
@@ -1111,6 +1199,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
         );
     };
 
+    const canDownload = vitals.bpm > 0 && vitals.session_time >= 30;
     const isCalibrating = vitals.calibration_pct < 100 && vitals.bpm === 0;
     const ageBand = getAgeBand(userAge);
     const ageRanges = getAgeRanges(ageBand);
@@ -1666,17 +1755,50 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                             <div className="ai-content">
                                 {vitals.ai_summary_translated ? (
                                     <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                                             <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Translated Summary ({patientForm.language})</span>
+                                            <button
+                                                onClick={() => speak(vitals.ai_summary_translated, patientForm.language || 'English')}
+                                                className="neo-btn"
+                                                disabled={audioLoading}
+                                                style={{ padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: 'white', fontSize: '0.75rem', borderRadius: '4px' }}
+                                            >
+                                                {audioLoading ? <Loader2 size={14} className="animate-spin" /> : speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                                                {speaking ? 'Stop Audio' : 'Play Audio'}
+                                            </button>
                                         </div>
-                                        {vitals.ai_summary_translated.split('\n').map((line, i) => (
-                                            <p key={i} style={{ margin: '0 0 0.5rem' }}>{line}</p>
-                                        ))}
+                                        <div style={{ fontSize: 'clamp(0.95rem, 3.8vw, 1.1rem)', fontWeight: 600, lineHeight: '1.75' }}>
+                                            {vitals.ai_summary_translated.trim().split(/\\s+/).map((word, i) => (
+                                                <span
+                                                    key={i}
+                                                    style={{
+                                                        display: 'inline-block',
+                                                        marginRight: '0.4rem',
+                                                        padding: '0 2px',
+                                                        background: highlightIndex === i ? 'var(--accent)' : 'transparent',
+                                                        color: 'black'
+                                                    }}
+                                                >
+                                                    {word}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
                                 ) : (
                                     <>
-                                        <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Clinical Summary (English)</div>
-                                        {vitals.ai_summary.split('\n').map((line, i) => {
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Clinical Summary (English)</div>
+                                            <button
+                                                onClick={() => speak(vitals.ai_summary, 'English')}
+                                                className="neo-btn"
+                                                disabled={audioLoading}
+                                                style={{ padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: 'white', fontSize: '0.75rem', borderRadius: '4px' }}
+                                            >
+                                                {audioLoading ? <Loader2 size={14} className="animate-spin" /> : speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                                                {speaking ? 'Stop Audio' : 'Play Audio'}
+                                            </button>
+                                        </div>
+                                        {vitals.ai_summary.split('\\n').map((line, i) => {
                                             if (line.startsWith('##')) {
                                                 return <h4 key={i} style={{ margin: '1rem 0 0.5rem', color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{line.replace('##', '').trim()}</h4>;
                                             }
@@ -1698,14 +1820,48 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                 </div>
 
                 {/* Download Report Button - Bottom */}
-                <button onClick={downloadReport} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                    background: '#1a1a1a', color: 'white', border: '2px solid black', borderRadius: '12px',
-                    padding: '1rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
-                    boxShadow: '4px 4px 0px black', transition: 'transform 0.1s', marginTop: 'auto'
-                }}>
-                    <Download size={18} /> Download Session PDF Report
-                </button>
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    <button 
+                        onClick={downloadReport} 
+                        disabled={!canDownload}
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                            background: canDownload ? '#1a1a1a' : '#e2e8f0', 
+                            color: canDownload ? 'white' : '#94a3b8', 
+                            border: '2px solid black', borderRadius: '12px',
+                            padding: '1rem', fontWeight: 700, 
+                            cursor: canDownload ? 'pointer' : 'not-allowed', 
+                            fontSize: '0.9rem',
+                            boxShadow: canDownload ? '4px 4px 0px black' : 'none', 
+                            transition: 'all 0.1s',
+                            width: '100%'
+                        }}
+                    >
+                        <Download size={18} /> Download Session PDF Report
+                    </button>
+                    {!canDownload && (
+                        <div style={{ 
+                            fontSize: '0.78rem', 
+                            color: '#991b1b', 
+                            background: '#fef2f2', 
+                            border: '1.5px solid #fca5a5', 
+                            borderRadius: '8px', 
+                            padding: '0.6rem 0.8rem',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '0.4rem',
+                            lineHeight: 1.4
+                        }}>
+                            <AlertCircle size={14} style={{ marginTop: '0.1rem', flexShrink: 0 }} />
+                            <span>
+                                {vitals.session_time === 0 
+                                    ? "Start streaming to record session vitals (min. 30s required)." 
+                                    : `Record at least 30s of vitals to download report (Currently: ${Math.round(vitals.session_time)}s / 30s).`}
+                            </span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Patient Info Modal */}
@@ -1863,9 +2019,49 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                 </div>
             )}
 
+            {isDownloadingPdf && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 10000,
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1.5rem',
+                }}>
+                    <div className="neo-card animate-fadeIn" style={{
+                        background: '#ffffff',
+                        border: '3px solid #111827',
+                        boxShadow: '8px 8px 0px #111827',
+                        borderRadius: '12px',
+                        padding: '2.5rem',
+                        width: '100%',
+                        maxWidth: '440px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        gap: '1.5rem',
+                    }}>
+                        <PaperplaneLoader />
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '-1rem' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#111827', letterSpacing: '-0.5px' }}>
+                                Compiling Report
+                            </h3>
+                            <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b', fontWeight: 500, lineHeight: 1.5 }}>
+                                Generating Plotly-based trend graphs, analyzing clinical thresholds, and packaging your medical-grade PDF document. Please wait...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+                @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+                @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
                 .animate-pulse { animation: pulse 1s infinite cubic-bezier(0.4, 0, 0.6, 1); }
+                .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
 
                 .vitals-layout-grid {
                     min-width: 0;

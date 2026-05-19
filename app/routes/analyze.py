@@ -4,8 +4,24 @@ from ..services.ocr_service import ocr_service
 from ..utils.validators import validate_medical_file, validate_medical_mime_type, sanitize_text
 import logging
 
+from pydantic import BaseModel
+from ..services.translation_service import translation_service
+
+class TranslateRequest(BaseModel):
+    text: str
+    target_language: str
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+@router.post("/translate")
+async def translate_text(req: TranslateRequest):
+    try:
+        translated = translation_service.translate_text(req.text, req.target_language)
+        return {"translated_text": translated}
+    except Exception as e:
+        logger.exception("Error translating text")
+        raise HTTPException(status_code=500, detail="Translation failed")
 
 @router.post("/analyze-report")
 async def analyze_report(
