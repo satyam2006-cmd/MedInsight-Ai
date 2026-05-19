@@ -280,10 +280,22 @@ async def get_report(
 ):
     """Generate and download PDF report."""
     service, _ = _resolve_service(session_id)
-    if not service:
-        return JSONResponse(content={"error": "No active session"}, status_code=404)
-    try:
+    summary = None
+    if service:
         summary = service.get_session_summary()
+    elif session_id:
+        try:
+            supabase = get_supabase_client(authorization) if authorization else get_supabase_client()
+            db_session = db_service.get_vitals_session(supabase, session_id)
+            if db_session and db_session.get("summary"):
+                summary = db_session["summary"]
+        except Exception as e:
+            logger.error(f"Failed to load session from DB fallback: {e}")
+
+    if not summary:
+        return JSONResponse(content={"error": "Vitals session data not found"}, status_code=404)
+
+    try:
 
         # Resolve hospital details if authorization or patient is defined
         hospital_info = None
@@ -304,7 +316,7 @@ async def get_report(
         # Attach long-term trend analysis when this session has been persisted.
         if session_id:
             try:
-                supabase = get_supabase_client()
+                supabase = get_supabase_client(authorization) if authorization else get_supabase_client()
                 row = db_service.get_patient_session_by_session_id(supabase, session_id)
                 if row and row.get("patient_id"):
                     historical = db_service.list_patient_sessions(supabase, patient_id=row["patient_id"], limit=365)
@@ -468,7 +480,7 @@ async def save_session(payload: SaveVitalsSessionRequest):
         )
 
         translated_summary = ""
-        req_language = body.language if hasattr(body, 'language') else "English"
+        req_language = payload.language if hasattr(payload, 'language') else "English"
         if req_language and req_language.lower() != 'english':
             try:
                 translated_summary = translation_service.translate_text(clinical_summary_text, req_language)

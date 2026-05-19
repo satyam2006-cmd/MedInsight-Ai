@@ -256,7 +256,14 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
 
     # 3. Session Stats & Averages Card
     elements.append(Paragraph("Session Summary Statistics", section_heading))
-    duration_min = session_data.get('session_duration_sec', 0) / 60
+    
+    avg_hr = session_data.get('avg_hr') if session_data.get('avg_hr') is not None else 0.0
+    avg_rr = session_data.get('avg_rr') if session_data.get('avg_rr') is not None else 0.0
+    avg_spo2 = session_data.get('avg_spo2') if session_data.get('avg_spo2') is not None else 0.0
+    hrv_sdnn = session_data.get('hrv_sdnn') if session_data.get('hrv_sdnn') is not None else 0.0
+    avg_signal_quality = session_data.get('avg_signal_quality') if session_data.get('avg_signal_quality') is not None else 0.0
+    session_duration_sec = session_data.get('session_duration_sec') if session_data.get('session_duration_sec') is not None else 0.0
+    duration_min = session_duration_sec / 60
     
     summary_data = [
         [
@@ -267,33 +274,33 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
         ],
         [
             Paragraph("Heart Rate", table_cell),
-            Paragraph(f"{session_data.get('avg_hr', 0)} BPM", table_cell_bold),
+            Paragraph(f"{avg_hr} BPM", table_cell_bold),
             Paragraph("60 - 100 BPM", table_cell),
-            Paragraph("Normal" if 60 <= session_data.get('avg_hr', 0) <= 100 else "Attention Required", table_cell)
+            Paragraph("Normal" if 60 <= avg_hr <= 100 else "Attention Required", table_cell)
         ],
         [
             Paragraph("Respiration Rate", table_cell),
-            Paragraph(f"{session_data.get('avg_rr', 0)} RPM", table_cell_bold),
+            Paragraph(f"{avg_rr} RPM", table_cell_bold),
             Paragraph("12 - 20 RPM", table_cell),
-            Paragraph("Normal" if 12 <= session_data.get('avg_rr', 0) <= 20 else "Attention Required", table_cell)
+            Paragraph("Normal" if 12 <= avg_rr <= 20 else "Attention Required", table_cell)
         ],
         [
             Paragraph("Oxygen Saturation (SpO₂)", table_cell),
-            Paragraph(f"{session_data.get('avg_spo2', 0)} %", table_cell_bold),
+            Paragraph(f"{avg_spo2} %", table_cell_bold),
             Paragraph("95 - 100 %", table_cell),
-            Paragraph("Normal" if session_data.get('avg_spo2', 0) >= 95 else "Hypoxia Risk", table_cell)
+            Paragraph("Normal" if avg_spo2 >= 95 else "Hypoxia Risk", table_cell)
         ],
         [
             Paragraph("HRV (SDNN)", table_cell),
-            Paragraph(f"{session_data.get('hrv_sdnn', 0)} ms", table_cell_bold),
+            Paragraph(f"{hrv_sdnn} ms", table_cell_bold),
             Paragraph("&gt; 50 ms", table_cell),
-            Paragraph("Good Variability" if session_data.get('hrv_sdnn', 0) >= 50 else "Sub-optimal", table_cell)
+            Paragraph("Good Variability" if hrv_sdnn >= 50 else "Sub-optimal", table_cell)
         ],
         [
             Paragraph("Signal Integrity", table_cell),
-            Paragraph(f"{session_data.get('avg_signal_quality', 0)} %", table_cell),
+            Paragraph(f"{avg_signal_quality} %", table_cell),
             Paragraph("&gt; 70 %", table_cell),
-            Paragraph("High Quality" if session_data.get('avg_signal_quality', 0) >= 70 else "Low Quality", table_cell)
+            Paragraph("High Quality" if avg_signal_quality >= 70 else "Low Quality", table_cell)
         ]
     ]
 
@@ -348,8 +355,8 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
         for t, hr_val in selected_hr:
             offset_sec = int(t - start_time)
             offset_str = f"+{offset_sec // 60:02d}:{offset_sec % 60:02d}"
-            rr_val = get_nearest(t, resp_trend, session_data.get('avg_rr', 0))
-            spo2_val = get_nearest(t, spo2_trend, session_data.get('avg_spo2', 0))
+            rr_val = get_nearest(t, resp_trend, avg_rr)
+            spo2_val = get_nearest(t, spo2_trend, avg_spo2)
             
             readings_list.append([
                 Paragraph(offset_str, table_cell),
@@ -540,13 +547,13 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
 
 
 def build_clinical_summary_sentence(summary: dict) -> str:
-    avg_hr = round(summary.get('avg_hr', 0), 1)
-    avg_rr = round(summary.get('avg_rr', 0), 1)
-    avg_spo2 = round(summary.get('avg_spo2', 0), 1)
-    hrv = round(summary.get('hrv_sdnn', 0), 1)
-    quality = round(summary.get('avg_signal_quality', 0), 1)
+    avg_hr = round(summary.get('avg_hr') if summary.get('avg_hr') is not None else 0.0, 1)
+    avg_rr = round(summary.get('avg_rr') if summary.get('avg_rr') is not None else 0.0, 1)
+    avg_spo2 = round(summary.get('avg_spo2') if summary.get('avg_spo2') is not None else 0.0, 1)
+    hrv = round(summary.get('hrv_sdnn') if summary.get('hrv_sdnn') is not None else 0.0, 1)
+    quality = round(summary.get('avg_signal_quality') if summary.get('avg_signal_quality') is not None else 0.0, 1)
     
-    duration_sec = round(summary.get('session_duration_sec', 0))
+    duration_sec = round(summary.get('session_duration_sec') if summary.get('session_duration_sec') is not None else 0.0)
     if duration_sec < 60:
         duration_phrase = f"{duration_sec}-second"
     else:
