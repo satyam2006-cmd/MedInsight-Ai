@@ -1705,7 +1705,8 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                     )}
                 </div>
 
-                {/* AI Health Summary Panel */}
+                      {/* AI Health Summary Panel */}
+                {false && (
                 <div className="neo-card" style={{ 
                     background: '#f1f5f9', 
                     borderRadius: '16px', 
@@ -1768,7 +1769,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                                             </button>
                                         </div>
                                         <div style={{ fontSize: 'clamp(0.95rem, 3.8vw, 1.1rem)', fontWeight: 600, lineHeight: '1.75' }}>
-                                            {vitals.ai_summary_translated.trim().split(/\\s+/).map((word, i) => (
+                                            {vitals.ai_summary_translated.trim().split(/\s+/).map((word, i) => (
                                                 <span
                                                     key={i}
                                                     style={{
@@ -1798,7 +1799,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                                                 {speaking ? 'Stop Audio' : 'Play Audio'}
                                             </button>
                                         </div>
-                                        {vitals.ai_summary.split('\\n').map((line, i) => {
+                                        {vitals.ai_summary.split('\n').map((line, i) => {
                                             if (line.startsWith('##')) {
                                                 return <h4 key={i} style={{ margin: '1rem 0 0.5rem', color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{line.replace('##', '').trim()}</h4>;
                                             }
@@ -1818,6 +1819,7 @@ const VitalsMonitor = ({ initialPatientId = '' }) => {
                         )}
                     </div>
                 </div>
+                )}
 
                 {/* Download Report Button - Bottom */}
                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
