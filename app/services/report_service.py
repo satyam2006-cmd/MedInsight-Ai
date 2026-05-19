@@ -600,7 +600,7 @@ def build_clinical_summary_sentence(summary: dict) -> str:
         
     sentence = (
         f"During a {duration_phrase} remote monitoring session, {vitals_status_phrase}. "
-        f"Average heart rate ({avg_hr} BPM) and respiration rate ({avg_rr} RPM) were {hr_status}. "
+        f"Average heart rate ({avg_hr} BPM) was {hr_status} and respiration rate ({avg_rr} RPM) was {rr_status}. "
         f"Heart rate variability (SDNN {hrv} ms) was {hrv_phrase}. "
         f"{spo2_detail} "
         f"Signal quality was {quality}%, which is {quality_phrase} {reliability_phrase}. "
