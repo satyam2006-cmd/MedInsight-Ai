@@ -1,14 +1,3 @@
----
-title: MedInsight AI API
-emoji: 🏥
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
----
-
-# MedInsight AI API
-
 # MedInsight AI
 
 MedInsight AI is a full-stack clinical intelligence platform that combines document analysis, patient management, and camera-based vitals monitoring in one workflow.
