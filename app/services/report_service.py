@@ -13,8 +13,6 @@ try:
     from reportlab.lib.units import inch, mm
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether, Image
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
     HAS_REPORTLAB = True
 except ImportError:
     HAS_REPORTLAB = False
@@ -25,48 +23,6 @@ try:
     HAS_PLOTLY = True
 except ImportError:
     HAS_PLOTLY = False
-
-
-def _register_unicode_font():
-    """Register a Unicode-compatible font for multi-language support."""
-    try:
-        import platform
-        system = platform.system()
-        
-        # Try to register a Unicode font based on the OS
-        if system == "Windows":
-            # Try common Windows Unicode fonts
-            font_paths = [
-                "C:\\Windows\\Fonts\\arialuni.ttf",  # Arial Unicode MS
-                "C:\\Windows\\Fonts\\segoeui.ttf",   # Segoe UI
-                "C:\\Windows\\Fonts\\tahoma.ttf",    # Tahoma
-            ]
-        elif system == "Darwin":  # macOS
-            font_paths = [
-                "/System/Library/Fonts/Helvetica.ttc",
-                "/Library/Fonts/Arial Unicode.ttf",
-            ]
-        else:  # Linux
-            font_paths = [
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            ]
-        
-        for font_path in font_paths:
-            try:
-                pdfmetrics.registerFont(TTFont('UnicodeFont', font_path))
-                return 'UnicodeFont'
-            except:
-                continue
-        
-        # Fallback: use ReportLab's built-in font
-        return 'Helvetica'
-    except:
-        return 'Helvetica'
-
-
-# Register the Unicode font at module load
-UNICODE_FONT = _register_unicode_font()
 
 
 def _generate_plotly_chart(session_data: Dict[str, Any]) -> bytes:
@@ -471,45 +427,6 @@ def generate_vitals_report(session_data: Dict[str, Any]) -> bytes:
         
         ai_elements.append(card_table)
         elements.append(KeepTogether(ai_elements))
-
-    # 5b. Translated Clinical Summary (if language != English)
-    translated_text = session_data.get('ai_summary_translated', '')
-    p_lang = session_data.get("language") or "English"
-    if translated_text and p_lang.lower() != 'english':
-        trans_elements = []
-        trans_elements.append(Spacer(1, 6))
-        trans_elements.append(Paragraph(f"Clinical Summary ({p_lang})", section_heading))
-
-        # Use Unicode font for translated text
-        trans_style = ParagraphStyle(
-            'TransText',
-            parent=normal_style,
-            fontName=UNICODE_FONT,
-            spaceAfter=4
-        )
-
-        trans_paragraphs = []
-        for line in translated_text.split('\n'):
-            line = line.strip()
-            if not line:
-                continue
-            trans_paragraphs.append(Paragraph(line, trans_style))
-
-        trans_card_data = [[Spacer(1, 1), trans_paragraphs]]
-        trans_card = Table(trans_card_data, colWidths=[6, 474])
-        trans_card.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#eff6ff')),
-            ('LINELEFT', (0, 0), (0, -1), 3, colors.HexColor('#2563eb')),
-            ('BOX', (1, 0), (-1, -1), 0.5, colors.HexColor('#bfdbfe')),
-            ('LEFTPADDING', (0, 0), (0, -1), 0),
-            ('RIGHTPADDING', (0, 0), (0, -1), 0),
-            ('TOPPADDING', (0, 0), (0, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (0, -1), 0),
-            ('PADDING', (1, 0), (-1, -1), 8),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
-        trans_elements.append(trans_card)
-        elements.append(KeepTogether(trans_elements))
 
     # 6. Long-term trend section
     long_term = session_data.get('long_term_trend') or {}
