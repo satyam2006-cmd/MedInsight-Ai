@@ -1,15 +1,56 @@
+# Frontend
 frontend/
+
+# Environment files
 .env
 .env.example
+
+# Deployment configs
 .vercelignore
 vercel.json
+
+# Logs / temp
 push_error.txt
+
+# ML / datasets
 Abnormal-ECG-signal-classification/
+
+# Scripts
 setup_droidcam_usb.ps1
 setup_droidcam_wifi.ps1
+
+# SQL dumps
 supabase_schema.sql
 supabase_schema_reset.sql
+
+# Binary / media files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.mov
+*.avi
+*.zip
+*.rar
+*.7z
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pickle
+*.pkl
+
+# Specific files
 report.jpg.jpeg
+webpreview.png
+
+# IDE / editor
 .github/
 .vscode/
 .idea/
+
+# OS files
+.DS_Store
+Thumbs.db
