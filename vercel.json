@@ -4,11 +4,15 @@
   "framework": "vite",
   "crons": [
     {
-      "path": "https://hf.space",
+      "path": "/api/cron-bridge",
       "schedule": "0 */12 * * *"
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/cron-bridge",
+      "destination": "https://hf.space"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
