@@ -244,6 +244,15 @@ class DBService:
         except Exception as e:
             logger.error(f"Error creating accuracy metric: {e}")
             raise
-
+    @staticmethod
+    def execute_db_keep_alive(supabase: Client):
+        """Calls the custom SQL function hello_world to keep the database active."""
+        try:
+            # Calls the remote stored procedure.
+            response = supabase.rpc("hello_world").execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Error executing database keep-alive: {e}")
+            raise
 
 db_service = DBService()
