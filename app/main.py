@@ -32,6 +32,33 @@ app.include_router(tts.router, tags=["TTS"])
 app.include_router(patients.router, tags=["Patients"])
 app.include_router(vitals.router, tags=["Vitals"])
 
+from .services.db_service import get_supabase_client, DBService
+
+@app.get("/api/db-keep-alive")
+async def db_keep_alive():
+    """
+    Public keep-alive endpoint targeted by Vercel or Cron-Job.org.
+    Triggers a database transaction to reset the 7-day pause timer.
+    """
+    try:
+        # Initialize a basic client without an active user JWT token context
+        supabase_client = get_supabase_client()
+        
+        # Run the tracking function via your DB Service
+        result = DBService.execute_db_keep_alive(supabase_client)
+        
+        return {
+            "status": "success",
+            "message": "Database ping acknowledged",
+            "db_response": result
+        }
+    except Exception as e:
+        logger.error(f"Cron keep-alive routing error: {str(e)}")
+        return {
+            "status": "error",
+            "detail": f"Failed to execute database lifecycle trigger: {str(e)}"
+        }
+
 @app.get("/health")
 async def health():
     return {
